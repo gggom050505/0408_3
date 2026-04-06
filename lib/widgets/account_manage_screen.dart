@@ -136,20 +136,22 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('계정 탈퇴'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              '이 기기에 저장된 로그인 정보와 계정이 삭제됩니다. 상점·가방 데이터 파일은 기기에 그대로 남을 수 있어요.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pass,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: '비밀번호 확인'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                '이 기기에 저장된 로그인 정보와 계정이 삭제됩니다. 상점·가방 데이터 파일은 기기에 그대로 남을 수 있어요.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pass,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: '비밀번호 확인'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -168,11 +170,14 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       pass.dispose();
       return;
     }
+    final pwd = pass.text;
+    // 다이얼로그 닫힘 애니메이션 중 TextField 이 컨트롤러를 참조할 수 있음
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    pass.dispose();
     final err = await LocalAccountStore.instance.deleteAccount(
       loginKey: widget.session.loginKey,
-      password: pass.text,
+      password: pwd,
     );
-    pass.dispose();
     if (!mounted) {
       return;
     }
