@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../config/gggom_offline_landing.dart';
 
 /// Next.js `cardThemes.ts`와 동일한 파일 규칙.
@@ -103,6 +105,11 @@ String? getCardImageUrl({
   required String assetOrigin,
 }) {
   if (themeId == koreaTraditionalMajorThemeId) {
+    return null;
+  }
+  // 웹 정적 배포(Vercel 등)에는 프로덕션 사이트의 /cards/ 경로가 없을 수 있음.
+  // 이 경우 Image.network 실패 → 이모지만 보임. 번들 assets/www_gggom/cards/ 를 쓴다.
+  if (kIsWeb) {
     return null;
   }
   if (assetOrigin.isEmpty) return null;
