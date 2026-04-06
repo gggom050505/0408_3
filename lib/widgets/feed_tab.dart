@@ -660,7 +660,7 @@ class _PostTileState extends State<_PostTile> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               )
-            else if (p.imageUrl == null)
+            else if (p.content.trim().isNotEmpty)
               Text(p.content, style: Theme.of(context).textTheme.bodyMedium),
             if (p.tags.isNotEmpty && !_editingPost) ...[
               const SizedBox(height: 8),

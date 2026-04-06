@@ -85,6 +85,11 @@ class AdRewardSheet extends StatelessWidget {
   }
 }
 
+/// `advert/*.mp4`가 없거나(또는 코덱 문제로) 재생 실패할 때 1회 시도하는 짧은 데모 소스.
+/// 베타용이며, 실서비스 광고는 반드시 `advert/`에 정식 MP4를 넣는 것을 권장합니다.
+const String _kFallbackBetaAdVideoUrl =
+    'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
+
 /// 전체 화면 광고 영상 1편. 재생 완료 시 `true`, 초기화·재생 실패 시 `false`.
 class _AdRewardVideoDialog extends StatefulWidget {
   const _AdRewardVideoDialog({required this.assetPath});
@@ -105,30 +110,55 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
     _init();
   }
 
-  Future<void> _init() async {
-    final c = VideoPlayerController.asset(
-      widget.assetPath,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-    _controller = c;
+  Future<VideoPlayerController?> _tryAttach(VideoPlayerController c) async {
     c.addListener(_onVideoUpdate);
     try {
       await c.initialize();
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AdReward video init failed (${widget.assetPath}): $e\n$st');
+      c.removeListener(_onVideoUpdate);
+      await c.dispose();
+      return null;
+    }
+    if (!mounted) {
+      c.removeListener(_onVideoUpdate);
+      await c.dispose();
+      return null;
+    }
+    if (c.value.hasError) {
+      c.removeListener(_onVideoUpdate);
+      await c.dispose();
+      return null;
+    }
+    return c;
+  }
+
+  Future<void> _init() async {
+    VideoPlayerController? c = await _tryAttach(
+      VideoPlayerController.asset(
+        widget.assetPath,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      ),
+    );
+
+    // `advert/`에 MP4가 없거나 깨진 경우 등 — 베타에서는 데모 영상으로 시도.
+    c ??= await _tryAttach(
+      VideoPlayerController.networkUrl(
+        Uri.parse(_kFallbackBetaAdVideoUrl),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      ),
+    );
+
+    if (c == null) {
       if (mounted && !_ended) {
         _ended = true;
         Navigator.of(context).pop(false);
       }
       return;
     }
+
+    _controller = c;
     if (!mounted) {
-      return;
-    }
-    if (c.value.hasError) {
-      if (!_ended) {
-        _ended = true;
-        Navigator.of(context).pop(false);
-      }
       return;
     }
     setState(() {});
@@ -330,7 +360,8 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
         widget.messengerKey?.currentState?.showSnackBar(
           SnackBar(
             content: Text(
-              '광고 영상을 재생하지 못했어요.\n`$assetPath` 파일이 `advert/`에 있는지 확인해 주세요.',
+              '광고 영상을 재생하지 못했어요.\n'
+              '`advert/`에 ad_1.mp4 등을 넣었는지 확인하고, 웹에서는 인터넷 연결도 필요해요.',
             ),
           ),
         );
@@ -452,7 +483,8 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
               Text(
                 '• 별조각을 받은 직후부터 ${AppConfig.adRewardCooldownMinutes}분 동안은 같은 계정으로 광고를 다시 볼 수 없어요.\n'
                 '• 남은 대기 시간은 아래에 분·초(MM:SS)로 표시돼요.\n'
-                '• 광고 영상은 `advert/` 폴더의 MP4를 사용해요 (기본 파일명: ad_1.mp4, ad_2.mp4).',
+                '• 광고 영상은 `advert/` 폴더의 MP4를 사용해요 (기본 파일명: ad_1.mp4, ad_2.mp4).\n'
+                  '• 파일이 없거나 재생이 안 되면 베타용 짧은 데모 영상(인터넷 필요)으로 대체돼요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.45,

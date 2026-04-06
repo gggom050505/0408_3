@@ -93,4 +93,19 @@ class LocalAppPreferences {
 
   static String _adRewardPromoIdxKey(String userId) =>
       'ad_reward_next_promo_asset_idx_${userId.trim()}';
+
+  static String _tarotEquipDefaultsV1Key(String userId) =>
+      'tarot_equip_defaults_v1_done_${userId.trim()}';
+
+  /// 아직 [markTarotEquipDefaultsV1Done] 전이면 `true` — 덱·뒷면·슬롯 기본 장착 일회 적용용.
+  static Future<bool> needsTarotEquipDefaultsV1(String userId) async {
+    final m = await _load();
+    return m[_tarotEquipDefaultsV1Key(userId)] != true;
+  }
+
+  static Future<void> markTarotEquipDefaultsV1Done(String userId) async {
+    final m = await _load();
+    m[_tarotEquipDefaultsV1Key(userId)] = true;
+    await _save(m);
+  }
 }

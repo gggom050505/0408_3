@@ -1,0 +1,27 @@
+---
+description: 기본 작업 모드 — 완전 오프라인 번들(GGGOM_OFFLINE_BUNDLE), PC만 안전하게
+alwaysApply: true
+---
+
+# 기본: 완전 오프라인 번들 · PC 중심 (실서비스 자동 전제 금지)
+
+사용자가 **별도로** 배포·스테이징·Supabase 연동·Vercel·가비아 동기화를 요청하지 않는 한, 이 저장소에서는 다음을 **기본 전제**로 둔다.
+
+## 실행·빌드 제안
+
+- `flutter run`, `flutter build`(웹·윈도우 등)을 안내할 때는 **기본값**으로  
+  `--dart-define=GGGOM_OFFLINE_BUNDLE=true` 를 포함한다.
+- VS Code/Cursor 실행 구성이 있으면 **「공공곰타로덱: 오프라인·게스트」** 사용을 1순위로 안내한다 (`lib/main.dart` 주석·`docs/OFFLINE_EDITING.md`와 일치).
+- **공개 프로덕션** 빌드나 `SITE_ACCESS_PIN` 미리보기 빌드는 사용자가 명시적으로 요청할 때만 다룬다.
+
+## 무엇을 자동으로 하지 않을지
+
+- 실서비스 URL 접속, OAuth/대시보드 로그인 자동화, Vercel/Git 배포를 **기본 작업**으로 끌고 가지 않는다. (다른 규칙 `url-login-consent`와 함께 준수.)
+
+## 예외
+
+사용자가 **연동·배포·프로덕션·스테이징·Supabase·Vercel** 등을 분명히 요청하면 그때는 해당 목표에 맞게 `GGGOM_OFFLINE_BUNDLE` 없이 또는 define 조합을 안내한다.
+
+## 한 줄 요약
+
+「PC에서만 안전하게」가 **묵시적 기본**이다. 추가 프롬프트 없이도 이 모드를 유지한다.

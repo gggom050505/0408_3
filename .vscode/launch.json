@@ -12,7 +12,8 @@
       "name": "공공곰타로덱: 오프라인·게스트",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define=GGGOM_OFFLINE_BUNDLE=true"]
     }
   ]
 }

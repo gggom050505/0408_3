@@ -92,10 +92,10 @@ class _PostCaptureSheetState extends State<PostCaptureSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgMain,
-      resizeToAvoidBottomInset: true,
-      body: Padding(
+    // 모달 시트 안에서는 Scaffold를 쓰지 않음(웹 등에서 부모·자식 높이 제약이 꼬여 시트가 비어 보일 수 있음).
+    return Material(
+      color: AppColors.bgMain,
+      child: Padding(
         padding: EdgeInsets.only(
           left: 20,
           right: 20,

@@ -20,17 +20,25 @@
 
 ## 2. 실행 — 서버 없이
 
-- **Supabase URL/키를 넣지 않고** 실행하면 **오프라인·베타 번들**이 켜집니다.
+- **`GGGOM_OFFLINE_BUNDLE=true`** 로 빌드·실행해야 **Supabase를 아예 켜지 않습니다.**  
+  (키를 안 넣어도 기본 카탈로그에 프로덕션 URL·키가 있어서, define 없이 실행하면 네트워크 연동이 될 수 있어요.)
+- Cursor/VS Code에서는 **「공공곰타로덱: 오프라인·게스트」** 구성이 위 define을 넣도록 설정돼 있습니다.
 - 게시물·상점·가방·이벤트·출석·채팅 탭도 **베타(로컬) 데이터로 동작**합니다(데이터는 이 기기 안에서만).
 - 로그인 화면 → **「로그인 없이 둘러보기」** → 전 탭 확인 가능.
 
 자세한 설명: [STANDALONE_INSTALL.md](STANDALONE_INSTALL.md)
 
-**Windows 터미널 예:**
+**Windows 터미널 예 (완전 오프라인 번들):**
 
 ```powershell
 cd 프로젝트\gggom0505_0403
-flutter run -d windows
+flutter run -d windows --dart-define=GGGOM_OFFLINE_BUNDLE=true
+```
+
+웹(Chrome)만 로컬에서 볼 때:
+
+```powershell
+flutter run -d chrome --dart-define=GGGOM_OFFLINE_BUNDLE=true
 ```
 
 ---

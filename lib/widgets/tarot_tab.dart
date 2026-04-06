@@ -564,7 +564,14 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       showDragHandle: true,
+      constraints: kIsWeb
+          ? BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+            )
+          : null,
       builder: (c) => PostCaptureSheet(
         pngBytes: Uint8List.fromList(bytes),
         feed: feed!,

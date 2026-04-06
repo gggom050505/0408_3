@@ -94,4 +94,16 @@ class AppConfig {
 
   /// 같은 유저 기준 광고 보상 재시청 최소 간격(분). UI·저장 로직과 맞출 것.
   static const adRewardCooldownMinutes = 10;
+
+  /// 웹 미리보기·스테이징용 접근 암호. 비어 있으면 게이트 없음(공개 빌드).
+  /// `flutter build web --dart-define=SITE_ACCESS_PIN=여기에암호`
+  /// **주의:** 최종 JS에 문자열이 포함되며, 세션 저장은 `sessionStorage`뿐입니다.
+  static const _siteAccessPinEnv =
+      String.fromEnvironment('SITE_ACCESS_PIN', defaultValue: '');
+
+  /// [kIsWeb] 이고 빌드 시 암호가 지정된 경우에만 [SiteAccessGate] 사용.
+  static bool get siteAccessPinRequired =>
+      kIsWeb && _siteAccessPinEnv.trim().isNotEmpty;
+
+  static String get siteAccessPin => _siteAccessPinEnv.trim();
 }

@@ -40,4 +40,22 @@ void main() {
       gggomDailyStarPrice('stable-key', day),
     );
   });
+
+  test('gggomDailyStarPrice: ⭐1·⭐2는 무작위 품목 기준으로 드물게', () {
+    final day = DateTime.utc(2027, 6, 1);
+    var star1 = 0;
+    var star2 = 0;
+    const n = 4000;
+    for (var i = 0; i < n; i++) {
+      final p = gggomDailyStarPrice('sample-key-$i', day);
+      if (p == 1) {
+        star1++;
+      } else if (p == 2) {
+        star2++;
+      }
+    }
+    // 이전 설계(⭐1+⭐2 합 ~5%)보다 낮게 유지: ~3% 부근 기대
+    expect(star1 + star2, lessThan(n * 8 ~/ 100));
+    expect(star1, lessThan(n ~/ 50));
+  });
 }

@@ -22,25 +22,27 @@ DateTime gggomUtcDateOnly([DateTime? utc]) {
 
 /// 상점 단가 — **매일(UTC 날짜)** 바뀜. 같은 날·같은 품목은 항상 동일(해시 기반).
 ///
-/// 품목마다 그날 **1~100** 결정론 난수를 한 번 뽑고:
-/// - `1` → 별조각 **1**
-/// - `2`~`5` → **2**
-/// - `6`~`15` → **3**
-/// - `16`~`100` → **4**~**10** (별도 결정론 난수)
+/// 품목마다 그날 **1~10000** 결정론 난수 [r] 한 번:
+/// - **1** — 약 0.5% (`r` ≤ 50)
+/// - **2** — 약 2.5% (51 ≤ `r` ≤ 300)
+/// - **3** — 약 10% (301 ≤ `r` ≤ 1300)
+/// - **4~10** — 나머지 (별도 결정론 난수)
+///
+/// ⭐1·⭐2는 예전(각각 약 1%·4%)보다 드물게 나오도록 설계했습니다.
 ///
 /// [dayUtc]가 null이면 **오늘 UTC** 날짜를 사용합니다.
 int gggomDailyStarPrice(String key, [DateTime? dayUtc]) {
   final d = gggomUtcDateOnly(dayUtc);
   final salt =
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  final tier = gggomStableStarPrice('$salt|tier|$key', min: 1, max: 100);
-  if (tier == 1) {
+  final r = gggomStableStarPrice('$salt|tier|$key', min: 1, max: 10000);
+  if (r <= 50) {
     return 1;
   }
-  if (tier <= 5) {
+  if (r <= 300) {
     return 2;
   }
-  if (tier <= 15) {
+  if (r <= 1300) {
     return 3;
   }
   return gggomStableStarPrice('$salt|tier4_10|$key', min: 4, max: 10);

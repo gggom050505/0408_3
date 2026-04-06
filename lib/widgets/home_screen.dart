@@ -298,6 +298,36 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refreshAttendance();
   }
 
+  /// 덱·카드 뒷면·슬롯을 기본값으로 **계정당 한 번만** 맞춤(출시 스냅샷용).
+  Future<void> _maybeApplyTarotEquipDefaultsV1Once(
+    ShopDataSource repo,
+    String uid,
+  ) async {
+    if (!await LocalAppPreferences.needsTarotEquipDefaultsV1(uid)) {
+      return;
+    }
+    try {
+      final c = await repo.equipItem(
+        userId: uid,
+        itemId: defaultEquippedCard,
+        type: 'card',
+      );
+      final b = await repo.equipItem(
+        userId: uid,
+        itemId: defaultEquippedCardBack,
+        type: 'card_back',
+      );
+      final s = await repo.equipItem(
+        userId: uid,
+        itemId: kDefaultEquippedSlotId,
+        type: 'slot',
+      );
+      if (c != null && b != null && s != null) {
+        await LocalAppPreferences.markTarotEquipDefaultsV1Done(uid);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _refreshShop() async {
     final uid = widget.userId;
     if (!AppConfig.supabaseEnabled) {
@@ -309,6 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         final items = await repo.fetchShopItems();
         await repo.ensureDefaultUserItems(uid);
+        await _maybeApplyTarotEquipDefaultsV1Once(repo, uid);
         final owned = await repo.fetchOwnedItems(uid);
         final profile = await repo.fetchProfile(uid);
         var ownedEmo = <String>[];
@@ -354,6 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final items = await repo.fetchShopItems();
       await repo.fetchProfile(uid);
       await repo.ensureDefaultUserItems(uid);
+      await _maybeApplyTarotEquipDefaultsV1Once(repo, uid);
       final owned = await repo.fetchOwnedItems(uid);
       final profile = await repo.fetchProfile(uid);
       var packs = <EmoticonPackRow>[];

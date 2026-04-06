@@ -10,6 +10,7 @@ import 'config/gggom_runtime_site_config.dart';
 import 'theme/app_colors.dart';
 import 'widgets/app_motion.dart';
 import 'widgets/app_root.dart';
+import 'widgets/site_access_gate.dart';
 
 // 오프라인에서 문구·색·에셋만 손볼 때: docs/OFFLINE_EDITING.md 참고.
 //
@@ -51,6 +52,8 @@ import 'widgets/app_root.dart';
 //   연동 빌드에서만 시뮬 메뉴: `--dart-define=AD_REWARD_TEST_MODE=true`
 //   보상 개수: `--dart-define=AD_REWARD_STARS=1` (기본 1)
 //   오프라인 번들 이모 덮어쓰기: `EMOTICON_CATALOG_*`
+//   웹 미리보기·스테이징만 암호 게이트: `--dart-define=SITE_ACCESS_PIN=비번` (공개 프로덕션 빌드에는 이 define을 넣지 않음.
+//   Vercel이면 Preview 전용 Build Command에만 `SITE_ACCESS_PIN` 넣기 권장)
 //
 // 실행 예(스테이징만 바꿀 때):
 //   flutter run --dart-define=SUPABASE_URL=https://xxx.supabase.co --dart-define=SUPABASE_ANON_KEY=eyJ...
@@ -66,7 +69,12 @@ Future<void> main() async {
   runApp(
     ListenableBuilder(
       listenable: GggomRuntimeSiteConfig.instance,
-      builder: (context, _) => const GgomTarotApp(),
+      builder: (context, _) {
+        const app = GgomTarotApp();
+        return AppConfig.siteAccessPinRequired
+            ? const SiteAccessGate(child: app)
+            : app;
+      },
     ),
   );
 }
