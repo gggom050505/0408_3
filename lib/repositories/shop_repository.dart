@@ -7,6 +7,7 @@ import '../config/korea_major_card_catalog.dart';
 import '../config/shop_random_prices.dart';
 import '../config/starter_gifts.dart';
 import '../data/card_themes.dart' show defaultThemeId, koreaTraditionalMajorThemeId;
+import '../data/oracle_assets.dart' show bundledOracleShopCatalogRows;
 import '../data/slot_shop_assets.dart';
 import '../models/attendance_lucky_models.dart';
 import '../models/shop_models.dart';
@@ -89,6 +90,11 @@ class ShopRepository implements ShopDataSource {
     );
     if (!items.any((e) => e.type == 'korea_major_card')) {
       items = [...items, ...koreaMajorCardShopCatalogRows()];
+    }
+    for (final row in bundledOracleShopCatalogRows()) {
+      if (!items.any((e) => e.id == row.id)) {
+        items.add(row);
+      }
     }
     return items;
   }

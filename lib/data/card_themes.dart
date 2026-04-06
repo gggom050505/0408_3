@@ -160,27 +160,56 @@ String? resolveGggomBundledSitePath(String path) {
     return null;
   }
   final normalized = path.startsWith('/') ? path.substring(1) : path;
-  if (normalized.startsWith('cards/') ||
-      normalized.startsWith('oracle_cards/') ||
-      normalized.startsWith('card_backs/')) {
+  if (normalized.startsWith('oracle_cards/')) {
+    final rest = normalized.substring('oracle_cards/'.length);
+    return 'assets/oracle/$rest';
+  }
+  if (normalized.startsWith('cards/') || normalized.startsWith('card_backs/')) {
     return '$kGggomBundledPublicRoot/$normalized';
   }
   return null;
 }
 
-String? resolvePublicAssetUrl(String path, String assetOrigin) {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
+/// `/assets/...` 처럼 앞에 슬래시만 다른 경우 [Image.asset] 키 `assets/...` 로 맞춥니다.
+/// 그렇지 않으면 상대 경로가 [AppConfig.assetOrigin] 과 붙어 네트워크 URL이 되어
+/// Flutter 웹·정적 호스트에서 404·빈 이미지가 납니다.
+String normalizeFlutterBundledAssetKey(String path) {
+  final t = path.trim();
+  if (t.isEmpty) {
+    return t;
   }
-  if (path.startsWith('assets/')) {
-    return path;
+  if (t.startsWith('http://') ||
+      t.startsWith('https://') ||
+      t.startsWith('file://') ||
+      t.startsWith('data:image/')) {
+    return t;
+  }
+  final noLeadingSlashes = t.replaceFirst(RegExp(r'^/+'), '');
+  if (noLeadingSlashes.startsWith('assets/')) {
+    return noLeadingSlashes;
+  }
+  return t;
+}
+
+String? resolvePublicAssetUrl(String path, String assetOrigin) {
+  var t = path.trim();
+  if (t.startsWith('http://') || t.startsWith('https://')) {
+    return t;
+  }
+  final noLead = t.replaceFirst(RegExp(r'^/+'), '');
+  if (noLead.startsWith('oracle_cards/')) {
+    t = 'assets/oracle/${noLead.substring('oracle_cards/'.length)}';
+  }
+  final asBundled = normalizeFlutterBundledAssetKey(t);
+  if (asBundled.startsWith('assets/')) {
+    return asBundled;
   }
   final o = assetOrigin.replaceAll(RegExp(r'/$'), '');
   if (o.isNotEmpty) {
-    final p = path.startsWith('/') ? path : '/$path';
+    final p = asBundled.startsWith('/') ? asBundled : '/$asBundled';
     return '$o$p';
   }
-  return resolveGggomBundledSitePath(path);
+  return resolveGggomBundledSitePath(asBundled);
 }
 
 /// 상점·가방 아이템 썸네일 — `file://`, `data:image/...` 는 그대로 두고 상대 경로만 오리진과 결합합니다.

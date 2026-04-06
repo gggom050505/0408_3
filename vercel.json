@@ -1,6 +1,6 @@
 {
   "installCommand": "echo \"skip npm; Flutter only\"",
-  "buildCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 .flutter && export PATH=\"$PATH:$PWD/.flutter/bin\" && flutter config --no-analytics && flutter pub get && flutter build web --release",
+  "buildCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 .flutter && export PATH=\"$PATH:$PWD/.flutter/bin\" && flutter config --no-analytics && flutter pub get && flutter build web --release && mkdir -p build/web/oracle_cards && cp assets/oracle/oracle*.png build/web/oracle_cards/",
   "outputDirectory": "build/web",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

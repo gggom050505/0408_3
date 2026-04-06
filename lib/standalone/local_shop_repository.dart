@@ -121,23 +121,9 @@ class LocalShopRepository implements ShopDataSource {
         ),
       ];
 
-  /// `assets/oracle/oracle(n).png` 80종 — 상점·수집용. (별조각 1~10, 번호마다 다름)
-  static List<ShopItemRow> _bundledOracleShopRows() {
-    return List<ShopItemRow>.generate(
-      kBundledOracleCardCount,
-      (i) {
-        final n = i + 1;
-        return ShopItemRow(
-          id: 'oracle-card-${n.toString().padLeft(2, '0')}',
-          name: '오라클 카드 #$n',
-          type: 'oracle_card',
-          price: oracleCardShopStarPrice(n),
-          thumbnailUrl: bundledOracleAssetPath(n)!,
-          isActive: true,
-        );
-      },
-    );
-  }
+  /// 오라클 80종 — PNG는 `assets/oracle/`, 상점 썸네일은 `oracle_cards/oracle(n).png` 논리 경로.
+  static List<ShopItemRow> _bundledOracleShopRows() =>
+      bundledOracleShopCatalogRows();
 
   List<ShopItemRow> _defaultCatalog() {
     final mats = <ShopItemRow>[];
@@ -217,6 +203,7 @@ class LocalShopRepository implements ShopDataSource {
     _mergeBundledCardBackShopItemsIfMissing();
     _mergeBundledSlotShopItemsIfMissing();
     _mergeOracleShopItemsIfMissing();
+    _syncBundledOracleShopRowsFromCode();
     _normalizeCatalogStarPrices();
     _syncMatShopNamesFromThemes();
     _catalogReady = true;
@@ -350,6 +337,37 @@ class LocalShopRepository implements ShopDataSource {
       added = true;
     }
     if (added) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  /// 디스크에 남은 카탈로그에도 번들 오라클의 **이름·썸네일 경로**를 코드와 맞춤(가격·활성은 유지).
+  void _syncBundledOracleShopRowsFromCode() {
+    final byId = {for (final r in _bundledOracleShopRows()) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      if (e.type != 'oracle_card') {
+        continue;
+      }
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.name == b.name && e.thumbnailUrl == b.thumbnailUrl) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: e.isActive,
+      );
+      changed = true;
+    }
+    if (changed) {
       unawaited(_persistCatalog());
     }
   }
@@ -973,14 +991,6 @@ class LocalShopRepository implements ShopDataSource {
     return ClaimSurpriseGiftResult.granted;
   }
 }
-
-/// 오라클 카드 번호 1~80 → 상점 별조각 (항목별 난수형 고정가).
-/// [dayUtc] null이면 오늘 UTC — **날마다** 단가 변경.
-int oracleCardShopStarPrice(int cardNumber1Based, [DateTime? dayUtc]) =>
-    gggomDailyStarPrice(
-      'oracle-card-${cardNumber1Based.toString().padLeft(2, '0')}',
-      dayUtc,
-    );
 
 /// 로컬 상점 행의 별조각 가격: 기본·데일리 품목은 0, 나머지 1~10.
 int suggestedStarPriceForShopItem(ShopItemRow e) {

@@ -86,7 +86,6 @@ flutter:
     - assets/www_gggom/cards/default/
     - assets/www_gggom/cards/korean-clay/
     - assets/www_gggom/card_backs/
-    - assets/www_gggom/oracle_cards/
     # 채팅 이모티콘 61장: emo_01.png ~ emo_61.png
     - assets/emoticon/
     # 타로 빈 슬롯 프레임 (상점 type: slot)
