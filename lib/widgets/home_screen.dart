@@ -32,6 +32,7 @@ import '../standalone/local_shop_repository.dart';
 import '../services/local_account_store.dart';
 import '../services/user_monitoring_service.dart';
 import 'account_manage_screen.dart';
+import 'supabase_account_screen.dart';
 import 'ad_reward_sheet.dart';
 import 'attendance_modal.dart';
 import 'bag_tab.dart';
@@ -227,6 +228,27 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result is String) {
       setState(() => _effectiveDisplayName = result);
       await widget.onLocalSessionReload?.call();
+    }
+  }
+
+  Future<void> _openAccountSettings() async {
+    if (widget.localAccountSession != null) {
+      await _openAccountManage();
+      return;
+    }
+    if (!AppConfig.supabaseEnabled || widget.userId == 'local-guest') {
+      return;
+    }
+    final withdrew = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (c) => const SupabaseAccountScreen(),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (withdrew == true) {
+      widget.onSignOut();
     }
   }
 
@@ -531,8 +553,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         : null,
                     onSaveForCoding:
                         kIsWeb ? null : _saveAllLocalStateForCoding,
-                    onAccountSettings: widget.localAccountSession != null
-                        ? _openAccountManage
+                    onAccountSettings: widget.localAccountSession != null ||
+                            (AppConfig.supabaseEnabled &&
+                                widget.userId != 'local-guest')
+                        ? _openAccountSettings
                         : null,
                     onMakingNotes: () =>
                         unawaited(MakingNotesScreen.open(context)),

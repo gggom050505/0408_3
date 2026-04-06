@@ -135,13 +135,13 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('계정 삭제'),
+        title: const Text('계정 탈퇴'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              '이 기기에 저장된 로그인 정보와 계정이 삭제됩니다. 상점·가방 데이터 파일은 그대로 남을 수 있어요.',
+              '이 기기에 저장된 로그인 정보와 계정이 삭제됩니다. 상점·가방 데이터 파일은 기기에 그대로 남을 수 있어요.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -159,7 +159,7 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('삭제'),
+            child: const Text('탈퇴'),
           ),
         ],
       ),
@@ -230,7 +230,7 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
           OutlinedButton(
             onPressed: _deleteAccount,
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800),
-            child: const Text('계정 삭제'),
+            child: const Text('계정 탈퇴'),
           ),
         ],
       ),
@@ -238,7 +238,7 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
   }
 }
 
-/// [AccountManageScreen]에서 계정 삭제 후 pop 될 때 반환됩니다.
+/// [AccountManageScreen]에서 계정 탈퇴 후 pop 될 때 반환됩니다.
 class AccountDeletedResult {
   const AccountDeletedResult();
 }
