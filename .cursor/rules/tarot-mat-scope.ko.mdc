@@ -1,0 +1,27 @@
+---
+description: 사용자 명령 「타로매트 적용해줘」 시 수정 범위 — TarotTab 중앙 11슬롯·매트 배경·캡처·오라클(하단 팬 덱 제외)
+alwaysApply: false
+---
+
+# 타로매트 (Tarot Mat) 적용 범위
+
+사용자가 **「타로매트 적용해줘」** 또는 동일한 의미로 요청하면, 아래를 **타로매트**로 간주하고 **그 부분에만** 스타일·레이아웃·동작 변경을 적용한다. 탭 GNB·하단 덱 영역·다른 탭은 기본적으로 제외한다.
+
+## 포함(이 영역 = 타로매트)
+
+- **파일:** `lib/widgets/tarot_tab.dart`
+- **구조:**
+  - 바깥 `Container`의 **매트 그라데이션 배경** (`mat.background` 등)
+  - **`RepaintBoundary` (`_capKey`)** 안의 **11슬롯 그리드**: **1열 3 + 2열 3 + 3열 5**, 카드 슬롯 UI
+  - 그 **아래** 같은 세로 `Column` 안의 버튼 줄: **다시 뽑기**, **📸 1~2열 캡처**, **📸 전체 캡처**, **🔮 오라클 카드 뽑기**
+- 캡처 대상 경계는 기존 코드의 `_capKey` / `_capKeyTwoRows` 정의와 일치시킨다.
+
+## 제외(기본)
+
+- 하단 **`_buildFanDeck` / `deckAreaColor`** 스프레드(팬 덱) — 상세는 `tarot-spread-deck-scope.ko.mdc`
+- `Gnb`, 다른 탭 위젯
+
+## 데이터 연동
+
+- 매트 색·그라데이션은 `equippedMatId` → `matById` / `lib/data/mat_themes.dart` 와 연결될 수 있다.
+- 사용자 요청이 **시각만**이면 `tarot_tab.dart` + 필요 시 `mat_themes.dart`; **상점 카탈로그**와 맞출 때는 로컬 매트 등록과 ID 일치를 확인한다.

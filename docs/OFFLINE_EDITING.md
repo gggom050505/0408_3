@@ -1,0 +1,65 @@
+# 오프라인에서 수정·보완하기 (도움말)
+
+코드를 깊이 몰라도, **문구·색·이미지**는 이 가이드대로 손볼 수 있어요. 앱은 **Supabase 없이** 실행해도 타로·오라클·캡처·저장(게스트)까지 돌아갑니다.
+
+---
+
+## 1. 준비 (처음 한 번)
+
+| 상황 | 할 일 |
+|------|--------|
+| PC에 Flutter 설치됨 | 프로젝트 폴더에서 터미널 열기 |
+| 인터넷 **있을 때** 한 번 | `flutter pub get` (패키지 받기). 이후에는 **오프라인에서도** 대부분 실행 가능 |
+| Cursor / VS Code | **실행·디버그**에서 **「공공곰타로덱: 오프라인·게스트」** 선택 (`.vscode/launch.json`) |
+
+**서버 연동(베타·스테이징)까지** 확인할 때는 같은 메뉴에서 **구성 복제** 후 `toolArgs`에 `--dart-define=SUPABASE_URL=...` 와 `SUPABASE_ANON_KEY` 를 넣으세요. (키는 Git에 올리지 마세요.)
+
+**주의:** 맨 처음 `pub get`이나 Flutter SDK 업데이트는 네트워크가 필요할 수 있어요.
+
+---
+
+## 2. 실행 — 서버 없이
+
+- **Supabase URL/키를 넣지 않고** 실행하면 **오프라인·베타 번들**이 켜집니다.
+- 게시물·상점·가방·이벤트·출석·채팅 탭도 **베타(로컬) 데이터로 동작**합니다(데이터는 이 기기 안에서만).
+- 로그인 화면 → **「로그인 없이 둘러보기」** → 전 탭 확인 가능.
+
+자세한 설명: [STANDALONE_INSTALL.md](STANDALONE_INSTALL.md)
+
+**Windows 터미널 예:**
+
+```powershell
+cd 프로젝트\gggom0505_0403
+flutter run -d windows
+```
+
+---
+
+## 3. 자주 고치는 곳
+
+| 바꾸고 싶은 것 | 파일 / 폴더 |
+|----------------|-------------|
+| 전체 색감 | `lib/theme/app_colors.dart` |
+| 로그인 화면 문구 | `lib/widgets/login_screen.dart` |
+| 상단 탭 이름 | `lib/widgets/gnb.dart` |
+| 타로 버튼·안내 문구 | `lib/widgets/tarot_tab.dart` |
+| 스플래시 | `lib/widgets/splash_screen.dart`, `lib/config/gggom_offline_landing.dart` |
+| 카드·오라클 그림 | `assets/www_gggom/cards/`, `assets/www_gggom/oracle_cards/` |
+
+이미지 교체 후 앱 **완전 재시작**(핫 리로드만으로 안 될 수 있음).
+
+---
+
+## 4. 저장 후 확인
+
+```powershell
+dart analyze
+```
+
+---
+
+## 5. 동업자에게 넘길 때
+
+- 수정한 **파일 목록** + **스크린샷/녹화**
+
+막히면 [OWNER_WORKFLOW.md](OWNER_WORKFLOW.md) 참고.

@@ -1,0 +1,195 @@
+import '../config/gggom_offline_landing.dart';
+
+/// Next.js `cardThemes.ts`와 동일한 파일 규칙.
+/// [assetOrigin]이 비면 [kGggomBundledPublicRoot] 에셋을 씁니다.
+const String defaultThemeId = 'default';
+/// 웹 `cardThemes.ts` 및 원격 URL·번들 경로와 동일한 ID. 상점/가방 목록에는 넣지 않아도
+/// [getCardImageUrl]·[getBundledSiteCardAssetPath] 규칙은 유지합니다.
+const String koreanClayThemeId = 'korean-clay';
+/// 상점·가방 카드 덱 ID — 디스크 `assets/koreacard/majors(0).png` ~ `majors(21).png` 22장.
+const String koreaTraditionalMajorThemeId = 'korea-traditional-major';
+
+const String kKoreaTraditionalMajorAssetDir = 'assets/koreacard';
+
+String _koreaTraditionalMajorPngFileName(int cardId) =>
+    'majors($cardId).png';
+
+/// 타로 메이저 [cardId] 0~21 → Flutter [Image.asset] 경로.
+String? koreaTraditionalMajorAssetPath(int cardId) {
+  if (cardId < 0 || cardId > 21) return null;
+  return '$kKoreaTraditionalMajorAssetDir/${_koreaTraditionalMajorPngFileName(cardId)}';
+}
+
+/// 상점·가방 목록 썸네일 (0번 카드 파일과 동일 규칙).
+const String kKoreaTraditionalMajorShopThumbnailAsset =
+    '$kKoreaTraditionalMajorAssetDir/majors(0).png';
+
+const _majorFiles = <int, String>{
+  0: '00_fool.png',
+  1: '01_magician.png',
+  2: '02_high_priestess.png',
+  3: '03_empress.png',
+  4: '04_emperor.png',
+  5: '05_hierophant.png',
+  6: '06_lovers.png',
+  7: '07_chariot.png',
+  8: '08_strength.png',
+  9: '09_hermit.png',
+  10: '10_wheel.png',
+  11: '11_justice.png',
+  12: '12_hanged_man.png',
+  13: '13_death.png',
+  14: '14_temperance.png',
+  15: '15_devil.png',
+  16: '16_tower.png',
+  17: '17_star.png',
+  18: '18_moon.png',
+  19: '19_sun.png',
+  20: '20_judgement.png',
+  21: '21_world.png',
+};
+
+const _fnRank = [
+  'ace', 'two', 'three', 'four', 'five', 'six', 'seven',
+  'eight', 'nine', 'ten', 'page', 'knight', 'queen', 'king',
+];
+
+const _specialFiles = <int, String>{
+  78: '78_son_of_wands.png',
+  79: '79_daughter_of_pentacles.png',
+  80: '80_daughter_of_cups.png',
+  81: '81_son_of_swords.png',
+  82: '82_mother_earth_water.png',
+  83: '83_father_fire_air.png',
+};
+
+String? _fileForCardId(int cardId) {
+  final m = _majorFiles[cardId];
+  if (m != null) return m;
+  if (cardId >= 22 && cardId <= 77) {
+    final off = cardId - 22;
+    final suitIdx = off ~/ 14;
+    final rankIdx = off % 14;
+    const suits = ['wands', 'cups', 'swords', 'pentacles'];
+    return '${cardId}_${_fnRank[rankIdx]}_${suits[suitIdx]}.png';
+  }
+  return _specialFiles[cardId];
+}
+
+/// 한국 클레이 테마: 메이저 0~15만 매핑 (웹과 동일).
+const koreanClayFiles = <int, String>{
+  0: '00_fool.png',
+  1: '01_magician.png',
+  2: '02_high_priestess.png',
+  3: '03_empress.png',
+  4: '04_emperor.png',
+  5: '05_hierophant.png',
+  6: '06_lovers.png',
+  7: '07_chariot.png',
+  8: '08_strength.png',
+  9: '09_hermit.png',
+  10: '10_wheel.png',
+  11: '11_justice.png',
+  12: '12_hanged_man.png',
+  13: '13_death.png',
+  14: '14_temperance.png',
+  15: '15_devil.png',
+};
+
+/// [assetOrigin] 예: `https://my-site.com` 또는 로컬 Next 서버 `http://10.0.2.2:3000`
+String? getCardImageUrl({
+  required String themeId,
+  required int cardId,
+  required String assetOrigin,
+}) {
+  if (themeId == koreaTraditionalMajorThemeId) {
+    return null;
+  }
+  if (assetOrigin.isEmpty) return null;
+  final base = assetOrigin.replaceAll(RegExp(r'/$'), '');
+  String? filename;
+  String folder;
+  if (themeId == koreanClayThemeId) {
+    filename = koreanClayFiles[cardId];
+    folder = 'korean-clay';
+  } else {
+    filename = _fileForCardId(cardId);
+    folder = 'default';
+  }
+  if (filename == null) return null;
+  return '$base/cards/$folder/$filename';
+}
+
+/// `www.gggom0505.kr` 에서 복제한 로컬 카드 PNG ([kGggomBundledPublicRoot]).
+String? getBundledSiteCardAssetPath({
+  required String themeId,
+  required int cardId,
+}) {
+  if (themeId == koreaTraditionalMajorThemeId) {
+    return koreaTraditionalMajorAssetPath(cardId);
+  }
+  String? filename;
+  String folder;
+  if (themeId == koreanClayThemeId) {
+    filename = koreanClayFiles[cardId];
+    folder = 'korean-clay';
+  } else {
+    filename = _fileForCardId(cardId);
+    folder = 'default';
+  }
+  if (filename == null) return null;
+  return '$kGggomBundledPublicRoot/cards/$folder/$filename';
+}
+
+/// 가방/상점 썸네일용 (`CARD_THEMES.thumbnail` 규칙).
+const Map<String, String> kCardThemeThumbnailPath = {
+  defaultThemeId: '/cards/default/00_fool.png',
+  koreanClayThemeId: '/cards/korean-clay/00_fool.png',
+  koreaTraditionalMajorThemeId: kKoreaTraditionalMajorShopThumbnailAsset,
+};
+
+String? resolveGggomBundledSitePath(String path) {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return null;
+  }
+  final normalized = path.startsWith('/') ? path.substring(1) : path;
+  if (normalized.startsWith('cards/') ||
+      normalized.startsWith('oracle_cards/') ||
+      normalized.startsWith('card_backs/')) {
+    return '$kGggomBundledPublicRoot/$normalized';
+  }
+  return null;
+}
+
+String? resolvePublicAssetUrl(String path, String assetOrigin) {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  if (path.startsWith('assets/')) {
+    return path;
+  }
+  final o = assetOrigin.replaceAll(RegExp(r'/$'), '');
+  if (o.isNotEmpty) {
+    final p = path.startsWith('/') ? path : '/$path';
+    return '$o$p';
+  }
+  return resolveGggomBundledSitePath(path);
+}
+
+/// 상점·가방 아이템 썸네일 — `file://`, `data:image/...` 는 그대로 두고 상대 경로만 오리진과 결합합니다.
+String? resolveShopItemThumbnailSrc(String? raw, String assetOrigin) {
+  if (raw == null || raw.trim().isEmpty) {
+    return null;
+  }
+  final t = raw.trim();
+  if (t.startsWith('http://') || t.startsWith('https://')) {
+    return t;
+  }
+  if (t.startsWith('file://')) {
+    return t;
+  }
+  if (t.startsWith('data:image/')) {
+    return t;
+  }
+  return resolvePublicAssetUrl(t, assetOrigin);
+}

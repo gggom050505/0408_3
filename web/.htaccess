@@ -1,0 +1,17 @@
+# Flutter Web (SPA) — 가비아 Apache 웹호스팅
+# 실제 파일·폴더가 없는 경로는 index.html 로 넘겨 클라이언트 라우팅이 동작하게 합니다.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# wasm / JS MIME (일부 호스팅에서 기본값이 없을 때 대비)
+<IfModule mod_mime.c>
+  AddType application/wasm wasm
+  AddType application/javascript js
+  AddType application/json json
+</IfModule>

@@ -1,0 +1,26 @@
+---
+description: 사용자 명령 「스프레드」「스프레드 부분」「팬 덱」 시 수정 범위 — TarotTab 하단 펼쳐진 덱만
+alwaysApply: false
+---
+
+# 스프레드 (팬 덱 / 펼쳐진 덱) 적용 범위
+
+사용자가 **「스프레드 적용해줘」**, **「스프레드 부분」**, **하단 덱 / 팬 덱** 등으로 요청하면, 아래를 **스프레드(팬 덱)** 로 간주하고 **그 부분에만** 스타일·레이아웃·동작 변경을 적용한다. **중앙 11슬롯 타로매트**, 탭 GNB, 다른 탭은 기본적으로 제외한다.
+
+> 타로매트(중앙 슬롯·캡처·오라클 버튼) 범위는 `tarot-mat-scope.ko.mdc` 를 따른다. 두 규칙이 겹치지 않게 구분할 것.
+
+## 포함(이 영역 = 스프레드 / 팬 덱)
+
+- **파일:** `lib/widgets/tarot_tab.dart`
+- **구조:**
+  - `Column` 말단의 **`SizedBox(height: 152, width: double.infinity)`** 블록: `mat.deckAreaColor` 배경 + `LayoutBuilder` + `Stack` + **`_buildFanDeck`**
+  - 덱 카드 뒷면·겹침·회전·드래그 등 **펼친 덱**에 해당하는 로직
+
+## 제외(기본)
+
+- **`RepaintBoundary` (`_capKey`)** 안의 **11슬롯 그리드** 및 그 아래 **다시 뽑기 / 캡처 / 오라클** 버튼 줄 (타로매트)
+- `Gnb`, 다른 탭 위젯
+
+## 데이터 연동
+
+- `deckAreaColor` 등은 `MatThemeData` / `lib/data/mat_themes.dart` 와 연결될 수 있다. 스프레드 요청이 **덱 뒷면 이미지·테마**까지 포함하면 카드 덱 상점 데이터·`card_themes` 등을 함께 확인한다.
