@@ -1,69 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:gggom_tarot/config/shop_admin_gate.dart';
 import 'package:gggom_tarot/widgets/login_screen.dart';
 
 void main() {
-  testWidgets('Supabase 꺼져도 구글 계정으로 로그인 메뉴(카드·버튼)가 보인다', (tester) async {
+  testWidgets('아이디로 로그인·안내 문구 표시', (tester) async {
+    var idTapped = false;
     await tester.pumpWidget(
       MaterialApp(
         home: LoginScreen(
           supabaseConfigured: false,
-          onGoogleLogin: () {},
-          onContinueAsGuest: () {},
-          onOpenLocalLogin: () {},
-          onOpenRegister: () {},
+          onOpenLocalLogin: () => idTapped = true,
         ),
       ),
     );
 
-    expect(find.text('구글 계정으로 로그인'), findsNWidgets(2));
-    expect(find.textContaining('dart-define'), findsWidgets);
-    expect(find.textContaining('SUPABASE'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '아이디로 로그인'), findsOneWidget);
+    expect(find.textContaining('기기에 저장'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '아이디로 로그인'));
+    expect(idTapped, isTrue);
   });
 
-  testWidgets('Supabase 미설정 시 구글 버튼 탭하면 설정 안내 스낵바', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LoginScreen(
-          supabaseConfigured: false,
-          onGoogleLogin: () {},
-          onContinueAsGuest: () {},
-          onOpenLocalLogin: () {},
-          onOpenRegister: () {},
-        ),
-      ),
-    );
-
-    final googleBtn = find.widgetWithText(FilledButton, '구글 계정으로 로그인');
-    await tester.ensureVisible(googleBtn);
-    await tester.tap(googleBtn);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(
-      find.textContaining('Supabase 연동이 꺼져 있어요'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Supabase 설정 시 구글 버튼이 onGoogleLogin을 호출한다', (tester) async {
-    var called = false;
+  testWidgets('Supabase 켜짐이면 관리자 패널 노출', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: LoginScreen(
           supabaseConfigured: true,
-          onGoogleLogin: () => called = true,
-          onContinueAsGuest: () {},
+          onAdminGoogleLogin: () {},
           onOpenLocalLogin: () {},
-          onOpenRegister: () {},
         ),
       ),
     );
 
-    final googleBtn = find.widgetWithText(FilledButton, '구글 계정으로 로그인');
-    await tester.ensureVisible(googleBtn);
-    await tester.tap(googleBtn);
-    expect(called, isTrue);
+    expect(find.textContaining('사이트 관리자'), findsOneWidget);
+    expect(find.text('관리자로 구글 로그인'), findsOneWidget);
+    expect(find.textContaining(kShopAdminGoogleEmail), findsWidgets);
+  });
+
+  testWidgets('Supabase 꺼짐이면 관리자 패널 숨김', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginScreen(
+          supabaseConfigured: false,
+          onOpenLocalLogin: () {},
+        ),
+      ),
+    );
+
+    expect(find.textContaining('사이트 관리자'), findsNothing);
+  });
+
+  testWidgets('관리자 버튼은 Supabase 꺼진 빌드에서 스낵바 안내', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginScreen(
+          supabaseConfigured: false,
+          onAdminGoogleLogin: () {},
+          onOpenLocalLogin: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('관리자로 구글 로그인'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      find.textContaining('관리자 로그인은 Supabase'),
+      findsOneWidget,
+    );
   });
 }

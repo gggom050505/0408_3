@@ -108,4 +108,13 @@ class LocalAppPreferences {
     m[_tarotEquipDefaultsV1Key(userId)] = true;
     await _save(m);
   }
+
+  /// 탈퇴·계정 삭제 시 이 `userId` 전용 키만 제거합니다.
+  static Future<void> removePerUserEntries(String userId) async {
+    final m = await _load();
+    m.remove(_adRewardKey(userId));
+    m.remove(_adRewardPromoIdxKey(userId));
+    m.remove(_tarotEquipDefaultsV1Key(userId));
+    await _save(m);
+  }
 }

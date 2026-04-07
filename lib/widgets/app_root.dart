@@ -4,9 +4,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// 앱 세션 모델: **일반 사용자**는 [LocalAccountSession](아이디·비밀번호·기기 로컬),
+/// **운영자**만 Supabase 구글 [kShopAdminGoogleEmail]. 기능·데이터 소스는 로컬 계정 기준으로 맞춥니다.
 import '../config/app_config.dart';
 import '../config/gggom_runtime_site_config.dart';
+import '../config/shop_admin_gate.dart';
 import '../services/local_account_store.dart';
+import 'app_scaffold_messenger.dart';
 import '../services/user_monitoring_service.dart';
 import 'home_screen.dart';
 import 'local_account_auth_screens.dart';
@@ -52,7 +56,26 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
         });
         UserMonitoringService.instance.syncWithSession(data.session);
         if (data.session != null) {
-          unawaited(LocalAccountStore.instance.clearSession());
+          unawaited(() async {
+            final wasAdminOAuth = consumePendingAdminGoogleOAuth();
+            if (wasAdminOAuth && !shopAdminGateAllowsCurrentUser()) {
+              await Supabase.instance.client.auth.signOut();
+              if (mounted) {
+                gggomScaffoldMessengerKey.currentState?.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      '관리자 전용 로그인입니다. 지정된 gggom0505 구글 계정으로 '
+                      '다시 시도해 주세요.',
+                    ),
+                    duration: Duration(seconds: 6),
+                  ),
+                );
+              }
+              return;
+            }
+            await LocalAccountStore.instance.clearSession();
+            await LocalAccountStore.instance.setContinueAsGuest(false);
+          }());
         }
       });
     }
@@ -71,10 +94,22 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
       return;
     }
     if (s != null) {
+      await LocalAccountStore.instance.setContinueAsGuest(false);
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _localSession = s;
         _guestMode = false;
       });
+      return;
+    }
+    final guest = await LocalAccountStore.instance.shouldContinueAsGuest();
+    if (!mounted || _session != null) {
+      return;
+    }
+    if (guest) {
+      setState(() => _guestMode = true);
     }
   }
 
@@ -99,29 +134,25 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
 
   void _onSplashDone() => setState(() => _showSplash = false);
 
-  void _continueAsGuest() {
-    unawaited(LocalAccountStore.instance.clearSession());
-    setState(() {
-      _guestMode = true;
-      _localSession = null;
-    });
-  }
-
-  Future<void> _signInGoogle() async {
-    if (!AppConfig.supabaseEnabled) return;
+  Future<void> _signInGoogleAdmin() async {
+    if (!AppConfig.supabaseEnabled) {
+      return;
+    }
+    markPendingAdminGoogleOAuth();
     await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: AppConfig.oauthRedirectUrl,
-      // Google OAuth: 계정 선택창을 띄우도록 요청(Supabase authorize URL에 전달).
-      queryParams: const {'prompt': 'select_account'},
-      // 웹에서 같은 탭으로 열면 이미 로그인된 구글 계정으로 바로 붙는 경우가 있어
-      // 새 창/외부 브라우저로 연다(모바일은 supabase_flutter가 구글 시 외부 브라우저 사용).
+      queryParams: {
+        'prompt': 'select_account',
+        'login_hint': kShopAdminGoogleEmail,
+      },
       authScreenLaunchMode:
           kIsWeb ? LaunchMode.externalApplication : LaunchMode.platformDefault,
     );
   }
 
   Future<void> _openLocalLogin() async {
+    clearPendingAdminGoogleOAuth();
     final s = await Navigator.of(context).push<LocalAccountSession>(
       MaterialPageRoute<LocalAccountSession>(
         builder: (c) => const LocalLoginScreen(),
@@ -130,19 +161,8 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
     if (s == null || !mounted) {
       return;
     }
-    setState(() {
-      _localSession = s;
-      _guestMode = false;
-    });
-  }
-
-  Future<void> _openRegister() async {
-    final s = await Navigator.of(context).push<LocalAccountSession>(
-      MaterialPageRoute<LocalAccountSession>(
-        builder: (c) => const RegisterAccountScreen(),
-      ),
-    );
-    if (s == null || !mounted) {
+    await LocalAccountStore.instance.setContinueAsGuest(false);
+    if (!mounted) {
       return;
     }
     setState(() {
@@ -154,10 +174,18 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
   Future<void> _signOut() async {
     if (_localSession != null) {
       await LocalAccountStore.instance.clearSession();
+      await LocalAccountStore.instance.setContinueAsGuest(false);
+      if (!mounted) {
+        return;
+      }
       setState(() => _localSession = null);
       return;
     }
     if (_guestMode) {
+      await LocalAccountStore.instance.setContinueAsGuest(false);
+      if (!mounted) {
+        return;
+      }
       setState(() => _guestMode = false);
       return;
     }
@@ -210,10 +238,9 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
 
     return LoginScreen(
       supabaseConfigured: AppConfig.supabaseEnabled,
-      onGoogleLogin: _signInGoogle,
-      onContinueAsGuest: _continueAsGuest,
+      onAdminGoogleLogin:
+          AppConfig.supabaseEnabled ? _signInGoogleAdmin : null,
       onOpenLocalLogin: _openLocalLogin,
-      onOpenRegister: _openRegister,
     );
   }
 }

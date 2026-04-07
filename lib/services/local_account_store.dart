@@ -50,6 +50,7 @@ class LocalAccountStore {
 
   static const _kAccounts = 'gggom_local_accounts_v1';
   static const _kSession = 'gggom_local_session_v1';
+  static const _kContinueAsGuest = 'gggom_continue_as_guest_v1';
 
   static bool isLocalAppUserId(String userId) =>
       userId.startsWith('local-acc-');
@@ -119,7 +120,22 @@ class LocalAccountStore {
     await prefs.remove(_kSession);
   }
 
-  /// 가입만 (로그인은 별도). 비밀번호 6자 이상.
+  /// 다음 실행 시 로그인 화면 대신 게스트 홈으로 이어가기(기기 로컬).
+  Future<void> setContinueAsGuest(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value) {
+      await prefs.setBool(_kContinueAsGuest, true);
+    } else {
+      await prefs.remove(_kContinueAsGuest);
+    }
+  }
+
+  Future<bool> shouldContinueAsGuest() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kContinueAsGuest) ?? false;
+  }
+
+  /// **회원 가입** — 계정 행만 추가합니다. 성공 후 [login]·[saveSession]으로 로그인 상태를 맞춥니다.
   Future<String?> register({
     required String username,
     required String password,
@@ -242,6 +258,8 @@ class LocalAccountStore {
     return null;
   }
 
+  /// **회원 탈퇴 / 계정 삭제**의 1단계: 비밀번호 확인 후 이 기기의 로그인 행 제거.
+  /// 기기에 남은 JSON(별조각·가방 등)은 [wipeStandaloneArtifactsForAppUserId] 로 별도 정리합니다.
   Future<String?> deleteAccount({
     required String loginKey,
     required String password,

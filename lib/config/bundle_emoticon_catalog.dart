@@ -53,9 +53,26 @@ bool isBundledEmoticonId(String id) => kBundleEmoticonIds.contains(id);
 
 /// `emo_asset_01` 등 → `assets/emoticon/emoticon(1).png`
 String? bundleEmoticonImagePathForId(String emoticonId) {
+  final raw = emoticonId.trim();
+  if (raw.isEmpty) {
+    return null;
+  }
   for (final e in kBundleEmoticonRows) {
-    if (e.id == emoticonId) {
+    if (e.id == raw) {
       return e.imageUrl;
+    }
+  }
+  final lower = raw.toLowerCase();
+  for (final e in kBundleEmoticonRows) {
+    if (e.id.toLowerCase() == lower) {
+      return e.imageUrl;
+    }
+  }
+  final m = RegExp(r'^emo_asset_(\d+)$', caseSensitive: false).firstMatch(raw);
+  if (m != null) {
+    final n = int.tryParse(m.group(1)!);
+    if (n != null && n >= 1 && n <= kBundleEmoticonCount) {
+      return bundleEmoticonAssetPath(n);
     }
   }
   return null;

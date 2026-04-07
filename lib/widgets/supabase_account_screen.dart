@@ -20,13 +20,13 @@ class _SupabaseAccountScreenState extends State<SupabaseAccountScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('계정 탈퇴'),
+        title: const Text('회원 탈퇴 · 계정 삭제'),
         content: SingleChildScrollView(
           child: Text(
             '프로필·가방·출석·채팅·게시물 등 이 앱에 연결된 서버 데이터를 삭제한 뒤 '
-            '로그아웃합니다.\n\n'
+            '로그아웃합니다(서버에 저장된 계정 이용 데이터 삭제).\n\n'
             '구글 로그인 자체는 구글 계정 설정에서 연결을 끊을 수 있어요. '
-            '서버에서 인증 계정까지 완전히 없애려면 운영 정책에 따라 별도 처리될 수 있어요.',
+            '인증 계정까지 서버에서 완전히 없애는 절차는 운영 정책에 따라 별도일 수 있어요.',
             style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(height: 1.4),
           ),
         ),
@@ -78,7 +78,7 @@ class _SupabaseAccountScreenState extends State<SupabaseAccountScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('계정'),
+        title: const Text('계정 · 회원 탈퇴'),
         backgroundColor: AppColors.bgMain,
       ),
       body: ListView(
@@ -105,7 +105,7 @@ class _SupabaseAccountScreenState extends State<SupabaseAccountScreen> {
           const Divider(),
           const SizedBox(height: 8),
           Text(
-            '계정 탈퇴',
+            '회원 탈퇴 / 계정 삭제',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -113,7 +113,7 @@ class _SupabaseAccountScreenState extends State<SupabaseAccountScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '서버에 저장된 이용 데이터를 지우고 로그아웃합니다.',
+            '서버에 저장된 회원 데이터를 삭제한 뒤 로그아웃합니다.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.35,
@@ -130,7 +130,7 @@ class _SupabaseAccountScreenState extends State<SupabaseAccountScreen> {
                   )
                 : Icon(Icons.person_off_outlined, color: Colors.red.shade800),
             label: Text(
-              _busy ? '처리 중…' : '계정 탈퇴',
+              _busy ? '처리 중…' : '탈퇴 · 데이터 삭제',
               style: TextStyle(
                 color: Colors.red.shade800,
                 fontWeight: FontWeight.w700,

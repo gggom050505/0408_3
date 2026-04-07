@@ -4,3 +4,5 @@ import 'local_json_store_io.dart' if (dart.library.html) 'local_json_store_web.d
 Future<String?> loadLocalJsonFile(String name) => impl.loadLocalJsonFile(name);
 
 Future<void> saveLocalJsonFile(String name, String data) => impl.saveLocalJsonFile(name, data);
+
+Future<void> removeLocalJsonFile(String name) => impl.removeLocalJsonFile(name);

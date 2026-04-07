@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
+import '../data/card_themes.dart' show normalizeFlutterBundledAssetKey;
+
 bool looksLikeNetworkImageUrl(String src) =>
     src.startsWith('http://') || src.startsWith('https://');
 
@@ -33,19 +35,20 @@ class AdaptiveNetworkOrAssetImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (looksLikeNetworkImageUrl(src)) {
+    final resolvedSrc = normalizeFlutterBundledAssetKey(src);
+    if (looksLikeNetworkImageUrl(resolvedSrc)) {
       return Image.network(
-        src,
+        resolvedSrc,
         fit: fit,
         width: width,
         height: height,
         errorBuilder: errorBuilder,
       );
     }
-    if (_looksLikeDataImageUri(src)) {
+    if (_looksLikeDataImageUri(resolvedSrc)) {
       try {
-        final comma = src.indexOf(',');
-        final b64 = src.substring(comma + 1);
+        final comma = resolvedSrc.indexOf(',');
+        final b64 = resolvedSrc.substring(comma + 1);
         final bytes = base64Decode(b64);
         return Image.memory(
           Uint8List.fromList(bytes),
@@ -56,9 +59,9 @@ class AdaptiveNetworkOrAssetImage extends StatelessWidget {
         );
       } catch (_) {}
     }
-    if (!kIsWeb && _looksLikeFileUri(src)) {
+    if (!kIsWeb && _looksLikeFileUri(resolvedSrc)) {
       try {
-        final path = Uri.parse(src).toFilePath();
+        final path = Uri.parse(resolvedSrc).toFilePath();
         return Image.file(
           File(path),
           fit: fit,
@@ -69,7 +72,7 @@ class AdaptiveNetworkOrAssetImage extends StatelessWidget {
       } catch (_) {}
     }
     return Image.asset(
-      src,
+      resolvedSrc,
       fit: fit,
       width: width,
       height: height,

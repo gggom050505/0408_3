@@ -10,6 +10,7 @@ import 'config/gggom_runtime_site_config.dart';
 import 'theme/app_colors.dart';
 import 'widgets/app_motion.dart';
 import 'widgets/app_root.dart';
+import 'widgets/app_scaffold_messenger.dart';
 import 'widgets/site_access_gate.dart';
 
 // 오프라인에서 문구·색·에셋만 손볼 때: docs/OFFLINE_EDITING.md 참고.
@@ -24,8 +25,8 @@ import 'widgets/site_access_gate.dart';
 // | 웹/기능              | Dart 구현 |
 // |---------------------|-----------|
 // | 스플래시·랜딩        | `widgets/splash_screen.dart`, `config/gggom_offline_landing.dart` |
-// | 로그인·게스트        | `widgets/login_screen.dart`, `widgets/app_root.dart` |
-// | 구글 OAuth(URL)·세션 | 본 파일 `Supabase.initialize` + PKCE + `detectSessionInUri`, `app_config.oauthRedirectUrl` |
+// | 로그인(아이디·관리자 구글) | `widgets/login_screen.dart`, `widgets/local_account_auth_screens.dart`, `widgets/app_root.dart` |
+// | 관리자 구글 OAuth·세션     | 본 파일 `Supabase.initialize` + PKCE + `detectSessionInUri`, `app_config.oauthRedirectUrl` |
 // | 설치형·오프라인 베타 번들 | Supabase **없이** 실행 → `lib/standalone/*` + `StandaloneChatTab` (`home_screen.dart`) |
 // | GNB·탭              | `widgets/gnb.dart`, `widgets/home_screen.dart` |
 // | 타로·캡처·피드게시    | `widgets/tarot_tab.dart`, `widgets/post_capture_sheet.dart` |
@@ -211,6 +212,7 @@ class GgomTarotApp extends StatelessWidget {
     return MaterialApp(
       title: kGggomSiteBrowserTitle,
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: gggomScaffoldMessengerKey,
       theme: base.copyWith(
         textTheme: textTheme,
         splashFactory: InkSparkle.splashFactory,

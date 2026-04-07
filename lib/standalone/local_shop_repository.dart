@@ -198,6 +198,7 @@ class LocalShopRepository implements ShopDataSource {
   }
 
   void _afterCatalogItemsLoaded() {
+    _ensureDefaultCatalogRowsPresent();
     _syncKoreaMajorPieceCatalog();
     _removeRetiredKoreanClayFromCatalog();
     _mergeBundledCardBackShopItemsIfMissing();
@@ -207,6 +208,21 @@ class LocalShopRepository implements ShopDataSource {
     _normalizeCatalogStarPrices();
     _syncMatShopNamesFromThemes();
     _catalogReady = true;
+  }
+
+  /// 디스크 카탈로그가 `[]` 이거나 예전 부분 저장일 때 — [default] 덱·매트·오라클 80종 등 빠진 id만 [_defaultCatalog]로 채움.
+  void _ensureDefaultCatalogRowsPresent() {
+    var changed = false;
+    for (final row in _defaultCatalog()) {
+      if (_catalogItems.any((e) => e.id == row.id)) {
+        continue;
+      }
+      _catalogItems.add(row);
+      changed = true;
+    }
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
   }
 
   /// 디스크에 남은 옛 매트 이름을 [matThemes] 소품 컨셉명으로 맞춤.
@@ -328,15 +344,28 @@ class LocalShopRepository implements ShopDataSource {
   }
 
   void _mergeOracleShopItemsIfMissing() {
-    var added = false;
-    for (final row in _bundledOracleShopRows()) {
+    final bundled = _bundledOracleShopRows();
+    final byId = {for (final r in bundled) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.type != 'oracle_card') {
+        _catalogItems[i] = b;
+        changed = true;
+      }
+    }
+    for (final row in bundled) {
       if (_catalogItems.any((e) => e.id == row.id)) {
         continue;
       }
       _catalogItems.add(row);
-      added = true;
+      changed = true;
     }
-    if (added) {
+    if (changed) {
       unawaited(_persistCatalog());
     }
   }

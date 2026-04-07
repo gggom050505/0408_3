@@ -159,6 +159,11 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
     var active = existing?.isActive ?? true;
 
     bool? ok;
+    /// [showDialog] 종료 뒤 컨트롤러를 dispose 하므로, 확인 시점 값을 여기에 복사합니다.
+    String idFieldSnap = '';
+    String nameFieldSnap = '';
+    String priceFieldSnap = '';
+    String thumbFieldSnap = '';
     try {
       ok = await showDialog<bool>(
         context: context,
@@ -264,6 +269,12 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
         ),
       );
     } finally {
+      if (ok == true) {
+        idFieldSnap = idCtrl.text;
+        nameFieldSnap = nameCtrl.text;
+        priceFieldSnap = priceCtrl.text;
+        thumbFieldSnap = thumbCtrl.text;
+      }
       idCtrl.dispose();
       nameCtrl.dispose();
       priceCtrl.dispose();
@@ -273,13 +284,14 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       return;
     }
 
-    final id = existing?.id ?? idCtrl.text.trim();
-    final name = nameCtrl.text.trim();
-    final price = int.tryParse(priceCtrl.text.trim()) ?? 0;
-    final thumb = thumbCtrl.text.trim().isEmpty ? null : thumbCtrl.text.trim();
+    final id = existing?.id ?? idFieldSnap.trim();
+    final name = nameFieldSnap.trim();
+    final price = int.tryParse(priceFieldSnap.trim()) ?? 0;
+    final thumb =
+        thumbFieldSnap.trim().isEmpty ? null : thumbFieldSnap.trim();
 
     if (existing == null) {
-      final rawId = idCtrl.text.trim();
+      final rawId = idFieldSnap.trim();
       if (rawId.isEmpty || !RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(rawId)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ID는 영문·숫자·.-_ 만 사용해 주세요.')),

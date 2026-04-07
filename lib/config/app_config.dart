@@ -83,10 +83,14 @@ class AppConfig {
   static bool get adRewardTestMode =>
       _adRewardTestRaw == 'true' || _adRewardTestRaw == '1';
 
-  /// 별조각 광고(시뮬) 메뉴 표시 — **베타 번들**(Supabase 미연동)에서는 항상 true,
-  /// 정식(연동) 빌드에서는 [adRewardTestMode] 일 때만 true.
+  /// 별조각 광고(시뮬) 메뉴 표시.
+  ///
+  /// 기본은 항상 표시하고, 숨기고 싶을 때만
+  /// `--dart-define=SHOW_AD_REWARD_MENU=false` 를 사용합니다.
+  static const _showAdRewardMenuRaw =
+      String.fromEnvironment('SHOW_AD_REWARD_MENU', defaultValue: 'true');
   static bool get showBetaStarAdRewardMenu =>
-      adRewardTestMode || !supabaseEnabled;
+      !(_showAdRewardMenuRaw == 'false' || _showAdRewardMenuRaw == '0');
 
   /// 광고 보상(시뮬) 지급 별조각 — `--dart-define=AD_REWARD_STARS=1` (기본 1)
   static const adRewardStarAmount =

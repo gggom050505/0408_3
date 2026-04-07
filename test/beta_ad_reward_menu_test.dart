@@ -11,12 +11,9 @@ void main() {
     expect(AppConfig.showBetaStarAdRewardMenu, isTrue);
   });
 
-  test('showBetaStarAdRewardMenu: Supabase 연동 시에는 adRewardTestMode와 동일', () {
+  test('showBetaStarAdRewardMenu: 기본값은 Supabase 연동 여부와 무관하게 true', () {
     AppConfig.supabaseEnabled = true;
-    expect(
-      AppConfig.showBetaStarAdRewardMenu,
-      AppConfig.adRewardTestMode,
-    );
+    expect(AppConfig.showBetaStarAdRewardMenu, isTrue);
   });
 
   test('adRewardStarAmount는 양수', () {

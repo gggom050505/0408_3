@@ -111,10 +111,16 @@ class _HomeScreenState extends State<HomeScreen> {
   FeedRepository? _supabaseFeed;
   DiskCachingFeedRepository? _supabaseFeedCached;
 
-  /// Supabase 미사용 · 또는 자체 로컬 계정(`local-acc-…`) — 상점·피드 등을 기기 로컬(베타 번들)로 통일
+  /// [initState] 직후에는 Supabase 세션이 아직 없어 [shopAdminGateAllowsCurrentUser] 가 false일 수 있음.
+  /// 그러면 [_localShop] 이 비어 상점 「관리자」 버튼이 붙지 않음 → 한 프레임 뒤 세션 반영 시 로컬 미러 리포를 만듦.
+  var _pendingAdminLocalShop = false;
+
+  /// **기본 로그인(아이디·비밀번호)** 과 동일한 데이터 경로: Supabase 미사용 · `local-acc-…` · (예전부터 남은) `local-guest`.
+  /// 일반 구글 사용자 세션은 쓰지 않으므로, 연동 빌드에서도 로컬 계정·게스트는 기기 로컬 레포로 통일합니다.
   bool get _usesLocalDataLayer =>
       !AppConfig.supabaseEnabled ||
-      LocalAccountStore.isLocalAppUserId(widget.userId);
+      LocalAccountStore.isLocalAppUserId(widget.userId) ||
+      widget.userId == 'local-guest';
 
   FeedDataSource? get _feed {
     if (_usesLocalDataLayer) {
@@ -143,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _authStateSub?.cancel();
     _workspaceFlushSignal.dispose();
     super.dispose();
   }
@@ -183,6 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  StreamSubscription<AuthState>? _authStateSub;
+
   @override
   void initState() {
     super.initState();
@@ -196,6 +205,15 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (AppConfig.supabaseEnabled && shopAdminGateAllowsCurrentUser()) {
       _localShop = LocalShopRepository(widget.userId);
     }
+    if (AppConfig.supabaseEnabled) {
+      _authStateSub =
+          Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {});
+      });
+    }
     unawaited(_restoreMainTab());
     _bootstrap();
   }
@@ -205,6 +223,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.displayName != widget.displayName) {
       _effectiveDisplayName = widget.displayName;
+    }
+    if (oldWidget.userId != widget.userId && AppConfig.supabaseEnabled) {
+      _localShop = null;
+      _pendingAdminLocalShop = false;
     }
   }
 
@@ -298,11 +320,26 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refreshAttendance();
   }
 
-  /// 덱·카드 뒷면·슬롯을 기본값으로 **계정당 한 번만** 맞춤(출시 스냅샷용).
+  /// Supabase에 원격 프로필이 있는 **로그인 계정**(구글 등). 가방·별조각·장착은 DB가 권위이며
+  /// 클라이언트 일회 장착 스냅샷으로 덮어쓰지 않는다.
+  bool _isSupabaseRemoteProfileAccount(String uid) {
+    return AppConfig.supabaseEnabled &&
+        uid != 'local-guest' &&
+        !LocalAccountStore.isLocalAppUserId(uid);
+  }
+
+  /// 덱·카드 뒷면·슬롯을 기본값으로 **계정당 한 번만** 맞춤(로컬·게스트·오프라인 스냅샷용).
+  /// 서버 로그인 계정은 적용하지 않아 별조각·가방 아이템·장착 상태를 DB 그대로 유지한다.
   Future<void> _maybeApplyTarotEquipDefaultsV1Once(
     ShopDataSource repo,
     String uid,
   ) async {
+    if (_isSupabaseRemoteProfileAccount(uid)) {
+      if (await LocalAppPreferences.needsTarotEquipDefaultsV1(uid)) {
+        await LocalAppPreferences.markTarotEquipDefaultsV1Done(uid);
+      }
+      return;
+    }
     if (!await LocalAppPreferences.needsTarotEquipDefaultsV1(uid)) {
       return;
     }
@@ -524,8 +561,36 @@ class _HomeScreenState extends State<HomeScreen> {
     return null;
   }
 
+  void _ensureSupabaseAdminLocalShopIfNeeded() {
+    if (_usesLocalDataLayer || !AppConfig.supabaseEnabled) {
+      return;
+    }
+    if (!shopAdminGateAllowsCurrentUser()) {
+      _pendingAdminLocalShop = false;
+      return;
+    }
+    if (_localShop != null || _pendingAdminLocalShop) {
+      return;
+    }
+    _pendingAdminLocalShop = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingAdminLocalShop = false;
+      if (!mounted ||
+          _usesLocalDataLayer ||
+          !AppConfig.supabaseEnabled ||
+          !shopAdminGateAllowsCurrentUser() ||
+          _localShop != null) {
+        return;
+      }
+      setState(() {
+        _localShop = LocalShopRepository(widget.userId);
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _ensureSupabaseAdminLocalShopIfNeeded();
     final uid = widget.userId;
     final avatarForFeed = widget.avatarUrl ?? '🔮';
     final helloName = _effectiveDisplayName;
@@ -719,7 +784,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               onOpenShopAdmin: _localShop != null &&
                                       shopAdminGateAllowsCurrentUser()
                                   ? () async {
-                                      await Navigator.of(context).push<void>(
+                                      await Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).push<void>(
                                         MaterialPageRoute<void>(
                                           builder: (c) => ShopAdminScreen(
                                             repo: _localShop!,

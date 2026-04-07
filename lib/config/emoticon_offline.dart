@@ -1,13 +1,21 @@
 import '../config/app_config.dart';
-import '../data/card_themes.dart' show resolvePublicAssetUrl;
+import '../data/card_themes.dart'
+    show normalizeFlutterBundledAssetKey, resolvePublicAssetUrl;
 import '../models/emoticon_models.dart';
 import 'bundle_emoticon_catalog.dart';
 import 'emoticon_offline_manifest.g.dart';
 import 'gggom_site_public_catalog.dart';
 
 String _normalizeImageUrlKey(String u) {
-  final uri = Uri.tryParse(u.trim());
-  if (uri == null) return u;
+  final t = u.trim();
+  final stripped = t.replaceFirst(RegExp(r'^/+'), '');
+  if (stripped.startsWith('assets/')) {
+    return stripped;
+  }
+  final uri = Uri.tryParse(t);
+  if (uri == null) {
+    return t;
+  }
   return '${uri.scheme}://${uri.host}${uri.path}';
 }
 
@@ -51,16 +59,21 @@ String resolveEmoticonImageSrc({
   if (trimmed.isEmpty) {
     return trimmed;
   }
+  trimmed = normalizeFlutterBundledAssetKey(trimmed);
   trimmed = _remapUndeployedPackEmoticonPath(trimmed);
+  trimmed = normalizeFlutterBundledAssetKey(trimmed);
 
   if (emoticonId != null && emoticonId.isNotEmpty) {
     final byId = kEmoticonOfflineAssetById[emoticonId];
-    if (byId != null && byId.isNotEmpty) return byId;
+    if (byId != null && byId.isNotEmpty) {
+      return normalizeFlutterBundledAssetKey(byId);
+    }
   }
   final key = _normalizeImageUrlKey(trimmed);
   var resolved = kEmoticonOfflineAssetByImageUrl[key] ??
       kEmoticonOfflineAssetByImageUrl[trimmed] ??
       trimmed;
+  resolved = normalizeFlutterBundledAssetKey(resolved);
 
   if (_looksAbsoluteHttp(resolved) || resolved.startsWith('data:image/')) {
     return resolved;

@@ -21,3 +21,12 @@ Future<void> saveLocalJsonFile(String name, String data) async {
     debugPrint('saveLocalJsonFile 예외 ($name): $e\n$st');
   }
 }
+
+Future<void> removeLocalJsonFile(String name) async {
+  final sp = await SharedPreferences.getInstance();
+  try {
+    await sp.remove('gggom_standalone_$name');
+  } catch (e, st) {
+    debugPrint('removeLocalJsonFile 예외 ($name): $e\n$st');
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/local_account_store.dart';
+import '../standalone/local_user_data_wipe.dart';
 import '../theme/app_colors.dart';
 
 class AccountManageScreen extends StatefulWidget {
@@ -130,25 +131,49 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
     }
   }
 
-  Future<void> _deleteAccount() async {
+  Future<void> _withdrawMembership() async {
+    await _runAccountRemoval(
+      title: '회원 탈퇴',
+      body:
+          '회원에서 탈퇴하면 이 기기에 저장된 로그인 정보가 삭제되고, '
+          '이 계정의 별조각·가방·타로 진행·채팅 등 기기 데이터도 함께 지워집니다.\n\n'
+          '다시 이용하시려면 회원 가입을 새로 하셔야 합니다.',
+      confirmLabel: '탈퇴하기',
+    );
+  }
+
+  Future<void> _deleteAccountAndData() async {
+    await _runAccountRemoval(
+      title: '계정 삭제',
+      body:
+          '비밀번호 확인 후 이 계정 자체와 이 기기에 남아 있는 해당 계정 데이터를 '
+          '모두 삭제합니다. 되돌릴 수 없습니다.',
+      confirmLabel: '삭제하기',
+    );
+  }
+
+  Future<void> _runAccountRemoval({
+    required String title,
+    required String body,
+    required String confirmLabel,
+  }) async {
     final pass = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('계정 탈퇴'),
+        title: Text(title),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '이 기기에 저장된 로그인 정보와 계정이 삭제됩니다. 상점·가방 데이터 파일은 기기에 그대로 남을 수 있어요.',
-              ),
+              Text(body),
               const SizedBox(height: 16),
               TextField(
                 controller: pass,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: '비밀번호 확인'),
+                autofocus: true,
               ),
             ],
           ),
@@ -161,7 +186,7 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('탈퇴'),
+            child: Text(confirmLabel),
           ),
         ],
       ),
@@ -171,9 +196,10 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       return;
     }
     final pwd = pass.text;
-    // 다이얼로그 닫힘 애니메이션 중 TextField 이 컨트롤러를 참조할 수 있음
     await Future<void>.delayed(const Duration(milliseconds: 80));
     pass.dispose();
+
+    final uid = widget.session.userId;
     final err = await LocalAccountStore.instance.deleteAccount(
       loginKey: widget.session.loginKey,
       password: pwd,
@@ -185,7 +211,9 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
       return;
     }
-    await LocalAccountStore.instance.clearSession();
+
+    await wipeStandaloneArtifactsForAppUserId(uid);
+
     if (!mounted) {
       return;
     }
@@ -231,11 +259,32 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
             onPressed: _changePassword,
             child: const Text('비밀번호 변경'),
           ),
+          const SizedBox(height: 24),
+          Text(
+            '회원 · 계정',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '탈퇴와 계정 삭제 모두 이 기기에서 로그인 정보와 진행 데이터를 지웁니다.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+          ),
           const SizedBox(height: 12),
           OutlinedButton(
-            onPressed: _deleteAccount,
+            onPressed: _withdrawMembership,
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800),
-            child: const Text('계정 탈퇴'),
+            child: const Text('회원 탈퇴'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _deleteAccountAndData,
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800),
+            child: const Text('계정 삭제'),
           ),
         ],
       ),
