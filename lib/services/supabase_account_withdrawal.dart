@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../standalone/local_user_data_wipe.dart';
+
 const _rpcDeleteMyAccount = 'delete_my_account';
 
 /// Supabase 연동 계정 탈퇴 — 서버에 [docs/supabase_delete_my_account.sql] RPC가 있으면 우선 사용,
@@ -22,9 +24,16 @@ class SupabaseAccountWithdrawal {
     }
 
     try {
-      await client.auth.signOut();
+      await wipeOAuthUserLocalArtifacts(uid);
+    } catch (_) {}
+    try {
+      await client.auth.signOut(scope: SignOutScope.global);
     } catch (_) {
-      // 이미 서버에서 세션 무효화된 경우 등 — 로컬만 정리되면 됨
+      try {
+        await client.auth.signOut();
+      } catch (_) {
+        // 이미 서버에서 세션 무효화된 경우 등 — 로컬만 정리되면 됨
+      }
     }
     return null;
   }

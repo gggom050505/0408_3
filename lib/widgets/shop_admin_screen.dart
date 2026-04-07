@@ -10,10 +10,10 @@ import '../models/shop_models.dart';
 import '../standalone/local_json_workspace_export.dart';
 import '../standalone/local_shop_repository.dart';
 import '../theme/app_colors.dart';
-import 'admin_user_activity_screen.dart';
 import 'adaptive_network_asset_image.dart';
 import 'shop_bulk_card_import_io.dart'
-    if (dart.library.html) 'shop_bulk_card_import_web.dart' as bulk_import;
+    if (dart.library.html) 'shop_bulk_card_import_web.dart'
+    as bulk_import;
 
 enum _AdminBulkKind { cardDeck, mat, cardBack }
 
@@ -23,8 +23,10 @@ class ShopAdminScreen extends StatefulWidget {
   const ShopAdminScreen({
     super.key,
     required this.repo,
+
     /// 홈과 동일한 타로 세션 즉시 저장([TarotTab] 플러시). 오프라인·베타 번들·비웹에서만 넘깁니다.
     this.workspaceFlushSignal,
+
     /// `true`(기본): Supabase 세션이 [shopAdminGateAllowsCurrentUser] 일 때만 본문 표시.
     /// 위젯 테스트에서만 `false` 로 게이트 생략.
     this.enforceSupabaseAdminGate = true,
@@ -108,9 +110,9 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장에 실패했어요: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('저장에 실패했어요: $e')));
       }
     }
   }
@@ -134,15 +136,15 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       }
       return;
     }
-    final uri = await bulk_import.pickAndCopyThumbnailForShopItem(itemId: itemId);
+    final uri = await bulk_import.pickAndCopyThumbnailForShopItem(
+      itemId: itemId,
+    );
     if (!dialogContext.mounted) {
       return;
     }
     if (uri == null) {
       ScaffoldMessenger.of(dialogContext).showSnackBar(
-        const SnackBar(
-          content: Text('선택이 취소되었거나 png/jpg/webp/gif 만 지원해요.'),
-        ),
+        const SnackBar(content: Text('선택이 취소되었거나 png/jpg/webp/gif 만 지원해요.')),
       );
       return;
     }
@@ -159,6 +161,7 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
     var active = existing?.isActive ?? true;
 
     bool? ok;
+
     /// [showDialog] 종료 뒤 컨트롤러를 dispose 하므로, 확인 시점 값을 여기에 복사합니다.
     String idFieldSnap = '';
     String nameFieldSnap = '';
@@ -188,19 +191,32 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
                     decoration: const InputDecoration(labelText: '이름'),
                   ),
                   InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: '상품 종류',
-                    ),
+                    decoration: const InputDecoration(labelText: '상품 종류'),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         isExpanded: true,
                         value: type,
                         items: [
-                          const DropdownMenuItem(value: 'card', child: Text('카드 덱')),
-                          const DropdownMenuItem(value: 'card_back', child: Text('카드 뒷면')),
-                          const DropdownMenuItem(value: 'mat', child: Text('매트')),
-                          const DropdownMenuItem(value: 'slot', child: Text('카드 슬롯')),
-                          const DropdownMenuItem(value: 'oracle_card', child: Text('오라클 카드')),
+                          const DropdownMenuItem(
+                            value: 'card',
+                            child: Text('카드 덱'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'card_back',
+                            child: Text('카드 뒷면'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'mat',
+                            child: Text('매트'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'slot',
+                            child: Text('카드 슬롯'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'oracle_card',
+                            child: Text('오라클 카드'),
+                          ),
                           const DropdownMenuItem(
                             value: 'korea_major_card',
                             child: Text('한국전통 메이저(장)'),
@@ -228,7 +244,9 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: priceCtrl,
-                    decoration: const InputDecoration(labelText: '가격 (별조각, 0=무료)'),
+                    decoration: const InputDecoration(
+                      labelText: '가격 (별조각, 0=무료)',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                   TextField(
@@ -259,7 +277,10 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('취소'),
+              ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 child: const Text('확인'),
@@ -287,8 +308,7 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
     final id = existing?.id ?? idFieldSnap.trim();
     final name = nameFieldSnap.trim();
     final price = int.tryParse(priceFieldSnap.trim()) ?? 0;
-    final thumb =
-        thumbFieldSnap.trim().isEmpty ? null : thumbFieldSnap.trim();
+    final thumb = thumbFieldSnap.trim().isEmpty ? null : thumbFieldSnap.trim();
 
     if (existing == null) {
       final rawId = idFieldSnap.trim();
@@ -300,9 +320,9 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       }
     }
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이름을 입력해 주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이름을 입력해 주세요.')));
       return;
     }
 
@@ -318,9 +338,9 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
 
     if (existing == null) {
       if (next.any((e) => e.id == id)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미 같은 ID가 있어요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('이미 같은 ID가 있어요.')));
         return;
       }
       next.add(row);
@@ -345,8 +365,14 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
         title: const Text('삭제'),
         content: Text('「${item.name}」(${item.id}) 를 삭제할까요?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('삭제')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('삭제'),
+          ),
         ],
       ),
     );
@@ -362,9 +388,7 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              '이미지 일괄 등록은 Windows·macOS·Linux 설치판에서 사용할 수 있어요.',
-            ),
+            content: Text('이미지 일괄 등록은 Windows·macOS·Linux 설치판에서 사용할 수 있어요.'),
           ),
         );
       }
@@ -373,19 +397,24 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
     try {
       final added = switch (kind) {
         _AdminBulkKind.cardDeck =>
-          await bulk_import.pickAndRegisterCardDeckImages(existingItems: _items),
-        _AdminBulkKind.mat =>
-          await bulk_import.pickAndRegisterMatImages(existingItems: _items),
+          await bulk_import.pickAndRegisterCardDeckImages(
+            existingItems: _items,
+          ),
+        _AdminBulkKind.mat => await bulk_import.pickAndRegisterMatImages(
+          existingItems: _items,
+        ),
         _AdminBulkKind.cardBack =>
-          await bulk_import.pickAndRegisterCardBackImages(existingItems: _items),
+          await bulk_import.pickAndRegisterCardBackImages(
+            existingItems: _items,
+          ),
       };
       if (!mounted) {
         return;
       }
       if (added == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('선택이 취소되었어요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('선택이 취소되었어요.')));
         return;
       }
       if (added.isEmpty) {
@@ -410,9 +439,9 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('일괄 등록 실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('일괄 등록 실패: $e')));
       }
     }
   }
@@ -433,7 +462,10 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
           child: SingleChildScrollView(child: SelectableText(s)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('닫기')),
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('닫기'),
+          ),
         ],
       ),
     );
@@ -441,13 +473,10 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.enforceSupabaseAdminGate &&
-        !shopAdminGateAllowsCurrentUser()) {
+    if (widget.enforceSupabaseAdminGate && !shopAdminGateAllowsCurrentUser()) {
       return Scaffold(
         backgroundColor: AppColors.bgMain,
-        appBar: AppBar(
-          title: const Text('관리자 전용'),
-        ),
+        appBar: AppBar(title: const Text('관리자 전용')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -470,30 +499,25 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
         title: const Text('관리자 모드 · 상점 상품 편집'),
         actions: [
           IconButton(
-            tooltip: '접속·활동 모니터',
-            icon: const Icon(Icons.groups_outlined),
-            onPressed: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (c) => const AdminUserActivityScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
             tooltip: '카드 덱 이미지 일괄 등록 (PC)',
             icon: const Icon(Icons.folder_open),
-            onPressed: _loading ? null : () => _bulkImportDesktop(_AdminBulkKind.cardDeck),
+            onPressed: _loading
+                ? null
+                : () => _bulkImportDesktop(_AdminBulkKind.cardDeck),
           ),
           IconButton(
             tooltip: '매트 이미지 일괄 등록 (PC)',
             icon: const Icon(Icons.grid_4x4_outlined),
-            onPressed: _loading ? null : () => _bulkImportDesktop(_AdminBulkKind.mat),
+            onPressed: _loading
+                ? null
+                : () => _bulkImportDesktop(_AdminBulkKind.mat),
           ),
           IconButton(
             tooltip: '카드 뒷면 이미지 일괄 등록 (PC)',
             icon: const Icon(Icons.style_outlined),
-            onPressed: _loading ? null : () => _bulkImportDesktop(_AdminBulkKind.cardBack),
+            onPressed: _loading
+                ? null
+                : () => _bulkImportDesktop(_AdminBulkKind.cardBack),
           ),
           IconButton(
             tooltip: 'JSON 보기',
@@ -517,36 +541,36 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, textAlign: TextAlign.center))
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                  children: [
-                    Text(
-                      '오프라인·베타 번들에만 적용됩니다.「저장하기」는 편집 중인 상품 목록과 함께 상점 사용자 상태·타로·피드·채팅 등 '
-                      '기기에 있는 로컬 JSON 을 모두 확정한 뒤, 가능하면 프로젝트 assets/local_dev_state/ 로 미러합니다 '
-                      '(단위·위젯 테스트 실행 시에는 미러 생략). '
-                      '루트 인식: 프로젝트에서 실행하거나 dart-define GGGOM_PROJECT_ROOT '
-                      '(또는 SHOP_CATALOG_REPO_ROOT). '
-                      '상점에 쓰는 카드 덱·뒷면·매트·슬롯·오라클 카드 품목을 모두 여기서 추가·수정·삭제·숨김 처리할 수 있어요. '
-                      '폴더·격자·스타일 아이콘으로 PC에서 카드 덱·매트·카드 뒷면 썸네일을 각각 여러 장 한 번에 등록할 수 있어요. '
-                      '매트·카드 뒷면 일괄 등록은 기본 ⭐500이며 목록에서 수정 가능합니다.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.tonalIcon(
-                        onPressed: _loading ? null : _saveCurrentCatalog,
-                        icon: const Icon(Icons.save_outlined),
-                        label: const Text('현재 입력된 값들 저장하기'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ..._buildGrouped(),
-                  ],
+          ? Center(child: Text(_error!, textAlign: TextAlign.center))
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              children: [
+                Text(
+                  '오프라인·베타 번들에만 적용됩니다.「저장하기」는 편집 중인 상품 목록과 함께 상점 사용자 상태·타로·피드·채팅 등 '
+                  '기기에 있는 로컬 JSON 을 모두 확정한 뒤, 가능하면 프로젝트 assets/local_dev_state/ 로 미러합니다 '
+                  '(단위·위젯 테스트 실행 시에는 미러 생략). '
+                  '루트 인식: 프로젝트에서 실행하거나 dart-define GGGOM_PROJECT_ROOT '
+                  '(또는 SHOP_CATALOG_REPO_ROOT). '
+                  '상점에 쓰는 카드 덱·뒷면·매트·슬롯·오라클 카드 품목을 모두 여기서 추가·수정·삭제·숨김 처리할 수 있어요. '
+                  '폴더·격자·스타일 아이콘으로 PC에서 카드 덱·매트·카드 뒷면 썸네일을 각각 여러 장 한 번에 등록할 수 있어요. '
+                  '매트·카드 뒷면 일괄 등록은 기본 ⭐500이며 목록에서 수정 가능합니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _loading ? null : _saveCurrentCatalog,
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('현재 입력된 값들 저장하기'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ..._buildGrouped(),
+              ],
+            ),
     );
   }
 
@@ -559,11 +583,13 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       ..sort((a, b) => a.name.compareTo(b.name));
     final oracles = _items.where((e) => e.type == 'oracle_card').toList()
       ..sort((a, b) => a.name.compareTo(b.name));
-    final koreaMajors = _items.where((e) => e.type == 'korea_major_card').toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    final koreaMajors =
+        _items.where((e) => e.type == 'korea_major_card').toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
     final mats = _items.where((e) => e.type == 'mat').toList()
       ..sort((a, b) => a.name.compareTo(b.name));
-    final known = cards.length +
+    final known =
+        cards.length +
         cardBacks.length +
         slots.length +
         oracles.length +
@@ -587,13 +613,15 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       if (other > 0) ...[
         _groupTitle('📦 기타 타입'),
         ..._items
-            .where((e) =>
-                e.type != 'card' &&
-                e.type != 'card_back' &&
-                e.type != 'slot' &&
-                e.type != 'oracle_card' &&
-                e.type != 'korea_major_card' &&
-                e.type != 'mat')
+            .where(
+              (e) =>
+                  e.type != 'card' &&
+                  e.type != 'card_back' &&
+                  e.type != 'slot' &&
+                  e.type != 'oracle_card' &&
+                  e.type != 'korea_major_card' &&
+                  e.type != 'mat',
+            )
             .map((e) => _tile(e)),
       ],
       if (_items.isEmpty)
@@ -609,10 +637,7 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
       padding: const EdgeInsets.only(top: 12, bottom: 8),
       child: Text(
         t,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
       ),
     );
   }
@@ -640,10 +665,19 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
             height: 60,
             child: thumb != null && thumb.isNotEmpty
                 ? AdaptiveNetworkOrAssetImage(
-                    src: resolveShopItemThumbnailSrc(thumb, AppConfig.assetOrigin) ?? thumb,
+                    src:
+                        resolveShopItemThumbnailSrc(
+                          thumb,
+                          AppConfig.assetOrigin,
+                        ) ??
+                        thumb,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        Center(child: Text(phEmoji, style: const TextStyle(fontSize: 22))),
+                    errorBuilder: (_, _, _) => Center(
+                      child: Text(
+                        phEmoji,
+                        style: const TextStyle(fontSize: 22),
+                      ),
+                    ),
                   )
                 : Container(
                     alignment: Alignment.center,
@@ -652,7 +686,10 @@ class _ShopAdminScreenState extends State<ShopAdminScreen> {
                   ),
           ),
         ),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          item.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(
           '${item.id} · ${item.type} · ⭐${item.price}${item.isActive ? '' : ' · 숨김'}',
           style: TextStyle(fontSize: 11, color: AppColors.textSecondary),

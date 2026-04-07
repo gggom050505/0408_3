@@ -1,10 +1,8 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../data/feed_tags.dart';
-import '../services/user_monitoring_service.dart';
 import '../standalone/data_sources.dart';
 import '../theme/app_colors.dart';
 
@@ -74,8 +72,6 @@ class _PostCaptureSheetState extends State<PostCaptureSheet> {
       if (post != null) {
         Navigator.pop(context, post);
         widget.onPosted();
-        final preview = text.length > 60 ? '${text.substring(0, 60)}…' : text;
-        unawaited(UserMonitoringService.instance.logAppEvent('피드 게시', detail: preview));
       } else {
         setState(() => _submitError = '게시에 실패했어요. 잠시 후 다시 시도해 주세요.');
       }

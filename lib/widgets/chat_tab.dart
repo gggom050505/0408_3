@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
 import '../config/emoticon_offline.dart';
 import '../models/chat_message.dart';
-import '../services/user_monitoring_service.dart';
 import '../repositories/chat_repository.dart';
 import '../standalone/data_sources.dart';
 import '../theme/app_colors.dart';
@@ -173,8 +170,6 @@ class _ChatTabState extends State<ChatTab> {
     if (msg != null && mounted && !_messages.any((m) => m.id == msg.id)) {
       setState(() => _messages = [..._messages, msg]);
       _scrollToBottom();
-      final preview = t.length > 40 ? '${t.substring(0, 40)}…' : t;
-      unawaited(UserMonitoringService.instance.logAppEvent('채팅 텍스트', detail: preview));
     }
   }
 
@@ -192,9 +187,6 @@ class _ChatTabState extends State<ChatTab> {
     if (msg != null && mounted && !_messages.any((m) => m.id == msg.id)) {
       setState(() => _messages = [..._messages, msg]);
       _scrollToBottom();
-      unawaited(
-        UserMonitoringService.instance.logAppEvent('채팅 이모티콘', detail: emoticonId),
-      );
     }
   }
 

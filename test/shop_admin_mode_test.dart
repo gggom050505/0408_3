@@ -7,15 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gggom_tarot/config/shop_admin_gate.dart';
 import 'package:gggom_tarot/models/shop_models.dart';
 import 'package:gggom_tarot/standalone/local_shop_repository.dart';
-import 'package:gggom_tarot/widgets/admin_user_activity_screen.dart';
 import 'package:gggom_tarot/widgets/gnb.dart';
 import 'package:gggom_tarot/widgets/shop_admin_screen.dart';
 
-/// 관리자 모드(상점 편집·활동 화면·GNB 뱃지·Supabase 게이트) 자동 테스트.
-///
-/// **원격 전용:** 접속·활동 모니터의 Supabase 조회·Realtime 은
-/// [AdminUserActivityScreen] 에서 `enforceSupabaseAdminGate: false` + 초기화된 클라이언트가
-/// 필요하므로 여기서는 **게이트된 안내 문구**만 검증합니다.
+/// 관리자 모드(상점 편집·GNB 뱃지·Supabase 게이트) 자동 테스트.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -85,21 +80,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('AdminUserActivityScreen: 게이트 시 동일 이메일 안내', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: AdminUserActivityScreen(
-          enforceSupabaseAdminGate: true,
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(find.textContaining(kShopAdminGoogleEmail), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets(
-    'ShopAdminScreen: 상품 추가·수정·삭제·JSON 보기·활동 화면 진입',
+    'ShopAdminScreen: 상품 추가·수정·삭제·JSON 보기',
     (tester) async {
       final suffix = '${tester.binding.hashCode}';
       final repo = LocalShopRepository('admin-flow-$suffix');
@@ -153,13 +135,6 @@ void main() {
       expect(find.text('카탈로그 JSON'), findsOneWidget);
       expect(find.textContaining(testId), findsWidgets);
       await tester.tap(find.text('닫기'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.groups_outlined));
-      await tester.pumpAndSettle();
-      expect(find.textContaining(kShopAdminGoogleEmail), findsOneWidget);
-
-      await tester.pageBack();
       await tester.pumpAndSettle();
 
       await tester.tap(

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
-import '../services/user_monitoring_service.dart';
 import '../data/feed_tags.dart';
 import '../models/feed_post.dart';
 import '../standalone/data_sources.dart';
@@ -240,12 +239,6 @@ class _FeedTabState extends State<FeedTab> {
             )
             .toList();
       });
-      unawaited(
-        UserMonitoringService.instance.logAppEvent(
-          '피드 댓글',
-          detail: 'post #${post.id}',
-        ),
-      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

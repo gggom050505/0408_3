@@ -32,7 +32,6 @@ import '../standalone/local_event_repository.dart';
 import '../standalone/local_feed_repository.dart';
 import '../standalone/local_shop_repository.dart';
 import '../services/local_account_store.dart';
-import '../services/user_monitoring_service.dart';
 import 'account_manage_screen.dart';
 import 'supabase_account_screen.dart';
 import 'ad_reward_sheet.dart';
@@ -74,8 +73,10 @@ class HomeScreen extends StatefulWidget {
   final String displayName;
   final String? avatarUrl;
   final VoidCallback onSignOut;
+
   /// 자체(로컬) 계정일 때만 전달 — GNB에서 계정 관리 진입
   final LocalAccountSession? localAccountSession;
+
   /// 닉네임 변경 후 [LocalAccountStore]와 부모 상태를 맞출 때 호출
   final Future<void> Function()? onLocalSessionReload;
 
@@ -215,8 +216,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _localShop = LocalShopRepository(widget.userId);
     }
     if (AppConfig.supabaseEnabled) {
-      _authStateSub =
-          Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      _authStateSub = Supabase.instance.client.auth.onAuthStateChange.listen((
+        _,
+      ) {
         if (!mounted) {
           return;
         }
@@ -248,9 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     final result = await Navigator.of(context).push<Object?>(
-      MaterialPageRoute<void>(
-        builder: (c) => AccountManageScreen(session: s),
-      ),
+      MaterialPageRoute<void>(builder: (c) => AccountManageScreen(session: s)),
     );
     if (!mounted) {
       return;
@@ -274,9 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     final withdrew = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (c) => const SupabaseAccountScreen(),
-      ),
+      MaterialPageRoute<bool>(builder: (c) => const SupabaseAccountScreen()),
     );
     if (!mounted) {
       return;
@@ -303,28 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(LocalAppPreferences.setMainTabName(t.name));
   }
 
-  String _mainTabActivityLabel(MainTab t) => switch (t) {
-        MainTab.tarot => '타로',
-        MainTab.feed => '게시물',
-        MainTab.chat => '채팅',
-        MainTab.shop => '상점',
-        MainTab.bag => '가방',
-        MainTab.event => '이벤트',
-      };
-
   void _setMainTab(MainTab t) {
     setState(() => _tab = t);
     _persistMainTab(t);
-    if (AppConfig.supabaseEnabled &&
-        widget.userId != 'local-guest' &&
-        !LocalAccountStore.isLocalAppUserId(widget.userId)) {
-      unawaited(
-        UserMonitoringService.instance.logAppEvent(
-          '메인 탭 이동',
-          detail: _mainTabActivityLabel(t),
-        ),
-      );
-    }
   }
 
   Future<void> _bootstrap() async {
@@ -361,10 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final ok = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         fullscreenDialog: true,
-        builder: (c) => FirstSetupWizardScreen(
-          shopRepo: repo,
-          userId: uid,
-        ),
+        builder: (c) => FirstSetupWizardScreen(shopRepo: repo, userId: uid),
       ),
     );
     if (ok != true && mounted) {
@@ -586,7 +562,8 @@ class _HomeScreenState extends State<HomeScreen> {
               return;
             }
             if (grant != null) {
-              final msg = grant.luckyShopItemGranted &&
+              final msg =
+                  grant.luckyShopItemGranted &&
                       grant.luckyShopItemName != null &&
                       grant.luckyShopItemName!.isNotEmpty
                   ? '⭐ 별조각 +${grant.starFragmentsAdded} · 출석 선물 「${grant.luckyShopItemName}」을(를) 드렸어요'
@@ -610,11 +587,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _needLogin() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('로그인이 필요합니다.'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
   }
 
   void _onPostedToFeed() {
@@ -628,7 +603,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _resolveEquippedCardBackThumb(String equippedId) {
     for (final s in _shopItems) {
       if (s.id == equippedId && s.type == 'card_back') {
-        final src = resolveShopItemThumbnailSrc(s.thumbnailUrl, AppConfig.assetOrigin);
+        final src = resolveShopItemThumbnailSrc(
+          s.thumbnailUrl,
+          AppConfig.assetOrigin,
+        );
         if (src != null && src.isNotEmpty) {
           return src;
         }
@@ -676,18 +654,23 @@ class _HomeScreenState extends State<HomeScreen> {
     final helloName = _effectiveDisplayName;
     final equippedCard = _profile?.equippedCard ?? defaultEquippedCard;
     final equippedMat = _profile?.equippedMat ?? defaultEquippedMat;
-    final equippedCardBack = _profile?.equippedCardBack ?? defaultEquippedCardBack;
+    final equippedCardBack =
+        _profile?.equippedCardBack ?? defaultEquippedCardBack;
     final equippedSlotId = _profile?.equippedSlot ?? kDefaultEquippedSlotId;
     String? equippedSlotDecorationSrc;
     for (final s in _shopItems) {
       if (s.id == equippedSlotId && s.type == 'slot') {
-        equippedSlotDecorationSrc =
-            resolveShopItemThumbnailSrc(s.thumbnailUrl, AppConfig.assetOrigin);
+        equippedSlotDecorationSrc = resolveShopItemThumbnailSrc(
+          s.thumbnailUrl,
+          AppConfig.assetOrigin,
+        );
         break;
       }
     }
     equippedSlotDecorationSrc ??= bundledSlotAssetPathForShopId(equippedSlotId);
-    final equippedCardBackImageSrc = _resolveEquippedCardBackThumb(equippedCardBack);
+    final equippedCardBackImageSrc = _resolveEquippedCardBackThumb(
+      equippedCardBack,
+    );
     final ownedOracleNums = <int>{};
     for (final row in _owned.where((e) => e.itemType == 'oracle_card')) {
       final n = oracleItemIdToCardNumber(row.itemId);
@@ -714,211 +697,234 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 430),
                 child: Column(
-                children: [
-                  Gnb(
-                    active: _tab,
-                    onTab: _setMainTab,
-                    displayName: helloName,
-                    avatarUrl: widget.avatarUrl,
-                    isShopAdminSession: shopAdminGateAllowsCurrentUser(),
-                    onSignOut: widget.onSignOut,
-                    checkedInToday: _checkedInToday,
-                    onAttendance: () => _openAttendance(context),
-                    onAdReward: AppConfig.showBetaStarAdRewardMenu &&
-                            _shopRepo != null
-                        ? () => unawaited(_openAdReward(context))
-                        : null,
-                    onSaveForCoding:
-                        kIsWeb ? null : _saveAllLocalStateForCoding,
-                    onAccountSettings: widget.localAccountSession != null ||
-                            (AppConfig.supabaseEnabled &&
-                                widget.userId != 'local-guest')
-                        ? _openAccountSettings
-                        : null,
-                    onMakingNotes: () =>
-                        unawaited(MakingNotesScreen.open(context)),
-                  ),
-                if (_shopLoading) ...[
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, t, child) => Opacity(opacity: t, child: child),
-                    child: const LinearProgressIndicator(minHeight: 2),
-                  ),
-                ],
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 380),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: tabSwitchChildTransition,
-                    child: switch (_tab) {
-                      MainTab.tarot => TarotTab(
-                          key: const ValueKey('tarot-tab'),
-                          userId: uid,
-                          displayName: helloName,
-                          avatarEmojiOrUrl: avatarForFeed,
-                          equippedCardThemeId: equippedCard,
-                          equippedMatId: equippedMat,
-                          equippedCardBackId: equippedCardBack,
-                          equippedCardBackImageSrc: equippedCardBackImageSrc,
-                          equippedSlotId: equippedSlotId,
-                          emptySlotDecorationSrc: equippedSlotDecorationSrc,
-                          ownedOracleCardNumbers: ownedOracleNums.toList()
-                            ..sort(),
-                          ownedKoreaMajorCardIds: ownedKoreaMajorCardIds,
-                          feedRepository: _feed,
-                          onNeedLogin: _needLogin,
-                          onPostedToFeed: _onPostedToFeed,
-                          workspaceFlushSignal:
-                              kIsWeb ? null : _workspaceFlushSignal,
-                        ),
-                      MainTab.feed => _feed == null
-                          ? const SimpleTabPage(
-                              key: ValueKey('feed-off'),
-                              emoji: '📝',
-                              title: '게시물',
-                              subtitle: '베타: 서버(Supabase) 연동 시 피드를 불러옵니다.',
-                            )
-                          : FeedTab(
-                              key: ValueKey('feed-$_feedReloadToken'),
-                              feed: _feed!,
-                              currentUserId: uid,
-                              displayName: helloName,
-                              avatar: avatarForFeed,
-                              onNeedLogin: _needLogin,
-                            ),
-                      MainTab.chat => _usesLocalDataLayer
-                          ? StandaloneChatTab(
-                              key: const ValueKey('chat-standalone'),
-                              displayName: helloName,
-                              userId: uid,
-                              emoticonRepo: _emoticonRepo!,
-                            )
-                          : ChatTab(
-                              key: ValueKey('chat-$uid'),
-                              userId: uid,
-                              displayName: helloName,
-                              avatarUrl: widget.avatarUrl,
-                              emoticonRepo: _emoticonRepo!,
-                              onNeedLogin: _needLogin,
-                            ),
-                      MainTab.shop => _shopRepo == null
-                          ? const SimpleTabPage(
-                              key: ValueKey('shop-off'),
-                              emoji: '🏪',
-                              title: '상점',
-                              subtitle: '베타: Supabase 연동 시 상점이 열립니다.',
-                            )
-                          : ShopTab(
-                              key: ValueKey('shop-$uid'),
-                              repo: _shopRepo!,
-                              userId: uid,
-                              displayName: helloName,
-                              shopItems: _shopItems,
-                              profile: _profile,
-                              ownedItems: _owned,
-                              onRefresh: _refreshShop,
-                              onNeedLogin: _needLogin,
-                              emoticonRepo: _emoticonRepo!,
-                              emoticonPacks: _emoticonPacks,
-                              ownedEmoticonIds: _ownedEmoticonIds,
-                              surpriseGiftOffer: _surpriseGiftOffer,
-                              onClaimSurpriseGift: (offer) async {
-                                final shop = _shopRepo;
-                                if (shop == null || !mounted) {
-                                  return;
-                                }
-                                final result = await shop.claimSurpriseGift(uid, offer);
-                                if (!mounted) {
-                                  return;
-                                }
-                                await _refreshShop();
-                                if (!mounted) {
-                                  return;
-                                }
-                                final messenger = _scaffoldMessengerKey.currentState;
-                                switch (result) {
-                                  case ClaimSurpriseGiftResult.granted:
-                                    messenger?.showSnackBar(
-                                      const SnackBar(content: Text('깜짝 선물을 받았어요!')),
-                                    );
-                                  case ClaimSurpriseGiftResult.alreadyOwned:
-                                    messenger?.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          '이미 가방에 있는 품목이에요. 중복 지급 없이 다음 깜짝 선물 주기로 넘어갔어요.',
-                                        ),
-                                      ),
-                                    );
-                                  case ClaimSurpriseGiftResult.failed:
-                                    messenger?.showSnackBar(
-                                      const SnackBar(content: Text('선물을 받지 못했어요.')),
-                                    );
-                                }
-                              },
-                              onOpenPersonalShop: () => unawaited(_openPersonalShop(context)),
-                              onBetaAdReward: AppConfig.showBetaStarAdRewardMenu
-                                  ? () => unawaited(_openAdReward(context))
-                                  : null,
-                              onOpenShopAdmin: _localShop != null &&
-                                      shopAdminGateAllowsCurrentUser()
-                                  ? () async {
-                                      await Navigator.of(
-                                        context,
-                                        rootNavigator: true,
-                                      ).push<void>(
-                                        MaterialPageRoute<void>(
-                                          builder: (c) => ShopAdminScreen(
-                                            repo: _localShop!,
-                                            workspaceFlushSignal:
-                                                _workspaceFlushSignal,
-                                          ),
-                                        ),
-                                      );
-                                      if (context.mounted) {
-                                        await _refreshShop();
+                  children: [
+                    Gnb(
+                      active: _tab,
+                      onTab: _setMainTab,
+                      displayName: helloName,
+                      avatarUrl: widget.avatarUrl,
+                      isShopAdminSession: shopAdminGateAllowsCurrentUser(),
+                      onSignOut: widget.onSignOut,
+                      checkedInToday: _checkedInToday,
+                      onAttendance: () => _openAttendance(context),
+                      onAdReward:
+                          AppConfig.showBetaStarAdRewardMenu &&
+                              _shopRepo != null
+                          ? () => unawaited(_openAdReward(context))
+                          : null,
+                      onSaveForCoding: kIsWeb
+                          ? null
+                          : _saveAllLocalStateForCoding,
+                      onAccountSettings:
+                          widget.localAccountSession != null ||
+                              (AppConfig.supabaseEnabled &&
+                                  widget.userId != 'local-guest')
+                          ? _openAccountSettings
+                          : null,
+                      onMakingNotes: () =>
+                          unawaited(MakingNotesScreen.open(context)),
+                    ),
+                    if (_shopLoading) ...[
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, t, child) =>
+                            Opacity(opacity: t, child: child),
+                        child: const LinearProgressIndicator(minHeight: 2),
+                      ),
+                    ],
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 380),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: tabSwitchChildTransition,
+                        child: switch (_tab) {
+                          MainTab.tarot => TarotTab(
+                            key: const ValueKey('tarot-tab'),
+                            userId: uid,
+                            displayName: helloName,
+                            avatarEmojiOrUrl: avatarForFeed,
+                            equippedCardThemeId: equippedCard,
+                            equippedMatId: equippedMat,
+                            equippedCardBackId: equippedCardBack,
+                            equippedCardBackImageSrc: equippedCardBackImageSrc,
+                            equippedSlotId: equippedSlotId,
+                            emptySlotDecorationSrc: equippedSlotDecorationSrc,
+                            ownedOracleCardNumbers: ownedOracleNums.toList()
+                              ..sort(),
+                            ownedKoreaMajorCardIds: ownedKoreaMajorCardIds,
+                            feedRepository: _feed,
+                            onNeedLogin: _needLogin,
+                            onPostedToFeed: _onPostedToFeed,
+                            workspaceFlushSignal: kIsWeb
+                                ? null
+                                : _workspaceFlushSignal,
+                          ),
+                          MainTab.feed =>
+                            _feed == null
+                                ? const SimpleTabPage(
+                                    key: ValueKey('feed-off'),
+                                    emoji: '📝',
+                                    title: '게시물',
+                                    subtitle:
+                                        '베타: 서버(Supabase) 연동 시 피드를 불러옵니다.',
+                                  )
+                                : FeedTab(
+                                    key: ValueKey('feed-$_feedReloadToken'),
+                                    feed: _feed!,
+                                    currentUserId: uid,
+                                    displayName: helloName,
+                                    avatar: avatarForFeed,
+                                    onNeedLogin: _needLogin,
+                                  ),
+                          MainTab.chat =>
+                            _usesLocalDataLayer
+                                ? StandaloneChatTab(
+                                    key: const ValueKey('chat-standalone'),
+                                    displayName: helloName,
+                                    userId: uid,
+                                    emoticonRepo: _emoticonRepo!,
+                                  )
+                                : ChatTab(
+                                    key: ValueKey('chat-$uid'),
+                                    userId: uid,
+                                    displayName: helloName,
+                                    avatarUrl: widget.avatarUrl,
+                                    emoticonRepo: _emoticonRepo!,
+                                    onNeedLogin: _needLogin,
+                                  ),
+                          MainTab.shop =>
+                            _shopRepo == null
+                                ? const SimpleTabPage(
+                                    key: ValueKey('shop-off'),
+                                    emoji: '🏪',
+                                    title: '상점',
+                                    subtitle: '베타: Supabase 연동 시 상점이 열립니다.',
+                                  )
+                                : ShopTab(
+                                    key: ValueKey('shop-$uid'),
+                                    repo: _shopRepo!,
+                                    userId: uid,
+                                    displayName: helloName,
+                                    shopItems: _shopItems,
+                                    profile: _profile,
+                                    ownedItems: _owned,
+                                    onRefresh: _refreshShop,
+                                    onNeedLogin: _needLogin,
+                                    emoticonRepo: _emoticonRepo!,
+                                    emoticonPacks: _emoticonPacks,
+                                    ownedEmoticonIds: _ownedEmoticonIds,
+                                    surpriseGiftOffer: _surpriseGiftOffer,
+                                    onClaimSurpriseGift: (offer) async {
+                                      final shop = _shopRepo;
+                                      if (shop == null || !mounted) {
+                                        return;
                                       }
-                                    }
-                                  : null,
-                            ),
-                      MainTab.bag => _shopRepo == null
-                          ? const SimpleTabPage(
-                              key: ValueKey('bag-off'),
-                              emoji: '🎒',
-                              title: '가방',
-                              subtitle: '베타: Supabase 연동 시 보유품을 표시합니다.',
-                            )
-                          : BagTab(
-                              key: ValueKey('bag-$uid'),
-                              repo: _shopRepo!,
-                              userId: uid,
-                              shopItems: _shopItems,
-                              profile: _profile,
-                              ownedItems: _owned,
-                              ownedEmoticonIds: _ownedEmoticonIds,
-                              onRefresh: _refreshShop,
-                              onNeedLogin: _needLogin,
-                            ),
-                      MainTab.event => _eventRepo == null
-                          ? const SimpleTabPage(
-                              key: ValueKey('event-off'),
-                              emoji: '🎁',
-                              title: '이벤트',
-                              subtitle: '베타: Supabase 연동 시 이벤트·공지를 불러옵니다.',
-                            )
-                          : EventTab(
-                              key: ValueKey('event-$uid'),
-                              repo: _eventRepo!,
-                            ),
-                    },
-                  ),
+                                      final result = await shop
+                                          .claimSurpriseGift(uid, offer);
+                                      if (!mounted) {
+                                        return;
+                                      }
+                                      await _refreshShop();
+                                      if (!mounted) {
+                                        return;
+                                      }
+                                      final messenger =
+                                          _scaffoldMessengerKey.currentState;
+                                      switch (result) {
+                                        case ClaimSurpriseGiftResult.granted:
+                                          messenger?.showSnackBar(
+                                            const SnackBar(
+                                              content: Text('깜짝 선물을 받았어요!'),
+                                            ),
+                                          );
+                                        case ClaimSurpriseGiftResult
+                                            .alreadyOwned:
+                                          messenger?.showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                '이미 가방에 있는 품목이에요. 중복 지급 없이 다음 깜짝 선물 주기로 넘어갔어요.',
+                                              ),
+                                            ),
+                                          );
+                                        case ClaimSurpriseGiftResult.failed:
+                                          messenger?.showSnackBar(
+                                            const SnackBar(
+                                              content: Text('선물을 받지 못했어요.'),
+                                            ),
+                                          );
+                                      }
+                                    },
+                                    onOpenPersonalShop: () =>
+                                        unawaited(_openPersonalShop(context)),
+                                    onBetaAdReward:
+                                        AppConfig.showBetaStarAdRewardMenu
+                                        ? () =>
+                                              unawaited(_openAdReward(context))
+                                        : null,
+                                    onOpenShopAdmin:
+                                        _localShop != null &&
+                                            shopAdminGateAllowsCurrentUser()
+                                        ? () async {
+                                            await Navigator.of(
+                                              context,
+                                              rootNavigator: true,
+                                            ).push<void>(
+                                              MaterialPageRoute<void>(
+                                                builder: (c) => ShopAdminScreen(
+                                                  repo: _localShop!,
+                                                  workspaceFlushSignal:
+                                                      _workspaceFlushSignal,
+                                                ),
+                                              ),
+                                            );
+                                            if (context.mounted) {
+                                              await _refreshShop();
+                                            }
+                                          }
+                                        : null,
+                                  ),
+                          MainTab.bag =>
+                            _shopRepo == null
+                                ? const SimpleTabPage(
+                                    key: ValueKey('bag-off'),
+                                    emoji: '🎒',
+                                    title: '가방',
+                                    subtitle: '베타: Supabase 연동 시 보유품을 표시합니다.',
+                                  )
+                                : BagTab(
+                                    key: ValueKey('bag-$uid'),
+                                    repo: _shopRepo!,
+                                    userId: uid,
+                                    shopItems: _shopItems,
+                                    profile: _profile,
+                                    ownedItems: _owned,
+                                    ownedEmoticonIds: _ownedEmoticonIds,
+                                    onRefresh: _refreshShop,
+                                    onNeedLogin: _needLogin,
+                                  ),
+                          MainTab.event =>
+                            _eventRepo == null
+                                ? const SimpleTabPage(
+                                    key: ValueKey('event-off'),
+                                    emoji: '🎁',
+                                    title: '이벤트',
+                                    subtitle:
+                                        '베타: Supabase 연동 시 이벤트·공지를 불러옵니다.',
+                                  )
+                                : EventTab(
+                                    key: ValueKey('event-$uid'),
+                                    repo: _eventRepo!,
+                                  ),
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
           ),
         ),
       ),

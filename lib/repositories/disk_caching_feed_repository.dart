@@ -12,6 +12,7 @@ class DiskCachingFeedRepository implements FeedDataSource {
 
   final FeedDataSource _inner;
 
+  /// `lib/standalone/local_user_data_wipe.dart` 의 `_kFeedRemoteSnapshotFile` 와 동일해야 합니다.
   static const _cacheFile = 'local_feed_remote_snapshot_v1.json';
 
   Future<void> _saveSnapshot(List<FeedPost> posts) async {

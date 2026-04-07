@@ -6,8 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// 앱 세션: **일반 사용자**는 [LocalAccountSession](ID·비밀번호·기기 로컬).
 import '../config/app_config.dart';
 import '../config/gggom_runtime_site_config.dart';
+import '../config/shop_admin_gate.dart';
 import '../services/local_account_store.dart';
-import '../services/user_monitoring_service.dart';
+import '../standalone/local_user_data_wipe.dart';
 import 'app_scaffold_messenger.dart';
 import 'home_screen.dart';
 import 'local_account_auth_screens.dart';
@@ -42,7 +43,6 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     if (AppConfig.supabaseEnabled) {
       _session = Supabase.instance.client.auth.currentSession;
-      UserMonitoringService.instance.syncWithSession(_session);
       _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
         setState(() {
           _session = data.session;
@@ -51,7 +51,6 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
             _localSession = null;
           }
         });
-        UserMonitoringService.instance.syncWithSession(data.session);
         if (data.session != null) {
           unawaited(() async {
             await LocalAccountStore.instance.clearSession();
@@ -99,7 +98,6 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
-    UserMonitoringService.instance.stop();
     super.dispose();
   }
 
@@ -108,9 +106,6 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed && !AppConfig.useOfflineBundleOnly) {
       unawaited(GggomRuntimeSiteConfig.instance.refreshFromServer());
-    }
-    if (state == AppLifecycleState.resumed) {
-      UserMonitoringService.instance.onAppResumed();
     }
   }
 
@@ -196,7 +191,22 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
       return;
     }
     if (!AppConfig.supabaseEnabled) return;
-    await Supabase.instance.client.auth.signOut();
+    final uid =
+        _session?.user.id ?? Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await wipeOAuthUserLocalArtifacts(uid);
+      } catch (e, st) {
+        debugPrint('wipeOAuthUserLocalArtifacts: $e\n$st');
+      }
+    }
+    clearPendingAdminGoogleOAuth();
+    try {
+      await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
+    } catch (e, st) {
+      debugPrint('signOut(global): $e\n$st');
+      await Supabase.instance.client.auth.signOut();
+    }
   }
 
   Future<void> _reloadLocalSession() async {
