@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'local_app_preferences.dart';
 import 'local_json_store.dart';
+import 'local_peer_shop_repository.dart';
 
 /// 파일명용 — [LocalShopRepository] 등과 동일 규칙.
 String safeStandaloneUserFileId(String id) =>
@@ -23,6 +24,7 @@ Future<void> wipeStandaloneArtifactsForAppUserId(String userId) async {
   for (final f in files) {
     await removeLocalJsonFile(f);
   }
+  await LocalPeerShopRepository.instance.removeListingsForSeller(userId);
   await _stripAttendanceForUser(userId);
   await LocalAppPreferences.removePerUserEntries(userId);
 }

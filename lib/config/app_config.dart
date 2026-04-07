@@ -13,18 +13,28 @@ class AppConfig {
 
   static bool supabaseEnabled = false;
 
-  static const _supabaseUrlEnv =
-      String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-  static const _supabaseAnonKeyEnv =
-      String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
-  static const _assetOriginEnv =
-      String.fromEnvironment('ASSET_ORIGIN', defaultValue: '');
-  static const _oauthRedirectEnv =
-      String.fromEnvironment('OAUTH_REDIRECT_URL', defaultValue: '');
+  static const _supabaseUrlEnv = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: '',
+  );
+  static const _supabaseAnonKeyEnv = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: '',
+  );
+  static const _assetOriginEnv = String.fromEnvironment(
+    'ASSET_ORIGIN',
+    defaultValue: '',
+  );
+  static const _oauthRedirectEnv = String.fromEnvironment(
+    'OAUTH_REDIRECT_URL',
+    defaultValue: '',
+  );
 
   /// `true` / `1` 이면 Supabase 초기화를 건너뜁니다 (로컬 에셋·시뮬 메뉴 중심 빌드).
-  static const _offlineBundleRaw =
-      String.fromEnvironment('GGGOM_OFFLINE_BUNDLE', defaultValue: 'false');
+  static const _offlineBundleRaw = String.fromEnvironment(
+    'GGGOM_OFFLINE_BUNDLE',
+    defaultValue: 'false',
+  );
   static bool get useOfflineBundleOnly =>
       _offlineBundleRaw == 'true' || _offlineBundleRaw == '1';
 
@@ -65,11 +75,8 @@ class AppConfig {
       return o.endsWith('/') ? o : '$o/';
     }
     final rt = GggomRuntimeSiteConfig.instance;
-    final origin =
-        (rt.assetOrigin ?? GggomSitePublicCatalog.siteOrigin).replaceAll(
-      RegExp(r'/$'),
-      '',
-    );
+    final origin = (rt.assetOrigin ?? GggomSitePublicCatalog.siteOrigin)
+        .replaceAll(RegExp(r'/$'), '');
     final path =
         rt.webAuthCallbackPath ?? GggomSitePublicCatalog.webAuthCallbackPath;
     final p = path.startsWith('/') ? path : '/$path';
@@ -78,8 +85,10 @@ class AppConfig {
 
   /// `true` / `1` 이면 Supabase 연동 빌드에서도 「별조각·광고(베타)」를 켭니다.
   /// 실제 광고 SDK 연동 전 — `--dart-define=AD_REWARD_TEST_MODE=true`
-  static const _adRewardTestRaw =
-      String.fromEnvironment('AD_REWARD_TEST_MODE', defaultValue: 'false');
+  static const _adRewardTestRaw = String.fromEnvironment(
+    'AD_REWARD_TEST_MODE',
+    defaultValue: 'false',
+  );
   static bool get adRewardTestMode =>
       _adRewardTestRaw == 'true' || _adRewardTestRaw == '1';
 
@@ -87,23 +96,32 @@ class AppConfig {
   ///
   /// 기본은 항상 표시하고, 숨기고 싶을 때만
   /// `--dart-define=SHOW_AD_REWARD_MENU=false` 를 사용합니다.
-  static const _showAdRewardMenuRaw =
-      String.fromEnvironment('SHOW_AD_REWARD_MENU', defaultValue: 'true');
+  static const _showAdRewardMenuRaw = String.fromEnvironment(
+    'SHOW_AD_REWARD_MENU',
+    defaultValue: 'true',
+  );
   static bool get showBetaStarAdRewardMenu =>
       !(_showAdRewardMenuRaw == 'false' || _showAdRewardMenuRaw == '0');
 
   /// 광고 보상(시뮬) 지급 별조각 — `--dart-define=AD_REWARD_STARS=1` (기본 1)
-  static const adRewardStarAmount =
-      int.fromEnvironment('AD_REWARD_STARS', defaultValue: 1);
+  static const adRewardStarAmount = int.fromEnvironment(
+    'AD_REWARD_STARS',
+    defaultValue: 1,
+  );
 
   /// 같은 유저 기준 광고 보상 재시청 최소 간격(분). UI·저장 로직과 맞출 것.
   static const adRewardCooldownMinutes = 10;
 
+  /// 광고·제휴 문의 — 로그인·GNB·상점·광고 시트 등 UI 공통.
+  static const adInquiryContactLine = '광고 문의 gggom0505@gmail.com';
+
   /// 웹 미리보기·스테이징용 접근 암호. 비어 있으면 게이트 없음(공개 빌드).
   /// `flutter build web --dart-define=SITE_ACCESS_PIN=여기에암호`
   /// **주의:** 최종 JS에 문자열이 포함되며, 세션 저장은 `sessionStorage`뿐입니다.
-  static const _siteAccessPinEnv =
-      String.fromEnvironment('SITE_ACCESS_PIN', defaultValue: '');
+  static const _siteAccessPinEnv = String.fromEnvironment(
+    'SITE_ACCESS_PIN',
+    defaultValue: '',
+  );
 
   /// [kIsWeb] 이고 빌드 시 암호가 지정된 경우에만 [SiteAccessGate] 사용.
   static bool get siteAccessPinRequired =>

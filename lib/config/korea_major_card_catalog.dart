@@ -21,9 +21,15 @@ int? koreaMajorCardIndexFromShopItemId(String id) {
   return n;
 }
 
-/// [dayUtc] null이면 오늘 UTC — **날마다** 단가 변경.
+/// 한국전통 메이저 조각 **6~8 별**, 품목별 영구 고정.
+///
+/// [dayUtc] 는 하위 호환용이며 가격 계산에 사용하지 않습니다.
 int koreaMajorPieceShopStarPrice(int cardIndex0to21, [DateTime? dayUtc]) =>
-    gggomDailyStarPrice(koreaMajorCardShopItemId(cardIndex0to21), dayUtc);
+    gggomFixedStarPrice(
+      koreaMajorCardShopItemId(cardIndex0to21),
+      min: 6,
+      max: 8,
+    );
 
 /// 상점·로컬 카탈로그에 넣는 한국전통 메이저 22장 행.
 List<ShopItemRow> koreaMajorCardShopCatalogRows([DateTime? dayUtc]) {

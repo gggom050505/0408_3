@@ -40,6 +40,6 @@ void main() {
       doNotGrantKeys: blocked,
     );
     expect(r.grantedItem, isNull);
-    expect(r.applyNextEligibleAfterUtc, isNotNull);
+    expect(r.applyNextEligibleAfterUtc, isNull);
   });
 }

@@ -8,11 +8,11 @@ const String kBundleEmoticonPackId = 'assets_emoticon_bundle';
 /// `assets/emoticon/emoticon(1).png` ~ `emoticon(61).png` (61장).
 const int kBundleEmoticonCount = 61;
 
-/// 상점 단품(별조각) — **UTC 일자마다** 바뀌는 난수형 가격.
+/// 상점 단품(별조각) — 품목마다 **1~3 별** 중 해시로 고정된 가격.
 ///
-/// [dayUtc] null이면 오늘 UTC.
+/// [dayUtc] 는 하위 호환용이며 가격 계산에 사용하지 않습니다.
 int bundleEmoticonShopPriceFromId(String emoticonId, [DateTime? dayUtc]) =>
-    gggomDailyStarPrice(emoticonId, dayUtc);
+    gggomFixedStarPrice(emoticonId, min: 1, max: 3);
 
 /// 실제 표시·구매 가격 — 서비스 조합 5개는 0.
 int bundleEmoticonPriceForUser(

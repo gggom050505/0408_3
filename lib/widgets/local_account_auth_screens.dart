@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
 import '../services/local_account_store.dart';
+import '../standalone/local_user_data_wipe.dart';
 import '../theme/app_colors.dart';
 
 Future<void> _announceIfMounted(BuildContext context, String message) async {
@@ -70,18 +71,6 @@ class _LocalLoginScreenState extends State<LocalLoginScreen> {
     }
     await LocalAccountStore.instance.saveSession(s);
     if (!mounted) {
-      return;
-    }
-    Navigator.of(context).pop(s);
-  }
-
-  Future<void> _openRegister() async {
-    final s = await Navigator.of(context).push<LocalAccountSession>(
-      MaterialPageRoute<LocalAccountSession>(
-        builder: (c) => const RegisterAccountScreen(),
-      ),
-    );
-    if (!mounted || s == null) {
       return;
     }
     Navigator.of(context).pop(s);
@@ -186,12 +175,155 @@ class _LocalLoginScreenState extends State<LocalLoginScreen> {
                   : const Text('로그인'),
             ),
           ),
-          const SizedBox(height: 20),
-          Center(
-            child: TextButton(
-              onPressed: _busy ? null : _openRegister,
-              child: const Text('회원 가입'),
+        ],
+      ),
+    );
+  }
+}
+
+/// 로그인 전 랜딩에서 진입 — 아이디·비밀번호 확인 후 탈퇴 및 기기 데이터 정리.
+class LocalWithdrawScreen extends StatefulWidget {
+  const LocalWithdrawScreen({super.key});
+
+  @override
+  State<LocalWithdrawScreen> createState() => _LocalWithdrawScreenState();
+}
+
+class _LocalWithdrawScreenState extends State<LocalWithdrawScreen> {
+  final _user = TextEditingController();
+  final _pass = TextEditingController();
+  var _obscurePass = true;
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _user.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final key = LocalAccountStore.instance.normalizeUsername(_user.text);
+    if (key == null) {
+      setState(() => _error = '아이디는 3~24자, 영문 소문자·숫자·밑줄(_)만 사용할 수 있어요.');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('회원 탈퇴'),
+        content: const Text(
+          '이 계정과 이 기기에 저장된 진행 데이터가 삭제됩니다. '
+          '되돌릴 수 없습니다. 계속할까요?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('탈퇴'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final r = await LocalAccountStore.instance.deleteAccountWithRemovedUserId(
+      loginKey: key,
+      password: _pass.text,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    if (r.error != null) {
+      setState(() => _error = r.error);
+      return;
+    }
+    final uid = r.removedUserId;
+    if (uid != null) {
+      await wipeStandaloneArtifactsForAppUserId(uid);
+    }
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('회원 탈퇴가 완료되었어요.')),
+    );
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('회원 탈퇴'),
+        backgroundColor: AppColors.bgMain,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            '가입하신 아이디와 비밀번호를 입력해 주세요. '
+            '확인되면 계정이 이 기기에서 삭제됩니다.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _user,
+            textCapitalization: TextCapitalization.none,
+            autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.visiblePassword,
+            decoration: const InputDecoration(
+              labelText: '아이디',
+              border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _pass,
+            obscureText: _obscurePass,
+            decoration: InputDecoration(
+              labelText: '비밀번호',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                icon: Icon(
+                  _obscurePass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                ),
+              ),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+          ],
+          const SizedBox(height: 28),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              minimumSize: const Size.fromHeight(48),
+            ),
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('탈퇴 진행'),
           ),
         ],
       ),

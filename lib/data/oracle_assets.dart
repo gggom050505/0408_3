@@ -13,11 +13,14 @@ String bundledOracleCatalogThumbnailPath(int cardNumber1Based) {
   return 'oracle_cards/oracle($cardNumber1Based).png';
 }
 
-/// 오라클 카드 번호 1~80 → 상점 별조각 (항목별 난수형 고정가).
+/// 오라클 카드 번호 1~80 → 상점 별조각 (**5~7 별**, 품목별 영구 고정).
+///
+/// [dayUtc] 는 하위 호환용이며 가격 계산에 사용하지 않습니다.
 int oracleCardShopStarPrice(int cardNumber1Based, [DateTime? dayUtc]) =>
-    gggomDailyStarPrice(
+    gggomFixedStarPrice(
       'oracle-card-${cardNumber1Based.toString().padLeft(2, '0')}',
-      dayUtc,
+      min: 5,
+      max: 7,
     );
 
 /// 덱 설계 기준 한글 제목 80개 (천상·자연·그림자·행동 순).

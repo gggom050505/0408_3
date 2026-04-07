@@ -1,8 +1,8 @@
-/// 출석 「행운이 가득한 날」 상점 서비스 지급 간격 — 유저 JSON / 별도 파일.
+/// 출석 연동 레거시 상태(쿨다운). 현재는 매 출석마다 무작위 선물만 추첨하며 [nextEligibleAfterUtc]는 비웁니다.
 class AttendanceLuckyState {
   AttendanceLuckyState({this.nextEligibleAfterUtc});
 
-  /// 이 시각(UTC) 이후 출석 시 상점 품목 지급 후보. null이면 이번 출석에서 행운 지급 가능(첫 출석 등).
+  /// 이전 버전용 쿨다운 시각. 유지 필드만 저장·복원(신규 로직에서는 null).
   DateTime? nextEligibleAfterUtc;
 
   Map<String, dynamic> toJson() => <String, dynamic>{

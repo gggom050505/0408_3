@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../config/shop_admin_gate.dart';
+import '../config/app_config.dart';
 import '../theme/app_colors.dart';
 import 'app_motion.dart';
 
-/// 랜딩 로그인: **일반**은 [onOpenLocalLogin] 아이디·비밀번호만, **운영자**는 [onAdminGoogleLogin].
+/// 랜딩: **ID 계정** 로그인·회원 가입·회원 탈퇴만 제공합니다.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({
     super.key,
-    required this.supabaseConfigured,
-    this.onAdminGoogleLogin,
     required this.onOpenLocalLogin,
+    required this.onOpenRegister,
+    required this.onOpenWithdraw,
   });
 
-  final bool supabaseConfigured;
-  /// 지정 구글 계정([kShopAdminGoogleEmail])만 세션 유지. Supabase 미사용 빌드에서는 null.
-  final VoidCallback? onAdminGoogleLogin;
-  /// 이 기기 전용 아이디·비밀번호 로그인 화면
   final VoidCallback onOpenLocalLogin;
+  final VoidCallback onOpenRegister;
+  final VoidCallback onOpenWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +52,10 @@ class LoginScreen extends StatelessWidget {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -76,7 +77,9 @@ class LoginScreen extends StatelessWidget {
                             gradient: AppColors.loginOrbGradient,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.accentPurple.withValues(alpha: 0.42),
+                                color: AppColors.accentPurple.withValues(
+                                  alpha: 0.42,
+                                ),
                                 blurRadius: 20,
                                 spreadRadius: 1,
                                 offset: const Offset(0, 8),
@@ -96,60 +99,108 @@ class LoginScreen extends StatelessWidget {
                       index: 1,
                       child: Text(
                         '오늘의 타로 운세',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(height: 12),
                     StaggerItem(
                       index: 2,
                       child: Text(
-                        '아이디로 로그인해 별조각·상점·진행 저장을 이어가세요.\n'
-                        '데이터는 이 앱이 설치된 기기에 저장됩니다.',
+                        'ID 계정으로 로그인하고 별조각·상점·진행을 이어가세요.\n'
+                        '데이터는 이 기기에 저장됩니다.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              height: 1.4,
-                            ),
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
                     StaggerItem(
                       index: 3,
-                      child: Tooltip(
-                        message: '이 기기 전용 아이디·비밀번호로 로그인합니다. '
-                            '첫 사용이면 로그인 화면에서 가입할 수 있어요',
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.cardBorder.withValues(alpha: 0.25),
                           ),
-                          onPressed: onOpenLocalLogin,
-                          child: const Text('아이디로 로그인'),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'ID 계정',
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size.fromHeight(52),
+                              ),
+                              onPressed: onOpenLocalLogin,
+                              child: const Text('ID 계정 로그인'),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                                side: BorderSide(
+                                  color: AppColors.accentPurple.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                ),
+                              ),
+                              onPressed: onOpenRegister,
+                              child: const Text('회원 가입'),
+                            ),
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: onOpenWithdraw,
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red.shade800,
+                                minimumSize: const Size.fromHeight(44),
+                              ),
+                              child: const Text('회원 탈퇴'),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    if (onAdminGoogleLogin != null) ...[
-                      const SizedBox(height: 16),
-                      StaggerItem(
-                        index: 4,
-                        child: _AdminGoogleLoginPanel(
-                          supabaseConfigured: supabaseConfigured,
-                          onAdminGoogleLogin: onAdminGoogleLogin!,
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 24),
                     StaggerItem(
-                      index: 5,
+                      index: 4,
                       child: Text(
                         '계정 보안은 본인이 지키세요. 해킹으로부터 보호해 드리지 못합니다.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary.withValues(alpha: 0.92),
-                              height: 1.35,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.92,
+                          ),
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    StaggerItem(
+                      index: 5,
+                      child: Text(
+                        AppConfig.adInquiryContactLine,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.85,
+                          ),
+                          height: 1.35,
+                        ),
                       ),
                     ),
                   ],
@@ -158,107 +209,6 @@ class LoginScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// 운영자 전용: [kShopAdminGoogleEmail] 구글 로그인만 세션을 유지합니다 (실패 시 [AppRoot]에서 로그아웃).
-class _AdminGoogleLoginPanel extends StatelessWidget {
-  const _AdminGoogleLoginPanel({
-    required this.supabaseConfigured,
-    required this.onAdminGoogleLogin,
-  });
-
-  final bool supabaseConfigured;
-  final VoidCallback onAdminGoogleLogin;
-
-  void _onPressed(BuildContext context) {
-    if (!supabaseConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '관리자 로그인은 Supabase·구글 연동이 켜진 빌드에서만 사용할 수 있어요.',
-          ),
-          duration: Duration(seconds: 5),
-        ),
-      );
-      return;
-    }
-    onAdminGoogleLogin();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.accentPurple.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.accentPurple.withValues(alpha: 0.35),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              ExcludeSemantics(
-                child: Icon(
-                  Icons.admin_panel_settings_outlined,
-                  color: AppColors.accentPurple.withValues(alpha: 0.95),
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '사이트 관리자',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '구글 계정 $kShopAdminGoogleEmail 만 입장합니다. '
-                      '다른 계정이면 로그인 후 바로 해제돼요.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.3,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: Tooltip(
-              message:
-                  '관리자 전용 구글 로그인. $kShopAdminGoogleEmail 이 아니면 거부됩니다',
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textPrimary,
-                  minimumSize: const Size.fromHeight(48),
-                  side: BorderSide(
-                    color: AppColors.accentPurple.withValues(alpha: 0.65),
-                  ),
-                ),
-                onPressed: () => _onPressed(context),
-                icon: const Icon(Icons.login, size: 20),
-                label: const Text('관리자로 구글 로그인'),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

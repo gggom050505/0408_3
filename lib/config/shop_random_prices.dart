@@ -1,4 +1,4 @@
-/// 내부 해시 — [gggomStableStarPrice] / [gggomDailyStarPrice] 공통.
+/// 내부 해시 — [gggomStableStarPrice] / [gggomDailyStarPrice] / [gggomFixedStarPrice] 공통.
 int gggomStableStarPrice(
   String key, {
   int min = 1,
@@ -12,6 +12,12 @@ int gggomStableStarPrice(
   }
   final span = max - min + 1;
   return min + (h % span);
+}
+
+/// 품목 키당 **항상 동일**한 별조각가 (날짜·앱 재시작과 무관). 구간은 품목 유형별로 다름.
+int gggomFixedStarPrice(String itemKey, {required int min, required int max}) {
+  assert(min <= max);
+  return gggomStableStarPrice('gggom_star_fixed_v1|$itemKey', min: min, max: max);
 }
 
 /// UTC 기준 날짜만 (자정 기준 일 단위 가격 변동용).

@@ -124,9 +124,8 @@ class _AttendanceDialogState extends State<_AttendanceDialog> {
             ),
             const SizedBox(height: 6),
             Text(
-              '매일 출석하면 ⭐ 별조각 1개를 드려요. '
-              '1~3일마다 한 번 꼴로 「행운이 가득한 날」이 되면, '
-              '상점 유료 품목을 하나 무료로 함께 드립니다. (가방·상점에서 확인)',
+              '매일 첫 출석마다 ⭐ 별조각 1개와, 상점에서 별로 파는 품목 중 '
+              '아직 없는 것을 무작위로 1개 더 드려요. (가방·이벤트 탭에서도 안내)',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
@@ -150,7 +149,7 @@ class _AttendanceDialogState extends State<_AttendanceDialog> {
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '⭐ 별조각 +1이 지급됐어요. 행운의 날이면 상점 품목도 함께 드려요 — 하단 메시지를 확인해 주세요.',
+                  '⭐ 별조각 +1과 출석 선물(무작위 1개)이 있으면 함께 지급됐어요. 하단 스낵바를 확인해 주세요.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
                 ),

@@ -21,21 +21,19 @@ const int _kOracleShopBundleSize = 10;
 
 String _shopItemPurchaseFailMessage(int price) {
   return switch (price) {
-    1 =>
-      '별조각이 부족하거나, 오늘은 이미 ⭐1 상품을 구매했거나, 이미 보유 중일 수 있어요. (UTC 기준 하루 1번)',
+    1 => '별조각이 부족하거나, 오늘은 이미 ⭐1 상품을 구매했거나, 이미 수집했을 수 있어요. (UTC 기준 하루 1번)',
     2 =>
-      '별조각이 부족하거나, 오늘은 ⭐2 상품 구매 가능 횟수(날마다 2~3번, UTC)를 모두 썼거나, 이미 보유 중일 수 있어요.',
+      '별조각이 부족하거나, 오늘은 ⭐2 상품 구매 가능 횟수(날마다 2~3번, UTC)를 모두 썼거나, 이미 수집했을 수 있어요.',
     _ => '별조각이 부족하거나 구매에 실패했습니다.',
   };
 }
 
 String _emoticonPurchaseFailMessage(int price) {
   return switch (price) {
-    1 =>
-      '별조각이 부족하거나, 오늘은 이미 ⭐1 상품을 구매했거나, 이미 보유 중일 수 있어요. (UTC 기준 하루 1번)',
+    1 => '별조각이 부족하거나, 오늘은 이미 ⭐1 상품을 구매했거나, 이미 수집했을 수 있어요. (UTC 기준 하루 1번)',
     2 =>
-      '별조각이 부족하거나, 오늘은 ⭐2 상품 구매 가능 횟수(날마다 2~3번, UTC)를 모두 썼거나, 이미 보유 중일 수 있어요.',
-    _ => '별조각이 부족하거나 이미 보유 중입니다.',
+      '별조각이 부족하거나, 오늘은 ⭐2 상품 구매 가능 횟수(날마다 2~3번, UTC)를 모두 썼거나, 이미 수집했을 수 있어요.',
+    _ => '별조각이 부족하거나 이미 수집했을 수 있어요.',
   };
 }
 
@@ -56,6 +54,7 @@ class ShopTab extends StatelessWidget {
     this.surpriseGiftOffer,
     this.onClaimSurpriseGift,
     this.onBetaAdReward,
+    this.onOpenPersonalShop,
     this.onOpenShopAdmin,
   });
 
@@ -75,13 +74,17 @@ class ShopTab extends StatelessWidget {
   final SurpriseGiftOffer? surpriseGiftOffer;
   final Future<void> Function(SurpriseGiftOffer offer)? onClaimSurpriseGift;
 
-  /// 베타: 별조각 광고(시뮬) 시트 — null이면 상점 배너 숨김
+  /// 별조각 광고(영상 시청) 시트 — null이면 상점 배너 숨김
   final VoidCallback? onBetaAdReward;
+
+  /// 개인 상점(유저 간 별조각 거래) — null이면 배너 숨김
+  final VoidCallback? onOpenPersonalShop;
 
   /// 오프라인·베타 번들: 상품 CRUD 화면
   final VoidCallback? onOpenShopAdmin;
 
-  bool _owned(String id) => ownedItems.any((e) => e.itemId == id);
+  bool _shopItemOwned(ShopItemRow item) =>
+      ownedItems.any((e) => e.itemId == item.id && e.itemType == item.type);
 
   bool _emoOwned(String id) => ownedEmoticonIds.contains(id);
 
@@ -113,8 +116,14 @@ class ShopTab extends StatelessWidget {
           title: Text(pack.name),
           content: Text('⭐ ${pack.price} 별조각으로 팩을 구매할까요?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('구매')),
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('구매'),
+            ),
           ],
         ),
       );
@@ -131,13 +140,13 @@ class ShopTab extends StatelessWidget {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('팩 구매 완료!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('팩 구매 완료!')));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(r.error ?? '팩 구매 실패')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(r.error ?? '팩 구매 실패')));
     }
   }
 
@@ -153,8 +162,14 @@ class ShopTab extends StatelessWidget {
         title: Text(emo.name),
         content: Text('⭐ $price 별조각으로 구매할까요?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('구매')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('구매'),
+          ),
         ],
       ),
     );
@@ -175,9 +190,9 @@ class ShopTab extends StatelessWidget {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('구매 완료!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('구매 완료!')));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_emoticonPurchaseFailMessage(price))),
@@ -196,10 +211,10 @@ class ShopTab extends StatelessWidget {
     if (p == null) {
       return false;
     }
-    if (_owned(item.id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 보유한 아이템입니다.')),
-      );
+    if (_shopItemOwned(item)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이미 수집한 아이템입니다.')));
       return false;
     }
     if (item.price > 0) {
@@ -209,8 +224,14 @@ class ShopTab extends StatelessWidget {
           title: Text(item.name),
           content: Text('⭐ ${item.price} 별조각으로 구매할까요?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('구매')),
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('구매'),
+            ),
           ],
         ),
       );
@@ -234,9 +255,9 @@ class ShopTab extends StatelessWidget {
       if (!context.mounted) {
         return true;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('구매 완료!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('구매 완료!')));
       return true;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -252,9 +273,9 @@ class ShopTab extends StatelessWidget {
       return Center(
         child: Text(
           '로그인 후 상점을 이용할 수 있어요.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
         ),
       );
     }
@@ -262,12 +283,13 @@ class ShopTab extends StatelessWidget {
     final cards = shopItems.where((e) => e.type == 'card').toList();
     final cardBacks = shopItems.where((e) => e.type == 'card_back').toList();
     final slots = shopItems.where((e) => e.type == 'slot').toList();
-    final koreaMajors = shopItems.where((e) => e.type == 'korea_major_card').toList()
-      ..sort((a, b) {
-        final ia = koreaMajorCardIndexFromShopItemId(a.id) ?? 99;
-        final ib = koreaMajorCardIndexFromShopItemId(b.id) ?? 99;
-        return ia.compareTo(ib);
-      });
+    final koreaMajors =
+        shopItems.where((e) => e.type == 'korea_major_card').toList()
+          ..sort((a, b) {
+            final ia = koreaMajorCardIndexFromShopItemId(a.id) ?? 99;
+            final ib = koreaMajorCardIndexFromShopItemId(b.id) ?? 99;
+            return ia.compareTo(ib);
+          });
     final oracles = shopItems.where((e) => e.type == 'oracle_card').toList();
     final gift = surpriseGiftOffer;
     final claimGift = onClaimSurpriseGift;
@@ -280,49 +302,104 @@ class ShopTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          stagger(Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '🏪 상점',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+          stagger(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🏪 상점',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '새로운 카드 덱과 테마를 만나보세요',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '매일매일 상점 품목 시세가 바껴요~',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onOpenShopAdmin != null)
+                    IconButton(
+                      tooltip: '관리자 모드 · 상품 편집',
+                      icon: const Icon(Icons.admin_panel_settings_outlined),
+                      onPressed: onOpenShopAdmin,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          stagger(
+            StarFragmentsBalancePanel(
+              starFragments: profile?.starFragments,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            ),
+          ),
+          if (onOpenPersonalShop != null)
+            stagger(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Material(
+                  color: const Color(0xFFE8F4FC),
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: onOpenPersonalShop,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
                       ),
-                      Text(
-                        '새로운 카드 덱과 테마를 만나보세요',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.storefront_outlined,
+                            color: const Color(0xFF0369A1),
+                            size: 26,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '🏠 개인 상점',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '보유 품목을 별조각에 올려 거래해요.',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                              ],
                             ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '매일매일 상점 품목 시세가 바껴요~',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                if (onOpenShopAdmin != null)
-                  IconButton(
-                    tooltip: '관리자 모드 · 상품 편집',
-                    icon: const Icon(Icons.admin_panel_settings_outlined),
-                    onPressed: onOpenShopAdmin,
-                  ),
-              ],
+              ),
             ),
-          )),
-          stagger(StarFragmentsBalancePanel(
-            starFragments: profile?.starFragments,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          )),
           if (onBetaAdReward != null)
             stagger(
               Padding(
@@ -334,7 +411,10 @@ class ShopTab extends StatelessWidget {
                   child: InkWell(
                     onTap: onBetaAdReward,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
                           Icon(
@@ -348,22 +428,23 @@ class ShopTab extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '📺 별조각 · 광고 (베타)',
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  '📺 별조각 광고',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '시뮬 시청으로 ⭐ ${AppConfig.adRewardStarAmount}개 받기',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  '광고 시청 후 별조각 ${AppConfig.adRewardStarAmount}개 · ${AppConfig.adRewardCooldownMinutes}분마다 · 영상 순서 순환',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
                                         color: AppColors.textSecondary,
                                       ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '광고 문의 gggom0505@gmail.com',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  AppConfig.adInquiryContactLine,
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
                                         color: AppColors.textSecondary,
                                         fontSize: 11,
                                       ),
@@ -383,78 +464,89 @@ class ShopTab extends StatelessWidget {
               ),
             ),
           if (gift != null && claimGift != null)
-            stagger(Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Material(
-                borderRadius: BorderRadius.circular(16),
-                color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.55),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: () {
-                            final thumb =
-                                resolveShopItemThumbnailSrc(gift.thumbnailUrl, AppConfig.assetOrigin);
-                            if (thumb != null) {
-                              return AdaptiveNetworkOrAssetImage(
-                                src: thumb,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => const Center(
-                                  child: Text('🎁', style: TextStyle(fontSize: 28)),
+            stagger(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Material(
+                  borderRadius: BorderRadius.circular(16),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.tertiaryContainer.withValues(alpha: 0.55),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: () {
+                              final thumb = resolveShopItemThumbnailSrc(
+                                gift.thumbnailUrl,
+                                AppConfig.assetOrigin,
+                              );
+                              if (thumb != null) {
+                                return AdaptiveNetworkOrAssetImage(
+                                  src: thumb,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const Center(
+                                    child: Text(
+                                      '🎁',
+                                      style: TextStyle(fontSize: 28),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const Center(
+                                child: Text(
+                                  '🎁',
+                                  style: TextStyle(fontSize: 28),
                                 ),
                               );
-                            }
-                            return const Center(
-                              child: Text('🎁', style: TextStyle(fontSize: 28)),
-                            );
-                          }(),
+                            }(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '깜짝 선물',
-                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textSecondary,
-                                  ),
-                            ),
-                            Text(
-                              gift.name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            Text(
-                              '별조각 없이 무료로 받을 수 있어요',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                            ),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '깜짝 선물',
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textSecondary,
+                                    ),
+                              ),
+                              Text(
+                                gift.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '별조각 없이 무료로 받을 수 있어요',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: () => claimGift(gift),
-                        child: const Text('받기'),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () => claimGift(gift),
+                          child: const Text('받기'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            )),
+            ),
           stagger(_sectionTitle(context, '🃏 카드 덱')),
           _itemGrid(context, cards),
           if (koreaMajors.isNotEmpty) ...[
@@ -469,7 +561,10 @@ class ShopTab extends StatelessWidget {
           ],
           if (oracles.isNotEmpty) ...[
             stagger(_sectionTitle(context, '🔮 오라클 카드')),
-            _oracleBundleToc(context, _chunkOracleShopItems(_sortOracleShopItems(oracles))),
+            _oracleBundleToc(
+              context,
+              _chunkOracleShopItems(_sortOracleShopItems(oracles)),
+            ),
           ],
           if (emoticonPacks.isNotEmpty) ...[
             stagger(_sectionTitle(context, '😊 이모티콘 팩')),
@@ -504,24 +599,32 @@ class ShopTab extends StatelessWidget {
             width: 132,
             child: Card(
               color: Colors.white.withValues(alpha: 0.45),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Column(
                   children: [
                     Expanded(
-                            child: thumb != null
+                      child: thumb != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: AdaptiveNetworkOrAssetImage(
                                 src: thumb,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                errorBuilder: (_, _, _) =>
-                                    const Center(child: Text('📦', style: TextStyle(fontSize: 28))),
+                                errorBuilder: (_, _, _) => const Center(
+                                  child: Text(
+                                    '📦',
+                                    style: TextStyle(fontSize: 28),
+                                  ),
+                                ),
                               ),
                             )
-                          : const Center(child: Text('📦', style: TextStyle(fontSize: 28))),
+                          : const Center(
+                              child: Text('📦', style: TextStyle(fontSize: 28)),
+                            ),
                     ),
                     Text(
                       pack.name,
@@ -529,20 +632,23 @@ class ShopTab extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       '${pack.emoticons.length}개',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     if (allOwn)
                       Text(
-                        '보유중',
-                        style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                        '수집',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
                       )
                     else
                       FilledButton(
@@ -552,7 +658,10 @@ class ShopTab extends StatelessWidget {
                           padding: EdgeInsets.zero,
                         ),
                         onPressed: () => _buyPack(context, pack),
-                        child: Text('⭐ ${pack.price}', style: const TextStyle(fontSize: 10)),
+                        child: Text(
+                          '⭐ ${pack.price}',
+                          style: const TextStyle(fontSize: 10),
+                        ),
                       ),
                   ],
                 ),
@@ -595,19 +704,26 @@ class ShopTab extends StatelessWidget {
                         emoticonId: emo.id,
                       ),
                       fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => const Icon(Icons.sentiment_satisfied),
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.sentiment_satisfied),
                     ),
                   ),
                   Text(
                     emo.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   if (own)
                     Text(
-                      '보유',
-                      style: TextStyle(fontSize: 9, color: AppColors.textSecondary),
+                      '수집',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: AppColors.textSecondary,
+                      ),
                     )
                   else
                     FilledButton(
@@ -617,7 +733,10 @@ class ShopTab extends StatelessWidget {
                         padding: EdgeInsets.zero,
                       ),
                       onPressed: () => _buyEmo(context, emo),
-                      child: Text('⭐ $emoPrice', style: const TextStyle(fontSize: 9)),
+                      child: Text(
+                        '⭐ $emoPrice',
+                        style: const TextStyle(fontSize: 9),
+                      ),
                     ),
                 ],
               ),
@@ -633,14 +752,17 @@ class ShopTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         t,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }
 
-  Widget _oracleBundleToc(BuildContext context, List<List<ShopItemRow>> bundles) {
+  Widget _oracleBundleToc(
+    BuildContext context,
+    List<List<ShopItemRow>> bundles,
+  ) {
     return Column(
       children: [
         for (final bundle in bundles)
@@ -673,7 +795,10 @@ class ShopTab extends StatelessWidget {
                   );
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       const Text('🔮', style: TextStyle(fontSize: 22)),
@@ -681,25 +806,31 @@ class ShopTab extends StatelessWidget {
                       Expanded(
                         child: Builder(
                           builder: (ctx) {
-                            final nFirst = oracleItemIdToCardNumber(bundle.first.id);
-                            final nLast = oracleItemIdToCardNumber(bundle.last.id);
+                            final nFirst = oracleItemIdToCardNumber(
+                              bundle.first.id,
+                            );
+                            final nLast = oracleItemIdToCardNumber(
+                              bundle.last.id,
+                            );
                             final title = nFirst != null && nLast != null
                                 ? '오라클 #$nFirst – #$nLast'
                                 : '${bundle.length}장 묶음';
-                            final ownedInBundle = bundle.where((e) => _owned(e.id)).length;
+                            final ownedInBundle = bundle
+                                .where((e) => _shopItemOwned(e))
+                                .length;
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   title,
-                                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  style: Theme.of(ctx).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '보유 $ownedInBundle/${bundle.length} · 탭하면 카드 ${bundle.length}장',
-                                  style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                                  '수집 $ownedInBundle/${bundle.length} · 탭하면 카드 ${bundle.length}장',
+                                  style: Theme.of(ctx).textTheme.labelSmall
+                                      ?.copyWith(
                                         color: AppColors.textSecondary,
                                       ),
                                 ),
@@ -734,15 +865,19 @@ class ShopTab extends StatelessWidget {
         itemCount: items.length,
         itemBuilder: (context, i) {
           final item = items[i];
-          final owned = _owned(item.id);
-          final thumb =
-              resolveShopItemThumbnailSrc(item.thumbnailUrl, AppConfig.assetOrigin);
+          final owned = _shopItemOwned(item);
+          final thumb = resolveShopItemThumbnailSrc(
+            item.thumbnailUrl,
+            AppConfig.assetOrigin,
+          );
           return AppearAnimation(
             delay: Duration(milliseconds: 24 * i.clamp(0, 12)),
             duration: const Duration(milliseconds: 340),
             child: Card(
               color: Colors.white.withValues(alpha: 0.45),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Column(
@@ -756,7 +891,8 @@ class ShopTab extends StatelessWidget {
                               ? AdaptiveNetworkOrAssetImage(
                                   src: thumb,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => _fallbackDeck(item.type),
+                                  errorBuilder: (_, _, _) =>
+                                      _fallbackDeck(item.type),
                                 )
                               : _fallbackDeck(item.type),
                         ),
@@ -769,16 +905,17 @@ class ShopTab extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     if (owned)
                       Text(
-                        '보유중',
+                        '수집',
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
                         ),
                       )
                     else if (item.price == 0)
@@ -797,7 +934,10 @@ class ShopTab extends StatelessWidget {
                           minimumSize: const Size(double.infinity, 34),
                         ),
                         onPressed: () => _buy(context, item),
-                        child: Text('⭐ ${item.price}', style: const TextStyle(fontSize: 11)),
+                        child: Text(
+                          '⭐ ${item.price}',
+                          style: const TextStyle(fontSize: 11),
+                        ),
                       ),
                   ],
                 ),
@@ -813,12 +953,12 @@ class ShopTab extends StatelessWidget {
     final emoji = itemType == 'card_back'
         ? '🎴'
         : itemType == 'oracle_card'
-            ? '🔮'
-            : itemType == 'korea_major_card'
-                ? '🇰🇷'
-                : itemType == 'slot'
-                    ? '🪟'
-                    : '🃏';
+        ? '🔮'
+        : itemType == 'korea_major_card'
+        ? '🇰🇷'
+        : itemType == 'slot'
+        ? '🪟'
+        : '🃏';
     return Container(
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -856,4 +996,3 @@ List<List<ShopItemRow>> _chunkOracleShopItems(List<ShopItemRow> sorted) {
   }
   return out;
 }
-

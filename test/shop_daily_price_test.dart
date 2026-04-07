@@ -1,61 +1,57 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:gggom_tarot/config/bundle_emoticon_catalog.dart';
+import 'package:gggom_tarot/config/bundle_emoticon_catalog.dart'
+    show bundleEmoticonShopPriceFromId, kBundleEmoticonCount;
 import 'package:gggom_tarot/config/korea_major_card_catalog.dart';
 import 'package:gggom_tarot/config/shop_random_prices.dart';
+import 'package:gggom_tarot/data/card_back_shop_assets.dart';
+import 'package:gggom_tarot/data/oracle_assets.dart';
+import 'package:gggom_tarot/data/slot_shop_assets.dart'
+    show kBundledSlotShopAssetTuples, kDefaultEquippedSlotId;
 
 void main() {
-  test('gggomDailyStarPrice: UTC 날짜가 다르면 같은 키도 보통 다른 가격', () {
-    final vals = <int>{};
-    for (var day = 1; day <= 15; day++) {
-      vals.add(
-        gggomDailyStarPrice(
-          'fixed-item',
-          DateTime.utc(2028, 3, day),
-        ),
+  test('gggomFixedStarPrice: 같은 키는 날짜와 관계없이 동일', () {
+    expect(
+      gggomFixedStarPrice('korea-major-00', min: 6, max: 8),
+      gggomFixedStarPrice('korea-major-00', min: 6, max: 8),
+    );
+    final dayA = DateTime.utc(2026, 1, 1);
+    final dayB = DateTime.utc(2030, 12, 31);
+    expect(
+      bundleEmoticonShopPriceFromId('emo_asset_01', dayA),
+      bundleEmoticonShopPriceFromId('emo_asset_01', dayB),
+    );
+  });
+
+  test('품목 유형별 별조각 구간', () {
+    for (var i = 1; i <= kBundleEmoticonCount; i++) {
+      final id = 'emo_asset_${i.toString().padLeft(2, '0')}';
+      expect(bundleEmoticonShopPriceFromId(id), inInclusiveRange(1, 3));
+    }
+    for (final t in kBundledSlotShopAssetTuples) {
+      if (t.$1 == kDefaultEquippedSlotId) {
+        continue;
+      }
+      expect(
+        gggomFixedStarPrice(t.$1, min: 3, max: 5),
+        inInclusiveRange(3, 5),
       );
     }
-    expect(vals.length, greaterThan(3));
-    for (final v in vals) {
-      expect(v, inInclusiveRange(1, 10));
+    for (final row in bundledCardBackShopRows()) {
+      expect(row.price, inInclusiveRange(4, 6));
+    }
+    for (var n = 1; n <= kBundledOracleCardCount; n++) {
+      expect(oracleCardShopStarPrice(n), inInclusiveRange(5, 7));
+    }
+    for (var i = 0; i <= 21; i++) {
+      expect(koreaMajorPieceShopStarPrice(i), inInclusiveRange(6, 8));
     }
   });
 
-  test('이모·한국전통·일자 인자 시 고정 날짜로 재현 가능', () {
-    final day = DateTime.utc(2026, 4, 4);
-    expect(
-      bundleEmoticonShopPriceFromId('emo_asset_01', day),
-      gggomDailyStarPrice('emo_asset_01', day),
-    );
-    expect(
-      koreaMajorPieceShopStarPrice(0, day),
-      gggomDailyStarPrice('korea-major-00', day),
-    );
-  });
-
-  test('gggomDailyStarPrice: 같은 UTC일·같은 키는 항상 동일', () {
-    final day = DateTime.utc(2031, 1, 15);
-    expect(
-      gggomDailyStarPrice('stable-key', day),
-      gggomDailyStarPrice('stable-key', day),
-    );
-  });
-
-  test('gggomDailyStarPrice: ⭐1·⭐2는 무작위 품목 기준으로 드물게', () {
-    final day = DateTime.utc(2027, 6, 1);
-    var star1 = 0;
-    var star2 = 0;
-    const n = 4000;
-    for (var i = 0; i < n; i++) {
-      final p = gggomDailyStarPrice('sample-key-$i', day);
-      if (p == 1) {
-        star1++;
-      } else if (p == 2) {
-        star2++;
-      }
-    }
-    // 이전 설계(⭐1+⭐2 합 ~5%)보다 낮게 유지: ~3% 부근 기대
-    expect(star1 + star2, lessThan(n * 8 ~/ 100));
-    expect(star1, lessThan(n ~/ 50));
+  test('gggomDailyStarPrice: 레거시 함수 — 일자에 따라 변할 수 있음(내장 상점 미사용)', () {
+    final a = gggomDailyStarPrice('x', DateTime.utc(2026, 1, 1));
+    final b = gggomDailyStarPrice('x', DateTime.utc(2026, 6, 1));
+    expect(a, inInclusiveRange(1, 10));
+    expect(b, inInclusiveRange(1, 10));
   });
 }

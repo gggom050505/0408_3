@@ -90,8 +90,8 @@ flutter:
     - assets/emoticon/
     # 타로 빈 슬롯 프레임 (상점 type: slot)
     - assets/slot/
-    # 광고 보상: MP4 2개(한 번에 1편 재생, 번갈아 노출) — `advert/` 폴더
-    - advert/
+    # 광고 보상: MP4 — `assets/advert/` (예: gdk15s.mp4, wk15s.mp4)
+    - assets/advert/
     # 앱 내 메이킹 노트 (`lib/widgets/making_notes_screen.dart`)
     - docs/MAKING_NOTES.md
     # 원격 JSON 실패 시 폴백 — www 사이트 `public/app/` 에도 동일 파일 배포 권장

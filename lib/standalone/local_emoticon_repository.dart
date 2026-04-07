@@ -13,7 +13,7 @@ import 'local_shop_repository.dart';
 /// 오프라인·베타 번들 이모티콘.
 ///
 /// 채팅 피커는 [kBundleEmoticonRows](`assets/emoticon/emoticon(1~61).png`)만 사용합니다.
-/// 보유: 서비스 선물 5개 + [LocalShopRepository] 에 저장된 구매분 (+ 선택적 원격).
+/// 보유: 첫 세팅·구매분이 [LocalShopRepository] 에 저장됨 (+ 선택적 원격).
 class LocalEmoticonRepository implements EmoticonDataSource {
   static const _extraCatalogUrl =
       String.fromEnvironment('EMOTICON_CATALOG_URL', defaultValue: '');

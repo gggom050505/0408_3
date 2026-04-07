@@ -59,6 +59,7 @@ class SupabaseAccountWithdrawal {
 
     await run(() => c.from('posts').delete().eq('user_id', uid));
     await run(() => c.from('chat_messages').delete().eq('user_id', uid));
+    await run(() => c.from('peer_shop_listings').delete().eq('seller_id', uid));
     await run(() => c.from('user_check_ins').delete().eq('user_id', uid));
     await run(() => c.from('user_emoticons').delete().eq('user_id', uid));
     await run(() => c.from('user_items').delete().eq('user_id', uid));

@@ -104,8 +104,12 @@ class _OracleShopBundleScreenState extends State<OracleShopBundleScreen> {
                       const SizedBox(height: 2),
                       if (owned)
                         Text(
-                          '보유',
-                          style: TextStyle(fontSize: 9, color: AppColors.textSecondary),
+                          '수집',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         )
                       else if (item.price == 0)
                         FilledButton(

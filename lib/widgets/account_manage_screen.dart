@@ -199,19 +199,19 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 80));
     pass.dispose();
 
-    final uid = widget.session.userId;
-    final err = await LocalAccountStore.instance.deleteAccount(
+    final r = await LocalAccountStore.instance.deleteAccountWithRemovedUserId(
       loginKey: widget.session.loginKey,
       password: pwd,
     );
     if (!mounted) {
       return;
     }
-    if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    if (r.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.error!)));
       return;
     }
 
+    final uid = r.removedUserId ?? widget.session.userId;
     await wipeStandaloneArtifactsForAppUserId(uid);
 
     if (!mounted) {

@@ -13,6 +13,11 @@ class EmoticonRepository implements EmoticonDataSource {
 
   final SupabaseClient _client;
 
+  bool _sessionOwnsUser(String userId) {
+    final u = _client.auth.currentUser;
+    return u != null && u.id == userId;
+  }
+
   @override
   Future<List<EmoticonPackRow>> fetchPacks() async {
     final res = await _client
@@ -59,6 +64,9 @@ class EmoticonRepository implements EmoticonDataSource {
     required int price,
     required List<String> ownedIds,
   }) async {
+    if (!_sessionOwnsUser(userId)) {
+      return false;
+    }
     if (starterEmoticonIdsForUser(userId).contains(emoticonId)) {
       return false;
     }
@@ -122,6 +130,9 @@ class EmoticonRepository implements EmoticonDataSource {
     required String userId,
     required String packId,
   }) async {
+    if (!_sessionOwnsUser(userId)) {
+      return (ok: false, error: '세션 불일치');
+    }
     final res = await _client.rpc(
       'buy_emoticon_pack',
       params: {'p_user_id': userId, 'p_pack_id': packId},

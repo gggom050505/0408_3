@@ -25,8 +25,8 @@ import 'widgets/site_access_gate.dart';
 // | 웹/기능              | Dart 구현 |
 // |---------------------|-----------|
 // | 스플래시·랜딩        | `widgets/splash_screen.dart`, `config/gggom_offline_landing.dart` |
-// | 로그인(아이디·관리자 구글) | `widgets/login_screen.dart`, `widgets/local_account_auth_screens.dart`, `widgets/app_root.dart` |
-// | 관리자 구글 OAuth·세션     | 본 파일 `Supabase.initialize` + PKCE + `detectSessionInUri`, `app_config.oauthRedirectUrl` |
+// | 로그인(ID·회원가입·탈퇴)   | `widgets/login_screen.dart`, `widgets/local_account_auth_screens.dart`, `widgets/app_root.dart` |
+// | Supabase OAuth·세션(잔존) | 본 파일 `Supabase.initialize` + PKCE + `detectSessionInUri`, `app_config.oauthRedirectUrl` |
 // | 설치형·오프라인 베타 번들 | Supabase **없이** 실행 → `lib/standalone/*` + `StandaloneChatTab` (`home_screen.dart`) |
 // | GNB·탭              | `widgets/gnb.dart`, `widgets/home_screen.dart` |
 // | 타로·캡처·피드게시    | `widgets/tarot_tab.dart`, `widgets/post_capture_sheet.dart` |
@@ -36,7 +36,8 @@ import 'widgets/site_access_gate.dart';
 // | 상점·가방            | `widgets/shop_tab.dart`, `widgets/bag_tab.dart` |
 // | 이벤트              | `widgets/event_tab.dart` |
 // | 출석                | `widgets/attendance_modal.dart` |
-// | 광고 보상(베타 시뮬) | `widgets/ad_reward_sheet.dart` — `advert/*.mp4` 1편 재생 후 보상; 연동 빌드는 `AD_REWARD_TEST_MODE` |
+// | 첫 가입 세팅        | `widgets/first_setup_wizard_screen.dart` — 뒷면·슬롯 기본, 오라클 7장·이모 8개 |
+// | 별조각 광고 | `widgets/ad_reward_sheet.dart` — `assets/advert/*.mp4` 1편 재생 → 「별조각 획득」 후 지급 · 10분 쿨타임 |
 // | 결과 모달·공유·복사   | `widgets/result_modal.dart` |
 // | 메이킹 노트(앱 내)   | `widgets/making_notes_screen.dart` — GNB 도서 아이콘, 에셋 `docs/MAKING_NOTES.md` |
 //

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_config.dart';
 import '../theme/app_colors.dart';
 import 'adaptive_network_asset_image.dart';
 
@@ -15,13 +16,17 @@ class Gnb extends StatelessWidget {
     required this.onSignOut,
     this.checkedInToday,
     required this.onAttendance,
-    /// 광고 보상(베타·시뮬) — null이면 GNB 에서 숨김
+
+    /// 별조각 광고(영상 시청) — null이면 GNB 에서 숨김
     this.onAdReward,
     this.onSaveForCoding,
+
     /// 자체(로컬) 계정 등 — null이면 숨김
     this.onAccountSettings,
+
     /// 메이킹 노트(번들 문서) — null이면 숨김
     this.onMakingNotes,
+
     /// [shopAdminGateAllowsCurrentUser] 가 true일 때만 — 일반 모드와 구분
     this.isShopAdminSession = false,
   });
@@ -29,14 +34,17 @@ class Gnb extends StatelessWidget {
   final MainTab active;
   final ValueChanged<MainTab> onTab;
   final String displayName;
+
   /// 지정 구글 계정으로 로그인한 **관리자 모드** (상점 편집 등)
   final bool isShopAdminSession;
   final String? avatarUrl;
   final VoidCallback onSignOut;
+
   /// null이면 뱃지 숨김
   final bool? checkedInToday;
   final VoidCallback onAttendance;
   final VoidCallback? onAdReward;
+
   /// 로컬 JSON → 프로젝트 `assets/local_dev_state/` (null이면 숨김)
   final VoidCallback? onSaveForCoding;
   final VoidCallback? onAccountSettings;
@@ -55,8 +63,18 @@ class Gnb extends StatelessWidget {
   static String _attendanceDateLabel() {
     final d = DateTime.now();
     const months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }
@@ -78,7 +96,8 @@ class Gnb extends StatelessWidget {
                       children: [
                         Text(
                           '$displayName님',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
                                 color: AppColors.textSecondary,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -91,15 +110,20 @@ class Gnb extends StatelessWidget {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEA580C).withValues(alpha: 0.18),
+                              color: const Color(
+                                0xFFEA580C,
+                              ).withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: const Color(0xFFEA580C).withValues(alpha: 0.45),
+                                color: const Color(
+                                  0xFFEA580C,
+                                ).withValues(alpha: 0.45),
                               ),
                             ),
                             child: Text(
                               '관리자',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
                                     color: const Color(0xFF9A3412),
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.2,
@@ -111,7 +135,8 @@ class Gnb extends StatelessWidget {
                           const SizedBox(width: 8),
                           CircleAvatar(
                             radius: 14,
-                            backgroundImage: looksLikeNetworkImageUrl(avatarUrl!)
+                            backgroundImage:
+                                looksLikeNetworkImageUrl(avatarUrl!)
                                 ? NetworkImage(avatarUrl!)
                                 : AssetImage(avatarUrl!),
                           ),
@@ -139,8 +164,11 @@ class Gnb extends StatelessWidget {
                               foregroundColor: Color(0xFFB45309),
                               padding: const EdgeInsets.all(8),
                             ),
-                            icon: const Icon(Icons.smart_display_outlined, size: 20),
-                            tooltip: '별조각 · 광고 (베타)',
+                            icon: const Icon(
+                              Icons.smart_display_outlined,
+                              size: 20,
+                            ),
+                            tooltip: '별조각 광고',
                           ),
                           const SizedBox(width: 2),
                         ],
@@ -164,7 +192,10 @@ class Gnb extends StatelessWidget {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Text('📅', style: TextStyle(fontSize: 15)),
+                                      const Text(
+                                        '📅',
+                                        style: TextStyle(fontSize: 15),
+                                      ),
                                       Text(
                                         _attendanceDateLabel(),
                                         style: Theme.of(context)
@@ -193,7 +224,10 @@ class Gnb extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFEF4444),
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -237,8 +271,8 @@ class Gnb extends StatelessWidget {
                   child: Text(
                     '로그아웃',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -280,12 +314,16 @@ class Gnb extends StatelessWidget {
                             horizontal: scrollTabs ? 10 : 0,
                           ),
                           decoration: BoxDecoration(
-                            gradient: sel ? AppColors.gnbTabSelectedGradient : null,
+                            gradient: sel
+                                ? AppColors.gnbTabSelectedGradient
+                                : null,
                             borderRadius: BorderRadius.circular(999),
                             boxShadow: sel
                                 ? [
                                     BoxShadow(
-                                      color: AppColors.accentLilac.withValues(alpha: 0.45),
+                                      color: AppColors.accentLilac.withValues(
+                                        alpha: 0.45,
+                                      ),
                                       blurRadius: 12,
                                       offset: const Offset(0, 3),
                                     ),
@@ -294,21 +332,21 @@ class Gnb extends StatelessWidget {
                           ),
                           child: AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 220),
-                            style:
-                                Theme.of(context).textTheme.labelLarge!.copyWith(
-                                      color: sel
-                                          ? AppColors.textPrimary
-                                          : AppColors.textLight,
-                                      fontWeight: FontWeight.bold,
-                                      shadows: sel
-                                          ? null
-                                          : const [
-                                              Shadow(
-                                                color: Color(0x66000000),
-                                                offset: Offset(0, 1),
-                                              ),
-                                            ],
-                                    ),
+                            style: Theme.of(context).textTheme.labelLarge!
+                                .copyWith(
+                                  color: sel
+                                      ? AppColors.textPrimary
+                                      : AppColors.textLight,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: sel
+                                      ? null
+                                      : const [
+                                          Shadow(
+                                            color: Color(0x66000000),
+                                            offset: Offset(0, 1),
+                                          ),
+                                        ],
+                                ),
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.center,
@@ -342,6 +380,17 @@ class Gnb extends StatelessWidget {
                     }).toList(),
                   );
                 },
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              AppConfig.adInquiryContactLine,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.textSecondary.withValues(alpha: 0.78),
+                fontSize: 10,
               ),
             ),
           ),

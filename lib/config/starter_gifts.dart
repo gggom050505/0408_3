@@ -4,28 +4,47 @@ import 'dart:math';
 String starterScopeUserId(String? userId) =>
     userId == null || userId.isEmpty ? 'local-guest' : userId;
 
-/// 서비스 선물: 오라클 5장 — 1~80 중 [userId]마다 다른 무작위 조합(시드 고정).
-List<String> starterOracleItemIdsForUser(String? userId) {
+/// 예전 [ensureDefaultUserItems] 호환 — 항상 빈 목록.
+/// 오라클 선물은 [pickFirstSetupOracleIds] 첫 세팅 마법사에서만 지급합니다.
+List<String> starterOracleItemIdsForUser(String? _) => const [];
+
+/// 예전 스타터 이모 호환 — 항상 빈 목록. 이모는 [pickFirstSetupEmoticonIds] 로 지급.
+List<String> starterEmoticonIdsForUser(String? _) => const [];
+
+/// 첫 세팅: 미보유 오라클 최대 7장(1~80 중 [userId]별 시드 셔플).
+List<String> pickFirstSetupOracleIds(String? userId, Set<String> alreadyOwnedIds) {
   final scope = starterScopeUserId(userId);
-  final r = Random(Object.hashAll(['gggom_starter_oracle', scope.hashCode]));
-  final pick = List<int>.generate(80, (i) => i + 1)..shuffle(r);
-  return pick
-      .take(5)
-      .map((n) => 'oracle-card-${n.toString().padLeft(2, '0')}')
-      .toList()
-    ..sort();
+  final r = Random(Object.hashAll(['gggom_first_setup_v1', 'oracle', scope.hashCode]));
+  final nums = List<int>.generate(80, (i) => i + 1)..shuffle(r);
+  final out = <String>[];
+  for (final n in nums) {
+    if (out.length >= 7) {
+      break;
+    }
+    final id = 'oracle-card-${n.toString().padLeft(2, '0')}';
+    if (!alreadyOwnedIds.contains(id)) {
+      out.add(id);
+    }
+  }
+  return out..sort();
 }
 
-/// 서비스 선물: 번들 이모 5개 — 61개 중 무작위.
-List<String> starterEmoticonIdsForUser(String? userId) {
+/// 첫 세팅: 미보유 번들 이모 최대 8개(61개 중 시드 셔플).
+List<String> pickFirstSetupEmoticonIds(String? userId, Set<String> alreadyOwnedIds) {
   final scope = starterScopeUserId(userId);
-  final r = Random(Object.hashAll(['gggom_starter_emo', scope.hashCode]));
-  final pick = List<int>.generate(61, (i) => i + 1)..shuffle(r);
-  return pick
-      .take(5)
-      .map((i) => 'emo_asset_${i.toString().padLeft(2, '0')}')
-      .toList()
-    ..sort();
+  final r = Random(Object.hashAll(['gggom_first_setup_v1', 'emo', scope.hashCode]));
+  final nums = List<int>.generate(61, (i) => i + 1)..shuffle(r);
+  final out = <String>[];
+  for (final n in nums) {
+    if (out.length >= 8) {
+      break;
+    }
+    final id = 'emo_asset_${n.toString().padLeft(2, '0')}';
+    if (!alreadyOwnedIds.contains(id)) {
+      out.add(id);
+    }
+  }
+  return out..sort();
 }
 
 /// 서비스 선물: 한국전통 메이저 1장 — 22장 중 무작위 1장.

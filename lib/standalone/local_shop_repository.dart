@@ -2,11 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show Random;
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import '../config/bundle_emoticon_catalog.dart';
 import '../config/korea_major_card_catalog.dart';
 import '../config/shop_random_prices.dart';
-import '../config/starter_gifts.dart';
-import '../data/card_themes.dart' show koreaTraditionalMajorThemeId;
+import '../config/mat_shop_catalog.dart';
+import '../config/starter_gifts.dart'
+    show
+        pickFirstSetupEmoticonIds,
+        pickFirstSetupOracleIds,
+        starterEmoticonIdsForUser,
+        starterKoreaMajorItemIdForUser;
+import '../data/card_back_shop_assets.dart';
+import '../data/card_themes.dart'
+    show defaultThemeId, koreaTraditionalMajorThemeId;
 import '../data/mat_themes.dart';
 import '../data/oracle_assets.dart';
 import '../data/slot_shop_assets.dart';
@@ -15,13 +25,14 @@ import '../models/shop_models.dart';
 import '../models/surprise_gift_models.dart';
 import 'data_sources.dart';
 import 'attendance_lucky_sync.dart';
+import 'local_economy_integrity.dart';
 import 'local_json_store.dart';
 import 'surprise_gift_sync.dart';
 import 'shop_catalog_workspace.dart';
 
 /// 오프라인·베타 번들 상점·가방.
 /// - 상품 목록: [local_shop_catalog_v1.json] (기기) · 저장 시 JSON 미러 [assets/local_dev_state/]
-/// - 별조각·장착(덱/매트/카드 뒷면/슬롯)·보유 목록: `local_shop_user_state_v1_<user>.json` (변경 시 자동 저장)
+/// - 별조각·장착·보유: `local_shop_user_state_v1_<user>.json` + `economy_integrity_v1` HMAC(계정+기기 비밀)
 class LocalShopRepository implements ShopDataSource {
   LocalShopRepository(this._userId) {
     _profile = UserProfileRow(
@@ -34,25 +45,43 @@ class LocalShopRepository implements ShopDataSource {
     );
     _owned
       ..add(UserItemRow(itemId: 'default', itemType: 'card', purchasedAt: _now))
-      ..add(UserItemRow(itemId: 'default-mint', itemType: 'mat', purchasedAt: _now))
-      ..add(UserItemRow(itemId: 'default-card-back', itemType: 'card_back', purchasedAt: _now))
-      ..add(UserItemRow(itemId: kDefaultEquippedSlotId, itemType: 'slot', purchasedAt: _now));
+      ..add(
+        UserItemRow(itemId: 'default-mint', itemType: 'mat', purchasedAt: _now),
+      )
+      ..add(
+        UserItemRow(
+          itemId: 'default-card-back',
+          itemType: 'card_back',
+          purchasedAt: _now,
+        ),
+      )
+      ..add(
+        UserItemRow(
+          itemId: kDefaultEquippedSlotId,
+          itemType: 'slot',
+          purchasedAt: _now,
+        ),
+      );
   }
 
   static const _catalogFile = 'local_shop_catalog_v1.json';
+
   /// 예전 단일 파일(같은 기기·같은 계정이면 한 번만 이관).
   static const _legacyUserStateFile = 'local_shop_user_state_v1.json';
 
   final String _userId;
 
-  String _safeUserId(String id) => id.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+  String _safeUserId(String id) =>
+      id.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
 
-  String _userStateFile() => 'local_shop_user_state_v1_${_safeUserId(_userId)}.json';
+  String _userStateFile() =>
+      'local_shop_user_state_v1_${_safeUserId(_userId)}.json';
   final _now = DateTime.now().toUtc().toIso8601String();
 
   late UserProfileRow _profile;
   final _owned = <UserItemRow>[];
-  /// 상점 구매분·유저별 서비스 선물 이모. [starterEmoticonIdsForUser] 는 항상 포함.
+
+  /// 상점 구매분·첫 세팅 지급분 이모. [starterEmoticonIdsForUser] 는 호환용(현재 빈 목록).
   final Set<String> _emoticonOwned = {};
 
   List<ShopItemRow> _catalogItems = [];
@@ -69,77 +98,11 @@ class LocalShopRepository implements ShopDataSource {
   String? _starTwoPurchaseUtcYmd;
   var _starTwoPurchaseCount = 0;
 
-  /// `assets/card_back/` 번들 이미지 — 상점에 각각 별도 행. (별조각 5~10)
-  static List<ShopItemRow> _bundledCardBackShopRows() => [
-        ShopItemRow(
-          id: 'card-back-cat',
-          name: '카드 뒷면 (고양이)',
-          type: 'card_back',
-          price: 5,
-          thumbnailUrl: 'assets/card_back/back_cat.png',
-          isActive: true,
-        ),
-        ShopItemRow(
-          id: 'card-back-dog',
-          name: '카드 뒷면 (강아지)',
-          type: 'card_back',
-          price: 6,
-          thumbnailUrl: 'assets/card_back/back_dog.png',
-          isActive: true,
-        ),
-        ShopItemRow(
-          id: 'card-back-moon',
-          name: '카드 뒷면 (달)',
-          type: 'card_back',
-          price: 7,
-          thumbnailUrl: 'assets/card_back/back_moon.png',
-          isActive: true,
-        ),
-        ShopItemRow(
-          id: 'card-back-tiger',
-          name: '카드 뒷면 (호랑이)',
-          type: 'card_back',
-          price: 8,
-          thumbnailUrl: 'assets/card_back/back_tiger.png',
-          isActive: true,
-        ),
-        ShopItemRow(
-          id: 'card-back-wonyeos',
-          name: '카드 뒷면 (워녀스)',
-          type: 'card_back',
-          price: 9,
-          thumbnailUrl: 'assets/card_back/back_wonyeos.png',
-          isActive: true,
-        ),
-        ShopItemRow(
-          id: 'card-back-owl',
-          name: '카드 뒷면 (부엉이)',
-          type: 'card_back',
-          price: 10,
-          thumbnailUrl: 'assets/card_back/back_owl.png',
-          isActive: true,
-        ),
-      ];
-
   /// 오라클 80종 — PNG는 `assets/oracle/`, 상점 썸네일은 `oracle_cards/oracle(n).png` 논리 경로.
   static List<ShopItemRow> _bundledOracleShopRows() =>
       bundledOracleShopCatalogRows();
 
   List<ShopItemRow> _defaultCatalog() {
-    final mats = <ShopItemRow>[];
-    for (var i = 0; i < matThemes.length; i++) {
-      final m = matThemes[i];
-      mats.add(
-        ShopItemRow(
-          id: m.id,
-          name: m.name,
-          type: 'mat',
-          price: m.id == MatThemeData.defaultId ? 0 : 4 + ((i - 1) % 6),
-          thumbnailUrl: null,
-          isActive: true,
-        ),
-      );
-    }
     return [
       ShopItemRow(
         id: 'default',
@@ -158,8 +121,8 @@ class LocalShopRepository implements ShopDataSource {
         thumbnailUrl: 'card_backs/owl_card_back.png',
         isActive: true,
       ),
-      ..._bundledCardBackShopRows(),
-      ...mats,
+      ...bundledCardBackShopRows(),
+      ...bundledMatShopRows(),
       ...bundledSlotShopRows(),
       ..._bundledOracleShopRows(),
     ];
@@ -175,7 +138,10 @@ class LocalShopRepository implements ShopDataSource {
         final data = jsonDecode(raw);
         if (data is List) {
           _catalogItems = data
-              .map((e) => ShopItemRow.fromJson(Map<String, dynamic>.from(e as Map)))
+              .map(
+                (e) =>
+                    ShopItemRow.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
               .toList();
           _afterCatalogItemsLoaded();
           return;
@@ -186,7 +152,10 @@ class LocalShopRepository implements ShopDataSource {
         final data = jsonDecode(ws);
         if (data is List) {
           _catalogItems = data
-              .map((e) => ShopItemRow.fromJson(Map<String, dynamic>.from(e as Map)))
+              .map(
+                (e) =>
+                    ShopItemRow.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
               .toList();
           _afterCatalogItemsLoaded();
           return;
@@ -200,9 +169,14 @@ class LocalShopRepository implements ShopDataSource {
   void _afterCatalogItemsLoaded() {
     _ensureDefaultCatalogRowsPresent();
     _syncKoreaMajorPieceCatalog();
+    _syncKoreaMajorPieceRowsFromCode();
     _removeRetiredKoreanClayFromCatalog();
     _mergeBundledCardBackShopItemsIfMissing();
+    _syncBundledCardBackShopRowsFromCode();
+    _mergeBundledMatShopItemsIfMissing();
+    _syncBundledMatShopRowsFromCode();
     _mergeBundledSlotShopItemsIfMissing();
+    _syncBundledSlotShopRowsFromCode();
     _mergeOracleShopItemsIfMissing();
     _syncBundledOracleShopRowsFromCode();
     _normalizeCatalogStarPrices();
@@ -283,7 +257,7 @@ class LocalShopRepository implements ShopDataSource {
 
   static const _retiredKoreanClayDeckId = 'korean-clay';
 
-  /// 예전 단일 덱 행 제거 후 `korea-major-NN` 22행을 채웁니다.
+  /// 예전 단일 덱 행 제거 후 `korea-major-00`~`21` 22행을 채웁니다. 잘못된 type 행도 교정합니다.
   void _syncKoreaMajorPieceCatalog() {
     var changed = false;
     final before = _catalogItems.length;
@@ -293,11 +267,58 @@ class LocalShopRepository implements ShopDataSource {
     if (_catalogItems.length != before) {
       changed = true;
     }
-    for (final row in koreaMajorCardShopCatalogRows()) {
+    final bundled = koreaMajorCardShopCatalogRows();
+    final byId = {for (final r in bundled) r.id: r};
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.type != 'korea_major_card') {
+        _catalogItems[i] = b;
+        changed = true;
+      }
+    }
+    for (final row in bundled) {
       if (_catalogItems.any((e) => e.id == row.id)) {
         continue;
       }
       _catalogItems.add(row);
+      changed = true;
+    }
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  /// 번들 한국전통 메이저 조각의 이름·썸네일·노출을 코드와 맞춤(가격은 저장값·일별 단가 유지).
+  void _syncKoreaMajorPieceRowsFromCode() {
+    final bundled = koreaMajorCardShopCatalogRows();
+    final byId = {for (final r in bundled) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      if (e.type != 'korea_major_card') {
+        continue;
+      }
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.name == b.name &&
+          e.thumbnailUrl == b.thumbnailUrl &&
+          e.isActive == b.isActive) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: b.isActive,
+      );
       changed = true;
     }
     if (changed) {
@@ -314,31 +335,181 @@ class LocalShopRepository implements ShopDataSource {
     }
   }
 
-  /// 예전에 저장된 JSON 카탈로그에도 `assets/card_back/` 뒷면 5종을 한 번씩 넣습니다.
+  /// 예전에 저장된 JSON 카탈로그에도 `assets/card_back/` 뒷면 6종을 넣고, 잘못된 type 행을 교정합니다.
   void _mergeBundledCardBackShopItemsIfMissing() {
-    var added = false;
-    for (final row in _bundledCardBackShopRows()) {
+    final bundled = bundledCardBackShopRows();
+    final byId = {for (final r in bundled) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.type != 'card_back') {
+        _catalogItems[i] = b;
+        changed = true;
+      }
+    }
+    for (final row in bundled) {
       if (_catalogItems.any((e) => e.id == row.id)) {
         continue;
       }
       _catalogItems.add(row);
-      added = true;
+      changed = true;
     }
-    if (added) {
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  void _syncBundledCardBackShopRowsFromCode() {
+    final byId = {for (final r in bundledCardBackShopRows()) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      if (e.type != 'card_back') {
+        continue;
+      }
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.name == b.name &&
+          e.thumbnailUrl == b.thumbnailUrl &&
+          e.isActive == b.isActive) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: b.isActive,
+      );
+      changed = true;
+    }
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  void _mergeBundledMatShopItemsIfMissing() {
+    final bundled = bundledMatShopRows();
+    final byId = {for (final r in bundled) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.type != 'mat') {
+        _catalogItems[i] = b;
+        changed = true;
+      }
+    }
+    for (final row in bundled) {
+      if (_catalogItems.any((e) => e.id == row.id)) {
+        continue;
+      }
+      _catalogItems.add(row);
+      changed = true;
+    }
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  void _syncBundledMatShopRowsFromCode() {
+    final byId = {for (final r in bundledMatShopRows()) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      if (e.type != 'mat') {
+        continue;
+      }
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.name == b.name &&
+          e.thumbnailUrl == b.thumbnailUrl &&
+          e.isActive == b.isActive) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: b.isActive,
+      );
+      changed = true;
+    }
+    if (changed) {
       unawaited(_persistCatalog());
     }
   }
 
   void _mergeBundledSlotShopItemsIfMissing() {
-    var added = false;
-    for (final row in bundledSlotShopRows()) {
+    final bundled = bundledSlotShopRows();
+    final byId = {for (final r in bundled) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.type != 'slot') {
+        _catalogItems[i] = b;
+        changed = true;
+      }
+    }
+    for (final row in bundled) {
       if (_catalogItems.any((e) => e.id == row.id)) {
         continue;
       }
       _catalogItems.add(row);
-      added = true;
+      changed = true;
     }
-    if (added) {
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  /// 번들 슬롯(slot-decor-1~4) 이름·썸네일·노출을 코드와 맞춤(가격은 저장값 유지).
+  void _syncBundledSlotShopRowsFromCode() {
+    final byId = {for (final r in bundledSlotShopRows()) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      if (e.type != 'slot') {
+        continue;
+      }
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.name == b.name &&
+          e.thumbnailUrl == b.thumbnailUrl &&
+          e.isActive == b.isActive) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: b.isActive,
+      );
+      changed = true;
+    }
+    if (changed) {
       unawaited(_persistCatalog());
     }
   }
@@ -383,7 +554,9 @@ class LocalShopRepository implements ShopDataSource {
       if (b == null) {
         continue;
       }
-      if (e.name == b.name && e.thumbnailUrl == b.thumbnailUrl) {
+      if (e.name == b.name &&
+          e.thumbnailUrl == b.thumbnailUrl &&
+          e.isActive == b.isActive) {
         continue;
       }
       _catalogItems[i] = ShopItemRow(
@@ -392,7 +565,8 @@ class LocalShopRepository implements ShopDataSource {
         type: e.type,
         price: e.price,
         thumbnailUrl: b.thumbnailUrl,
-        isActive: e.isActive,
+        // 번들 오라클(oracle-card-01~80)은 항상 상점에 노출 — 예전 카탈로그 숨김을 복구.
+        isActive: b.isActive,
       );
       changed = true;
     }
@@ -404,8 +578,12 @@ class LocalShopRepository implements ShopDataSource {
   /// 로컬 저장 프로필·보유에서 폐기 덱을 제거하고 장착을 기본으로 돌립니다.
   void _migrateRetiredKoreanClayUserState() {
     var dirty = false;
-    if (_owned.any((e) => e.itemId == _retiredKoreanClayDeckId && e.itemType == 'card')) {
-      _owned.removeWhere((e) => e.itemId == _retiredKoreanClayDeckId && e.itemType == 'card');
+    if (_owned.any(
+      (e) => e.itemId == _retiredKoreanClayDeckId && e.itemType == 'card',
+    )) {
+      _owned.removeWhere(
+        (e) => e.itemId == _retiredKoreanClayDeckId && e.itemType == 'card',
+      );
       dirty = true;
     }
     if (_profile.equippedCard == _retiredKoreanClayDeckId) {
@@ -429,6 +607,45 @@ class LocalShopRepository implements ShopDataSource {
     await saveLocalJsonFile(_catalogFile, jsonStr);
   }
 
+  /// 무결성 실패·초기화 시 생성자와 동일한 경제 상태.
+  void _resetEconomyToFactoryForUser() {
+    _profile = UserProfileRow(
+      id: _userId,
+      starFragments: kInitialStarFragments,
+      equippedCard: 'default',
+      equippedMat: 'default-mint',
+      equippedCardBack: 'default-card-back',
+      equippedSlot: kDefaultEquippedSlotId,
+    );
+    _owned
+      ..clear()
+      ..add(UserItemRow(itemId: 'default', itemType: 'card', purchasedAt: _now))
+      ..add(
+        UserItemRow(itemId: 'default-mint', itemType: 'mat', purchasedAt: _now),
+      )
+      ..add(
+        UserItemRow(
+          itemId: 'default-card-back',
+          itemType: 'card_back',
+          purchasedAt: _now,
+        ),
+      )
+      ..add(
+        UserItemRow(
+          itemId: kDefaultEquippedSlotId,
+          itemType: 'slot',
+          purchasedAt: _now,
+        ),
+      );
+    _emoticonOwned.clear();
+    _surpriseGiftState = SurpriseGiftState();
+    _attendanceLuckyState = AttendanceLuckyState();
+    _starOnePurchaseUtcYmd = null;
+    _starTwoPurchaseUtcYmd = null;
+    _starTwoPurchaseCount = 0;
+    _ensureStarterGifts();
+  }
+
   Future<void> _ensureUserStateLoaded() async {
     if (_userStateReady) {
       return;
@@ -442,7 +659,9 @@ class LocalShopRepository implements ShopDataSource {
             final dec = jsonDecode(leg);
             if (dec is Map<String, dynamic>) {
               final profileMap = dec['profile'];
-              final legId = profileMap is Map ? profileMap['id'] as String? : null;
+              final legId = profileMap is Map
+                  ? profileMap['id'] as String?
+                  : null;
               if (legId == null || legId == _userId) {
                 raw = leg;
                 await saveLocalJsonFile(_userStateFile(), leg);
@@ -454,71 +673,100 @@ class LocalShopRepository implements ShopDataSource {
       if (raw != null && raw.isNotEmpty) {
         final decoded = jsonDecode(raw);
         if (decoded is Map<String, dynamic>) {
-          final profileMap = decoded['profile'];
-          if (profileMap is Map) {
-            final p = Map<String, dynamic>.from(profileMap);
-            _profile = UserProfileRow(
-              id: _userId,
-              starFragments: (p['star_fragments'] as num?)?.toInt() ?? _profile.starFragments,
-              equippedCard: p['equipped_card'] as String? ?? _profile.equippedCard,
-              equippedMat: p['equipped_mat'] as String? ?? _profile.equippedMat,
-              equippedCardBack: p['equipped_card_back'] as String? ?? _profile.equippedCardBack,
-              equippedSlot: p['equipped_slot'] as String? ?? _profile.equippedSlot,
-            );
+          var applyFile = true;
+          final integ = decoded['economy_integrity_v1'];
+          if (integ is Map) {
+            final sigRaw = integ['sig'];
+            if (sigRaw is String && sigRaw.trim().isNotEmpty) {
+              final body = Map<String, dynamic>.from(decoded);
+              body.remove('economy_integrity_v1');
+              if (!await verifyLocalEconomyPayload(_userId, body, sigRaw)) {
+                debugPrint(
+                  'LocalShopRepository: economy 무결성 실패 → $_userId 기본 경제 상태로 복구',
+                );
+                _resetEconomyToFactoryForUser();
+                await _persistUserState();
+                applyFile = false;
+              }
+            }
           }
-          if (decoded.containsKey('owned')) {
-            final o = decoded['owned'];
-            if (o is List) {
-              final next = <UserItemRow>[];
-              for (final e in o) {
-                if (e is Map) {
-                  try {
-                    next.add(UserItemRow.fromJson(Map<String, dynamic>.from(e)));
-                  } catch (_) {}
+          if (applyFile) {
+            final profileMap = decoded['profile'];
+            if (profileMap is Map) {
+              final p = Map<String, dynamic>.from(profileMap);
+              _profile = UserProfileRow(
+                id: _userId,
+                starFragments:
+                    (p['star_fragments'] as num?)?.toInt() ??
+                    _profile.starFragments,
+                equippedCard:
+                    p['equipped_card'] as String? ?? _profile.equippedCard,
+                equippedMat:
+                    p['equipped_mat'] as String? ?? _profile.equippedMat,
+                equippedCardBack:
+                    p['equipped_card_back'] as String? ??
+                    _profile.equippedCardBack,
+                equippedSlot:
+                    p['equipped_slot'] as String? ?? _profile.equippedSlot,
+              );
+            }
+            if (decoded.containsKey('owned')) {
+              final o = decoded['owned'];
+              if (o is List) {
+                final next = <UserItemRow>[];
+                for (final e in o) {
+                  if (e is Map) {
+                    try {
+                      next.add(
+                        UserItemRow.fromJson(Map<String, dynamic>.from(e)),
+                      );
+                    } catch (_) {}
+                  }
+                }
+                if (next.isNotEmpty) {
+                  final deduped = gggomDedupeOwnedItems(next);
+                  _owned
+                    ..clear()
+                    ..addAll(deduped);
                 }
               }
-              if (next.isNotEmpty) {
-                final deduped = gggomDedupeOwnedItems(next);
-                _owned
-                  ..clear()
-                  ..addAll(deduped);
+            }
+            _emoticonOwned.clear();
+            final emoRaw = decoded['emoticons'];
+            if (emoRaw is List) {
+              for (final e in emoRaw) {
+                if (e is String && e.isNotEmpty) {
+                  _emoticonOwned.add(e);
+                }
               }
             }
-          }
-          _emoticonOwned.clear();
-          final emoRaw = decoded['emoticons'];
-          if (emoRaw is List) {
-            for (final e in emoRaw) {
-              if (e is String && e.isNotEmpty) {
-                _emoticonOwned.add(e);
-              }
+            final sg = decoded['surprise_gift'];
+            if (sg is Map) {
+              _surpriseGiftState = SurpriseGiftState.fromJson(
+                Map<String, dynamic>.from(sg),
+              );
             }
-          }
-          final sg = decoded['surprise_gift'];
-          if (sg is Map) {
-            _surpriseGiftState = SurpriseGiftState.fromJson(
-              Map<String, dynamic>.from(sg),
-            );
-          }
-          final al = decoded['attendance_lucky'];
-          if (al is Map) {
-            _attendanceLuckyState = AttendanceLuckyState.fromJson(
-              Map<String, dynamic>.from(al),
-            );
-          }
-          final s1 = decoded['star_one_purchase_utc_ymd'];
-          if (s1 is String && s1.isNotEmpty) {
-            _starOnePurchaseUtcYmd = s1.trim();
-          }
-          final today = gggomTodayUtcYmdKey();
-          final s2y = decoded['star_two_purchase_utc_ymd'];
-          final s2c = (decoded['star_two_purchase_count'] as num?)?.toInt() ?? 0;
-          if (s2y is String && s2y.trim().isNotEmpty && s2y.trim() == today) {
-            _starTwoPurchaseUtcYmd = s2y.trim();
-            _starTwoPurchaseCount = s2c;
-          } else {
-            _starTwoPurchaseUtcYmd = null;
-            _starTwoPurchaseCount = 0;
+            final al = decoded['attendance_lucky'];
+            if (al is Map) {
+              _attendanceLuckyState = AttendanceLuckyState.fromJson(
+                Map<String, dynamic>.from(al),
+              );
+            }
+            final s1 = decoded['star_one_purchase_utc_ymd'];
+            if (s1 is String && s1.isNotEmpty) {
+              _starOnePurchaseUtcYmd = s1.trim();
+            }
+            final today = gggomTodayUtcYmdKey();
+            final s2y = decoded['star_two_purchase_utc_ymd'];
+            final s2c =
+                (decoded['star_two_purchase_count'] as num?)?.toInt() ?? 0;
+            if (s2y is String && s2y.trim().isNotEmpty && s2y.trim() == today) {
+              _starTwoPurchaseUtcYmd = s2y.trim();
+              _starTwoPurchaseCount = s2c;
+            } else {
+              _starTwoPurchaseUtcYmd = null;
+              _starTwoPurchaseCount = 0;
+            }
           }
         }
       }
@@ -533,11 +781,19 @@ class LocalShopRepository implements ShopDataSource {
 
   /// 예전 저장본에 슬롯 보유가 없으면 기본 무료 슬롯만 지급합니다.
   void _ensureDefaultSlotOwned() {
-    final has = _owned.any((e) => e.itemType == 'slot' && e.itemId == kDefaultEquippedSlotId);
+    final has = _owned.any(
+      (e) => e.itemType == 'slot' && e.itemId == kDefaultEquippedSlotId,
+    );
     if (has) {
       return;
     }
-    _owned.add(UserItemRow(itemId: kDefaultEquippedSlotId, itemType: 'slot', purchasedAt: _now));
+    _owned.add(
+      UserItemRow(
+        itemId: kDefaultEquippedSlotId,
+        itemType: 'slot',
+        purchasedAt: _now,
+      ),
+    );
     unawaited(_persistUserState());
   }
 
@@ -553,8 +809,16 @@ class LocalShopRepository implements ShopDataSource {
     );
     for (var i = 0; i < 22; i++) {
       final id = koreaMajorCardShopItemId(i);
-      if (!_owned.any((e) => e.itemType == 'korea_major_card' && e.itemId == id)) {
-        _owned.add(UserItemRow(itemId: id, itemType: 'korea_major_card', purchasedAt: _now));
+      if (!_owned.any(
+        (e) => e.itemType == 'korea_major_card' && e.itemId == id,
+      )) {
+        _owned.add(
+          UserItemRow(
+            itemId: id,
+            itemType: 'korea_major_card',
+            purchasedAt: _now,
+          ),
+        );
       }
     }
     unawaited(_persistUserState());
@@ -564,8 +828,7 @@ class LocalShopRepository implements ShopDataSource {
     if (_profile.equippedCard != koreaTraditionalMajorThemeId) {
       return;
     }
-    final hasPiece =
-        _owned.any((e) => e.itemType == 'korea_major_card');
+    final hasPiece = _owned.any((e) => e.itemType == 'korea_major_card');
     if (hasPiece) {
       return;
     }
@@ -580,23 +843,20 @@ class LocalShopRepository implements ShopDataSource {
     unawaited(_persistUserState());
   }
 
-  /// 오라클 5장·이모 5·한국전통 1장 — 유저마다 다른 무작위(시드 고정) 선물. 없으면 추가 후 저장.
+  /// 한국전통 조각 1장 — 유저마다 다른 무작위(시드 고정). 오라클·이모는 [completeFirstSetupWizard].
   void _ensureStarterGifts() {
     var dirty = false;
-    for (final id in starterOracleItemIdsForUser(_userId)) {
-      if (!_owned.any((e) => e.itemType == 'oracle_card' && e.itemId == id)) {
-        _owned.add(UserItemRow(itemId: id, itemType: 'oracle_card', purchasedAt: _now));
-        dirty = true;
-      }
-    }
     final koreaGift = starterKoreaMajorItemIdForUser(_userId);
-    if (!_owned.any((e) => e.itemType == 'korea_major_card' && e.itemId == koreaGift)) {
-      _owned.add(UserItemRow(itemId: koreaGift, itemType: 'korea_major_card', purchasedAt: _now));
-      dirty = true;
-    }
-    final emoCountBefore = _emoticonOwned.length;
-    _emoticonOwned.addAll(starterEmoticonIdsForUser(_userId));
-    if (_emoticonOwned.length != emoCountBefore) {
+    if (!_owned.any(
+      (e) => e.itemType == 'korea_major_card' && e.itemId == koreaGift,
+    )) {
+      _owned.add(
+        UserItemRow(
+          itemId: koreaGift,
+          itemType: 'korea_major_card',
+          purchasedAt: _now,
+        ),
+      );
       dirty = true;
     }
     if (dirty) {
@@ -690,11 +950,14 @@ class LocalShopRepository implements ShopDataSource {
       'attendance_lucky': _attendanceLuckyState.toJson(),
       if (_starOnePurchaseUtcYmd != null && _starOnePurchaseUtcYmd!.isNotEmpty)
         'star_one_purchase_utc_ymd': _starOnePurchaseUtcYmd,
-      if (_starTwoPurchaseUtcYmd != null && _starTwoPurchaseUtcYmd!.isNotEmpty) ...{
+      if (_starTwoPurchaseUtcYmd != null &&
+          _starTwoPurchaseUtcYmd!.isNotEmpty) ...{
         'star_two_purchase_utc_ymd': _starTwoPurchaseUtcYmd,
         'star_two_purchase_count': _starTwoPurchaseCount,
       },
     };
+    final sig = await signLocalEconomyPayload(_userId, payload);
+    payload['economy_integrity_v1'] = {'algo': 'hmac_sha256_v1', 'sig': sig};
     await saveLocalJsonFile(_userStateFile(), jsonEncode(payload));
   }
 
@@ -837,6 +1100,27 @@ class LocalShopRepository implements ShopDataSource {
     if (type == 'oracle_card' || type == 'korea_major_card') {
       return _profile;
     }
+    bool owns(String id, String t) =>
+        _owned.any((e) => e.itemId == id && e.itemType == t);
+    if (type == 'card_back') {
+      if (itemId != 'default-card-back' && !owns(itemId, 'card_back')) {
+        return null;
+      }
+    } else if (type == 'slot') {
+      if (itemId != kDefaultEquippedSlotId && !owns(itemId, 'slot')) {
+        return null;
+      }
+    } else if (type == 'mat') {
+      if (itemId != MatThemeData.defaultId && !owns(itemId, 'mat')) {
+        return null;
+      }
+    } else if (type == 'card') {
+      if (itemId != defaultThemeId &&
+          itemId != koreaTraditionalMajorThemeId &&
+          !owns(itemId, 'card')) {
+        return null;
+      }
+    }
     if (type == 'card') {
       _profile = UserProfileRow(
         id: _profile.id,
@@ -879,7 +1163,9 @@ class LocalShopRepository implements ShopDataSource {
   }
 
   @override
-  Future<AttendanceDailyRewardResult?> grantAttendanceDailyReward(String userId) async {
+  Future<AttendanceDailyRewardResult?> grantAttendanceDailyReward(
+    String userId,
+  ) async {
     if (userId != _userId) {
       return null;
     }
@@ -916,15 +1202,15 @@ class LocalShopRepository implements ShopDataSource {
     final row = lucky.grantedItem;
     if (row != null) {
       if (!_owned.any((e) => e.itemId == row.id && e.itemType == row.type)) {
-        _owned.add(UserItemRow(itemId: row.id, itemType: row.type, purchasedAt: _now));
+        _owned.add(
+          UserItemRow(itemId: row.id, itemType: row.type, purchasedAt: _now),
+        );
         luckyName = row.name;
         luckyGranted = true;
       }
     }
-    final applyNext = lucky.applyNextEligibleAfterUtc;
-    if (applyNext != null) {
-      _attendanceLuckyState.nextEligibleAfterUtc = applyNext;
-    }
+    _attendanceLuckyState.nextEligibleAfterUtc =
+        lucky.applyNextEligibleAfterUtc;
 
     await _persistUserState();
     return AttendanceDailyRewardResult(
@@ -935,7 +1221,48 @@ class LocalShopRepository implements ShopDataSource {
   }
 
   @override
-  Future<UserProfileRow?> grantAdRewardStars(String userId, {int amount = 3}) async {
+  Future<bool> completeFirstSetupWizard(String userId) async {
+    if (userId != _userId) {
+      return false;
+    }
+    try {
+      await _ensureCatalogLoaded();
+      await _ensureUserStateLoaded();
+      await equipItem(
+        userId: userId,
+        itemId: 'default-card-back',
+        type: 'card_back',
+      );
+      await equipItem(
+        userId: userId,
+        itemId: kDefaultEquippedSlotId,
+        type: 'slot',
+      );
+      final oracleHave = _owned
+          .where((e) => e.itemType == 'oracle_card')
+          .map((e) => e.itemId)
+          .toSet();
+      for (final id in pickFirstSetupOracleIds(userId, oracleHave)) {
+        _owned.add(
+          UserItemRow(itemId: id, itemType: 'oracle_card', purchasedAt: _now),
+        );
+      }
+      final emoHave = {..._emoticonOwned};
+      for (final id in pickFirstSetupEmoticonIds(userId, emoHave)) {
+        _emoticonOwned.add(id);
+      }
+      await _persistUserState();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<UserProfileRow?> grantAdRewardStars(
+    String userId, {
+    int amount = 3,
+  }) async {
     if (userId != _userId) {
       return null;
     }
@@ -989,7 +1316,9 @@ class LocalShopRepository implements ShopDataSource {
         _surpriseGiftState.pendingItemType != offer.itemType) {
       return ClaimSurpriseGiftResult.failed;
     }
-    final ownedKeys = _owned.map((e) => gggomShopOwnedKey(e.itemId, e.itemType)).toSet();
+    final ownedKeys = _owned
+        .map((e) => gggomShopOwnedKey(e.itemId, e.itemType))
+        .toSet();
     if (ownedKeys.contains(gggomShopOwnedKey(offer.itemId, offer.itemType))) {
       SurpriseGiftSync.clearPendingAndScheduleNext(
         state: _surpriseGiftState,
@@ -1039,15 +1368,7 @@ int suggestedStarPriceForShopItem(ShopItemRow e) {
       if (e.id == 'default-card-back') {
         return 0;
       }
-      const map = <String, int>{
-        'card-back-cat': 5,
-        'card-back-dog': 6,
-        'card-back-moon': 7,
-        'card-back-tiger': 8,
-        'card-back-wonyeos': 9,
-        'card-back-owl': 10,
-      };
-      return map[e.id] ?? e.price.clamp(1, 10).toInt();
+      return gggomFixedStarPrice(e.id, min: 4, max: 6);
     case 'mat':
       if (e.id == MatThemeData.defaultId) {
         return 0;
@@ -1067,7 +1388,7 @@ int suggestedStarPriceForShopItem(ShopItemRow e) {
       if (e.id == kDefaultEquippedSlotId) {
         return 0;
       }
-      return e.price.clamp(1, 10).toInt();
+      return gggomFixedStarPrice(e.id, min: 3, max: 5);
     default:
       if (e.price <= 0) {
         return 0;

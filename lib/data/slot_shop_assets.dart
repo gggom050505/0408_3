@@ -1,3 +1,4 @@
+import '../config/shop_random_prices.dart';
 import '../models/shop_models.dart';
 
 /// 가방·타로 기본 장착 슬롯 테두리.
@@ -31,11 +32,7 @@ int _slotStarPrice(String id) {
   if (id == kDefaultEquippedSlotId) {
     return 0;
   }
-  final idx = kBundledSlotShopAssetTuples.indexWhere((e) => e.$1 == id);
-  if (idx < 0) {
-    return 4;
-  }
-  return 3 + idx;
+  return gggomFixedStarPrice(id, min: 3, max: 5);
 }
 
 List<ShopItemRow> bundledSlotShopRows() {

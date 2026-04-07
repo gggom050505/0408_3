@@ -112,7 +112,7 @@ List<UserItemRow> gggomDedupeOwnedItems(Iterable<UserItemRow> rows) {
   return out;
 }
 
-/// 출석 일일 보상 지급 결과 — 「행운이 가득한 날」이면 [luckyShopItemGranted] 및 [luckyShopItemName] 참고.
+/// 출석 일일 보상 지급 결과 — ⭐ 별조각 + [starFragmentsAdded], 미보유 유료 품목 추첨 성공 시 [luckyShopItemGranted]·[luckyShopItemName].
 class AttendanceDailyRewardResult {
   const AttendanceDailyRewardResult({
     required this.starFragmentsAdded,

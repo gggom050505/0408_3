@@ -9,9 +9,8 @@ import '../standalone/local_app_preferences.dart';
 import '../theme/app_colors.dart';
 import 'app_motion.dart';
 
-/// 베타 광고 시청 보상 — `AD_REWARD_TEST_MODE` 또는 오프라인 번들에서 시트 진입.
-/// [adVideoAssetPaths]를 순서대로 **한 번에 1편** 재생한 뒤 별조각 지급,
-/// [AppConfig.adRewardCooldownMinutes] 간격 제한.
+/// 별조각 광고 — [adVideoAssetPaths]를 순서대로 **한 번에 1편** 재생 후 「별조각 획득」 안내·별조각 지급,
+/// [AppConfig.adRewardCooldownMinutes] 간격 제한. 진입: GNB·상점 배너.
 class AdRewardSheet extends StatelessWidget {
   const AdRewardSheet({
     super.key,
@@ -26,11 +25,11 @@ class AdRewardSheet extends StatelessWidget {
   final Future<void> Function() onBalanceRefresh;
   final GlobalKey<ScaffoldMessengerState>? messengerKey;
 
-  /// 프로젝트 루트 `advert/` 폴더의 MP4. 매 시청마다 다음 인덱스로 순환(한 회차에 1개만 재생).
-  /// 파일명을 바꾸면 이 목록과 `pubspec.yaml`의 `advert/` 항목을 맞춰 주세요.
+  /// `assets/advert/` 의 MP4. 매 시청마다 다음 인덱스로 순환(한 회차에 1편만 재생).
+  /// 파일을 바꾸면 이 목록과 `pubspec.yaml`의 `assets/advert/` 항목을 맞춰 주세요.
   static const List<String> adVideoAssetPaths = <String>[
-    'advert/ad_1.mp4',
-    'advert/ad_2.mp4',
+    'assets/advert/gdk15s.mp4',
+    'assets/advert/wk15s.mp4',
   ];
 
   static Future<void> show(
@@ -85,8 +84,8 @@ class AdRewardSheet extends StatelessWidget {
   }
 }
 
-/// `advert/*.mp4`가 없거나(또는 코덱 문제로) 재생 실패할 때 1회 시도하는 짧은 데모 소스.
-/// 베타용이며, 실서비스 광고는 반드시 `advert/`에 정식 MP4를 넣는 것을 권장합니다.
+/// `assets/advert/*.mp4`가 없거나(또는 코덱 문제로) 재생 실패할 때 1회 시도하는 짧은 데모 소스.
+/// 실제 광고·프로모 영상은 `assets/advert/`에 MP4를 넣는 것을 권장합니다.
 const String _kFallbackBetaAdVideoUrl =
     'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
 
@@ -141,7 +140,7 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
       ),
     );
 
-    // `advert/`에 MP4가 없거나 깨진 경우 등 — 베타에서는 데모 영상으로 시도.
+    // `assets/advert/`에 MP4가 없거나 깨진 경우 등 — 데모 영상으로 1회 시도.
     c ??= await _tryAttach(
       VideoPlayerController.networkUrl(
         Uri.parse(_kFallbackBetaAdVideoUrl),
@@ -222,7 +221,9 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
                   ],
                 )
               : AspectRatio(
-                  aspectRatio: c.value.aspectRatio == 0 ? 16 / 9 : c.value.aspectRatio,
+                  aspectRatio: c.value.aspectRatio == 0
+                      ? 16 / 9
+                      : c.value.aspectRatio,
                   child: VideoPlayer(c),
                 ),
         ),
@@ -271,13 +272,13 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
   }
 
   Future<Duration> _remainingCooldown() async {
-    final last = await LocalAppPreferences.getAdRewardLastCompletedUtc(widget.userId);
+    final last = await LocalAppPreferences.getAdRewardLastCompletedUtc(
+      widget.userId,
+    );
     if (last == null) {
       return Duration.zero;
     }
-    final next = last.add(
-      Duration(minutes: AppConfig.adRewardCooldownMinutes),
-    );
+    final next = last.add(Duration(minutes: AppConfig.adRewardCooldownMinutes));
     final left = next.difference(DateTime.now().toUtc());
     return left.isNegative ? Duration.zero : left;
   }
@@ -332,8 +333,9 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
       return;
     }
 
-    final rawIdx =
-        await LocalAppPreferences.getAdRewardNextPromoAssetIndex(widget.userId);
+    final rawIdx = await LocalAppPreferences.getAdRewardNextPromoAssetIndex(
+      widget.userId,
+    );
     if (!mounted) {
       return;
     }
@@ -361,7 +363,8 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
           SnackBar(
             content: Text(
               '광고 영상을 재생하지 못했어요.\n'
-              '`advert/`에 ad_1.mp4 등을 넣었는지 확인하고, 웹에서는 인터넷 연결도 필요해요.',
+              '`assets/advert/`에 gdk15s.mp4·wk15s.mp4 등을 넣었는지 확인해 주세요. '
+              '웹 빌드에서 폴백 재생 시 인터넷이 필요할 수 있어요.',
             ),
           ),
         );
@@ -395,23 +398,38 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
     }
     setState(() => _busy = false);
 
-    Navigator.of(context).pop();
-
-    final msg = widget.messengerKey?.currentState;
     if (profile != null) {
       await widget.onBalanceRefresh();
-      msg?.showSnackBar(
-        SnackBar(
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) => AlertDialog(
+          title: const Text('별조각 획득'),
           content: Text(
-            '⭐ 별조각 +${AppConfig.adRewardStarAmount}! (보유 ${profile.starFragments})',
+            '광고 시청을 완료해 별조각 ${AppConfig.adRewardStarAmount}개를 드렸어요.\n\n'
+            '현재 보유: ${profile.starFragments}개',
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text('확인'),
+            ),
+          ],
         ),
       );
     } else {
-      msg?.showSnackBar(
+      widget.messengerKey?.currentState?.showSnackBar(
         const SnackBar(content: Text('보상 지급에 실패했어요.')),
       );
     }
+
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   @override
@@ -435,14 +453,17 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
           ),
         ),
         Text(
-          '📺 광고 보기',
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          '⭐ 별조각 광고',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 12),
         Text(
-          '광고 영상을 끝까지 보면 별조각 ${AppConfig.adRewardStarAmount}개를 드려요. '
-          '보상을 받은 뒤에는 ${AppConfig.adRewardCooldownMinutes}분마다 한 번 볼 수 있어요. '
-          '매회 1편씩 재생되며, 다음에는 다른 광고가 나와요.',
+          '「광고 시청」을 누르면 영상 1편이 재생돼요. 끝까지 보면 별조각 ${AppConfig.adRewardStarAmount}개를 드리며, '
+          '확인 창에 「별조각 획득」으로 알려 드려요. '
+          '같은 계정으로는 ${AppConfig.adRewardCooldownMinutes}분에 한 번 시청할 수 있고, '
+          '볼 때마다 gdk15s → wk15s 순으로 돌아가며 다른 영상이 나와요.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: AppColors.textPrimary,
             height: 1.35,
@@ -483,8 +504,8 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
               Text(
                 '• 별조각을 받은 직후부터 ${AppConfig.adRewardCooldownMinutes}분 동안은 같은 계정으로 광고를 다시 볼 수 없어요.\n'
                 '• 남은 대기 시간은 아래에 분·초(MM:SS)로 표시돼요.\n'
-                '• 광고 영상은 `advert/` 폴더의 MP4를 사용해요 (기본 파일명: ad_1.mp4, ad_2.mp4).\n'
-                  '• 파일이 없거나 재생이 안 되면 베타용 짧은 데모 영상(인터넷 필요)으로 대체돼요.',
+                '• 광고 영상은 `assets/advert/`의 MP4를 써요 (예: gdk15s.mp4, wk15s.mp4).\n'
+                '• 파일이 없거나 재생이 안 되면 짧은 데모 영상(웹에서는 인터넷 필요)으로 대체돼요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.45,
@@ -509,13 +530,15 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
           decoration: BoxDecoration(
             color: AppColors.accentLilac.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cardBorder.withValues(alpha: 0.5)),
+            border: Border.all(
+              color: AppColors.cardBorder.withValues(alpha: 0.5),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '베타 운영 중',
+                '안내',
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.accentPurple,
@@ -523,10 +546,9 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
               ),
               const SizedBox(height: 6),
               Text(
-                '실제 광고 SDK 연동 전까지 `advert/` 의 MP4를 '
-                '${AppConfig.adRewardCooldownMinutes}분 간격으로 재생한 뒤 '
-                '⭐ ${AppConfig.adRewardStarAmount}개를 지급해요.\n'
-                'Supabase 연동 정식 빌드에서는 `AD_REWARD_TEST_MODE` 를 켠 경우에만 이 메뉴가 보입니다.',
+                '앱에 넣은 MP4를 ${AppConfig.adRewardCooldownMinutes}분 간격으로 재생한 뒤 '
+                '별조각 ${AppConfig.adRewardStarAmount}개를 지급해요.\n'
+                '상단 · 상점의 「별조각 광고」와 같은 메뉴예요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.4,
@@ -546,21 +568,24 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Icon(Icons.smart_display_outlined),
           label: Text(
             _busy
                 ? '처리 중…'
                 : onCooldown
-                    ? '다음 광고까지 $cdLabel'
-                    : '광고 보기 (⭐ ${AppConfig.adRewardStarAmount}개)',
+                ? '다음 광고까지 $cdLabel'
+                : '광고 시청 (⭐ ${AppConfig.adRewardStarAmount}개)',
           ),
         ),
         const SizedBox(height: 8),
         Center(
           child: Text(
-            '광고 문의 gggom0505@gmail.com',
+            AppConfig.adInquiryContactLine,
             style: theme.textTheme.labelSmall?.copyWith(
               color: AppColors.textSecondary,
             ),

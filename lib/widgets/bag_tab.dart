@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
@@ -13,6 +15,7 @@ import '../data/card_themes.dart'
         resolvePublicAssetUrl,
         resolveShopItemThumbnailSrc,
         kCardThemeThumbnailPath;
+import '../data/mat_themes.dart';
 import '../data/oracle_assets.dart';
 import '../data/slot_shop_assets.dart';
 import '../models/shop_models.dart';
@@ -28,12 +31,32 @@ const String _koreaTraditionalDeckEquipHint =
     '이 덱을 선택하면 타로 화면에는 가방에서 모은 「한국전통 메이저」장만 섞여 나와요. '
     '22장을 다 모을 필요 없고, 아래 🇰🇷 한국전통 메이저 목록에 보유한 카드만 사용됩니다.';
 
+String? _koreaMajorBagPreviewSrc(_OwnedVisual c) {
+  if (c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty) {
+    return c.thumbnailUrl;
+  }
+  final idx = koreaMajorCardIndexFromShopItemId(c.id);
+  final path = idx != null ? koreaTraditionalMajorAssetPath(idx) : null;
+  if (path == null) {
+    return null;
+  }
+  return resolvePublicAssetUrl(path, AppConfig.assetOrigin);
+}
+
 class _OwnedVisual {
-  _OwnedVisual({required this.id, required this.name, this.thumbnailUrl});
+  _OwnedVisual({
+    required this.id,
+    required this.name,
+    this.thumbnailUrl,
+    this.matThemeId,
+  });
 
   final String id;
   final String name;
   final String? thumbnailUrl;
+
+  /// 타로 매트 행이면 [matThemes] 그라데이션 미리보기에 사용합니다.
+  final String? matThemeId;
 }
 
 class BagTab extends StatelessWidget {
@@ -54,6 +77,7 @@ class BagTab extends StatelessWidget {
   final List<ShopItemRow> shopItems;
   final UserProfileRow? profile;
   final List<UserItemRow> ownedItems;
+
   /// 상점·선물로 보유한 번들 이모티콘 ID (`emo_asset_XX` 등).
   final List<String> ownedEmoticonIds;
   final Future<void> Function() onRefresh;
@@ -77,15 +101,21 @@ class BagTab extends StatelessWidget {
       db.add(
         _OwnedVisual(
           id: item.itemId,
-          name: si?.name ??
+          name:
+              si?.name ??
               (item.itemId == defaultThemeId
                   ? '기본카드'
                   : item.itemId == koreaTraditionalMajorThemeId
-                      ? '한국전통 메이저카드'
-                      : '카드 덱'),
+                  ? '한국전통 메이저카드'
+                  : '카드 덱'),
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
-              : (path != null ? resolvePublicAssetUrl(path, AppConfig.assetOrigin) : null),
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
+              : (path != null
+                    ? resolvePublicAssetUrl(path, AppConfig.assetOrigin)
+                    : null),
         ),
       );
     }
@@ -96,14 +126,17 @@ class BagTab extends StatelessWidget {
         _OwnedVisual(
           id: defaultThemeId,
           name: '기본카드',
-          thumbnailUrl:
-              path != null ? resolvePublicAssetUrl(path, AppConfig.assetOrigin) : null,
+          thumbnailUrl: path != null
+              ? resolvePublicAssetUrl(path, AppConfig.assetOrigin)
+              : null,
         ),
       );
     }
-    final hasKoreaPieces =
-        ownedItems.any((e) => e.itemType == 'korea_major_card');
-    if (hasKoreaPieces && !db.any((c) => c.id == koreaTraditionalMajorThemeId)) {
+    final hasKoreaPieces = ownedItems.any(
+      (e) => e.itemType == 'korea_major_card',
+    );
+    if (hasKoreaPieces &&
+        !db.any((c) => c.id == koreaTraditionalMajorThemeId)) {
       final thumb = resolvePublicAssetUrl(
         kKoreaTraditionalMajorShopThumbnailAsset,
         AppConfig.assetOrigin,
@@ -139,7 +172,9 @@ class BagTab extends StatelessWidget {
 
   List<_OwnedVisual> _mergeKoreaMajorPieces() {
     final db = <_OwnedVisual>[];
-    for (final item in ownedItems.where((e) => e.itemType == 'korea_major_card')) {
+    for (final item in ownedItems.where(
+      (e) => e.itemType == 'korea_major_card',
+    )) {
       final si = _shop(item.itemId);
       final idx = koreaMajorCardIndexFromShopItemId(item.itemId);
       final path = idx != null ? koreaTraditionalMajorAssetPath(idx) : null;
@@ -148,8 +183,13 @@ class BagTab extends StatelessWidget {
           id: item.itemId,
           name: si?.name ?? item.itemId,
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
-              : (path != null ? resolvePublicAssetUrl(path, AppConfig.assetOrigin) : null),
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
+              : (path != null
+                    ? resolvePublicAssetUrl(path, AppConfig.assetOrigin)
+                    : null),
         ),
       );
     }
@@ -167,7 +207,10 @@ class BagTab extends StatelessWidget {
           id: item.itemId,
           name: si?.name ?? '카드 뒷면',
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
               : null,
         ),
       );
@@ -181,7 +224,10 @@ class BagTab extends StatelessWidget {
           id: freeId,
           name: si?.name ?? '기본 카드 뒷면',
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
               : null,
         ),
       );
@@ -197,6 +243,42 @@ class BagTab extends StatelessWidget {
         .toList();
   }
 
+  List<_OwnedVisual> _mergeMats() {
+    final p = profile;
+    final db = <_OwnedVisual>[];
+    for (final item in ownedItems.where((e) => e.itemType == 'mat')) {
+      final si = _shop(item.itemId);
+      db.add(
+        _OwnedVisual(
+          id: item.itemId,
+          name: si?.name ?? matById(item.itemId).name,
+          matThemeId: item.itemId,
+        ),
+      );
+    }
+    final freeId = MatThemeData.defaultId;
+    if (!db.any((c) => c.id == freeId)) {
+      final si = _shop(freeId);
+      db.insert(
+        0,
+        _OwnedVisual(
+          id: freeId,
+          name: si?.name ?? matById(freeId).name,
+          matThemeId: freeId,
+        ),
+      );
+    }
+    return db
+        .map(
+          (e) => _OwnedVisual(
+            id: e.id,
+            name: '${e.name}${p?.equippedMat == e.id ? ' (장착)' : ''}',
+            matThemeId: e.matThemeId,
+          ),
+        )
+        .toList();
+  }
+
   List<_OwnedVisual> _mergeSlots() {
     final p = profile;
     final db = <_OwnedVisual>[];
@@ -207,7 +289,10 @@ class BagTab extends StatelessWidget {
           id: item.itemId,
           name: si?.name ?? '카드 슬롯',
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
               : null,
         ),
       );
@@ -220,7 +305,10 @@ class BagTab extends StatelessWidget {
           id: kDefaultEquippedSlotId,
           name: si?.name ?? '기본 카드 슬롯',
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
               : bundledSlotAssetPathForShopId(kDefaultEquippedSlotId),
         ),
       );
@@ -245,7 +333,10 @@ class BagTab extends StatelessWidget {
           id: item.itemId,
           name: si?.name ?? item.itemId,
           thumbnailUrl: si?.thumbnailUrl != null
-              ? resolveShopItemThumbnailSrc(si!.thumbnailUrl, AppConfig.assetOrigin)
+              ? resolveShopItemThumbnailSrc(
+                  si!.thumbnailUrl,
+                  AppConfig.assetOrigin,
+                )
               : null,
         ),
       );
@@ -277,11 +368,8 @@ class BagTab extends StatelessWidget {
     await repo.equipItem(userId: uid, itemId: id, type: type);
     await onRefresh();
     if (context.mounted) {
-      final msg = successMessage ??
-          (type == 'card' ? '선택했어요' : '장착했어요');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg)),
-      );
+      final msg = successMessage ?? (type == 'card' ? '선택했어요' : '장착했어요');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -291,15 +379,16 @@ class BagTab extends StatelessWidget {
       return Center(
         child: Text(
           '로그인 후 가방을 열 수 있어요.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
         ),
       );
     }
 
     final cards = _mergeCards();
     final cardBacks = _mergeCardBacks();
+    final mats = _mergeMats();
     final slots = _mergeSlots();
     final oracles = _mergeOracles();
     final koreaPieces = _mergeKoreaMajorPieces();
@@ -313,39 +402,46 @@ class BagTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          stagger(Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '🎒 가방',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                Text(
-                  '덱·카드 뒷면·빈 슬롯 테두리를 장착하면 타로 화면에 바로 반영됩니다.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ],
+          stagger(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🎒 가방',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '덱·카드 뒷면·타로 매트·슬롯 테두리를 장착하면 타로 화면에 바로 반영됩니다.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
-          stagger(StarFragmentsBalancePanel(starFragments: profile?.starFragments)),
+          ),
+          stagger(
+            StarFragmentsBalancePanel(starFragments: profile?.starFragments),
+          ),
           stagger(_header(context, '🃏 카드 덱')),
           ...cards.map(
             (c) => _equipTile(
               context,
               c,
               'card',
-              footnote:
-                  c.id == koreaTraditionalMajorThemeId ? _koreaTraditionalDeckEquipHint : null,
+              footnote: c.id == koreaTraditionalMajorThemeId
+                  ? _koreaTraditionalDeckEquipHint
+                  : null,
             ),
           ),
           stagger(_header(context, '🎴 카드 뒷면')),
           ...cardBacks.map((c) => _equipTile(context, c, 'card_back')),
+          stagger(_header(context, '🧘 타로 매트')),
+          ...mats.map((m) => _equipTile(context, m, 'mat')),
           stagger(_header(context, '🪟 카드 슬롯')),
           ...slots.map((s) => _equipTile(context, s, 'slot')),
           _oracleSectionHeader(context, oracles),
@@ -354,11 +450,51 @@ class BagTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 '출석 이벤트·상점에서 모을 수 있어요',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
             ),
+          if (oracles.isNotEmpty)
+            ...oracles.map((c) {
+              final imageSrc =
+                  (c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+                  ? c.thumbnailUrl!
+                  : resolveOracleCollectionImageSrc(
+                      itemId: c.id,
+                      shopThumbnailUrl: _shop(c.id)?.thumbnailUrl,
+                    );
+              return ListTile(
+                leading: SizedBox(
+                  width: 40,
+                  height: 52,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: AdaptiveNetworkOrAssetImage(
+                      src: imageSrc,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        alignment: Alignment.center,
+                        color: AppColors.cardInner,
+                        child: const Text('🔮', style: TextStyle(fontSize: 20)),
+                      ),
+                    ),
+                  ),
+                ),
+                title: Text(c.name),
+                subtitle: const Text(
+                  '보유 · 눌러서 크게 보기',
+                  style: TextStyle(fontSize: 12),
+                ),
+                onTap: () => unawaited(
+                  showOwnedCardImagePreviewDialog(
+                    context,
+                    title: c.name,
+                    imageSrc: imageSrc,
+                  ),
+                ),
+              );
+            }),
           if (koreaPieces.isNotEmpty) ...[
             _koreaMajorBagHeader(context, koreaPieces.length),
             ...koreaPieces.map(
@@ -372,14 +508,36 @@ class BagTab extends StatelessWidget {
                           child: AdaptiveNetworkOrAssetImage(
                             src: c.thumbnailUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
-                                const Center(child: Text('🇰🇷', style: TextStyle(fontSize: 20))),
+                            errorBuilder: (_, _, _) => const Center(
+                              child: Text(
+                                '🇰🇷',
+                                style: TextStyle(fontSize: 20),
+                              ),
+                            ),
                           ),
                         )
-                      : const Center(child: Text('🇰🇷', style: TextStyle(fontSize: 20))),
+                      : const Center(
+                          child: Text('🇰🇷', style: TextStyle(fontSize: 20)),
+                        ),
                 ),
                 title: Text(c.name),
-                subtitle: const Text('보유', style: TextStyle(fontSize: 12)),
+                subtitle: const Text(
+                  '보유 · 눌러서 크게 보기',
+                  style: TextStyle(fontSize: 12),
+                ),
+                onTap: () {
+                  final src = _koreaMajorBagPreviewSrc(c);
+                  if (src == null || src.isEmpty) {
+                    return;
+                  }
+                  unawaited(
+                    showOwnedCardImagePreviewDialog(
+                      context,
+                      title: c.name,
+                      imageSrc: src,
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -444,9 +602,9 @@ class BagTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
       child: Text(
         t,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -460,24 +618,27 @@ class BagTab extends StatelessWidget {
           Expanded(
             child: Text(
               '🇰🇷 한국전통 메이저',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
           Text(
             '$ownedCount / $total',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _oracleSectionHeader(BuildContext context, List<_OwnedVisual> oracles) {
+  Widget _oracleSectionHeader(
+    BuildContext context,
+    List<_OwnedVisual> oracles,
+  ) {
     final n = oracles.length;
     final total = kBundledOracleCardCount;
     return Padding(
@@ -490,14 +651,19 @@ class BagTab extends StatelessWidget {
           onTap: () {
             final entries = <OracleCollectionEntry>[];
             for (final v in oracles) {
-              final imageSrc = (v.thumbnailUrl != null && v.thumbnailUrl!.isNotEmpty)
+              final imageSrc =
+                  (v.thumbnailUrl != null && v.thumbnailUrl!.isNotEmpty)
                   ? v.thumbnailUrl!
                   : resolveOracleCollectionImageSrc(
                       itemId: v.id,
                       shopThumbnailUrl: _shop(v.id)?.thumbnailUrl,
                     );
               entries.add(
-                OracleCollectionEntry(id: v.id, name: v.name, imageSrc: imageSrc),
+                OracleCollectionEntry(
+                  id: v.id,
+                  name: v.name,
+                  imageSrc: imageSrc,
+                ),
               );
             }
             Navigator.of(context).push(
@@ -518,16 +684,16 @@ class BagTab extends StatelessWidget {
                   child: Text(
                     '🔮 오라클 카드',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 Text(
                   '$n / $total',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Icon(Icons.chevron_right, color: AppColors.textSecondary),
               ],
@@ -570,33 +736,46 @@ class BagTab extends StatelessWidget {
           context,
           v.id,
           type,
-          successMessage: isKoreaDeck
-              ? '한국전통 메이저 덱을 선택했어요'
-              : null,
+          successMessage: isKoreaDeck ? '한국전통 메이저 덱을 선택했어요' : null,
         ),
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.accentPurple,
-        ),
+        style: FilledButton.styleFrom(backgroundColor: AppColors.accentPurple),
         child: Text(type == 'card' ? '선택' : '장착'),
       );
     }
 
-    final tile = ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: SizedBox(
+    final Widget leading;
+    if (v.matThemeId != null) {
+      final mat = matById(v.matThemeId!);
+      leading = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 48,
+          height: 56,
+          child: DecoratedBox(
+            decoration: BoxDecoration(gradient: mat.background),
+          ),
+        ),
+      );
+    } else if (v.thumbnailUrl != null) {
+      leading = SizedBox(
         width: 48,
         height: 56,
-        child: v.thumbnailUrl != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: AdaptiveNetworkOrAssetImage(
-                  src: v.thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _ph(type),
-                ),
-              )
-            : _ph(type),
-      ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: AdaptiveNetworkOrAssetImage(
+            src: v.thumbnailUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _ph(type),
+          ),
+        ),
+      );
+    } else {
+      leading = _ph(type);
+    }
+
+    final tile = ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: leading,
       title: Text(v.name),
       trailing: trailing,
     );
@@ -612,9 +791,9 @@ class BagTab extends StatelessWidget {
           child: Text(
             footnote,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.4,
-                ),
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
           ),
         ),
       ],
@@ -633,14 +812,14 @@ class BagTab extends StatelessWidget {
         type == 'card'
             ? '🃏'
             : type == 'card_back'
-                ? '🎴'
-                : type == 'oracle_card'
-                    ? '🔮'
-                    : type == 'korea_major_card'
-                        ? '🇰🇷'
-                        : type == 'slot'
-                            ? '🪟'
-                            : '🧘',
+            ? '🎴'
+            : type == 'oracle_card'
+            ? '🔮'
+            : type == 'korea_major_card'
+            ? '🇰🇷'
+            : type == 'slot'
+            ? '🪟'
+            : '🧘',
       ),
     );
   }

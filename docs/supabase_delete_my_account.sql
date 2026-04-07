@@ -28,6 +28,7 @@ begin
   delete from public.posts where user_id = uid;
 
   delete from public.chat_messages where user_id = uid;
+  delete from public.peer_shop_listings where seller_id = uid or buyer_id = uid;
   delete from public.user_check_ins where user_id = uid;
   delete from public.user_emoticons where user_id = uid;
   delete from public.user_items where user_id = uid;

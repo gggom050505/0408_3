@@ -258,9 +258,8 @@ class LocalAccountStore {
     return null;
   }
 
-  /// **회원 탈퇴 / 계정 삭제**의 1단계: 비밀번호 확인 후 이 기기의 로그인 행 제거.
-  /// 기기에 남은 JSON(별조각·가방 등)은 [wipeStandaloneArtifactsForAppUserId] 로 별도 정리합니다.
-  Future<String?> deleteAccount({
+  /// **회원 탈퇴 / 계정 삭제**: 성공 시 제거된 [removedUserId]로 기기 JSON 정리에 씁니다.
+  Future<({String? error, String? removedUserId})> deleteAccountWithRemovedUserId({
     required String loginKey,
     required String password,
   }) async {
@@ -268,16 +267,17 @@ class LocalAccountStore {
     final accounts = _readAccountsMap(prefs);
     final row = accounts[loginKey];
     if (row is! Map) {
-      return '계정을 찾을 수 없어요.';
+      return (error: '계정을 찾을 수 없어요.', removedUserId: null);
     }
     final m = Map<String, dynamic>.from(row);
     final salt = m['salt'] as String?;
     final hash = m['passwordHash'] as String?;
-    if (salt == null || hash == null) {
-      return '계정 데이터가 올바르지 않아요.';
+    final userId = m['userId'] as String?;
+    if (salt == null || hash == null || userId == null) {
+      return (error: '계정 데이터가 올바르지 않아요.', removedUserId: null);
     }
     if (_hash(password, salt) != hash) {
-      return '비밀번호가 일치하지 않아요.';
+      return (error: '비밀번호가 일치하지 않아요.', removedUserId: null);
     }
     accounts.remove(loginKey);
     await prefs.setString(_kAccounts, jsonEncode(accounts));
@@ -285,6 +285,18 @@ class LocalAccountStore {
     if (sess?.loginKey == loginKey) {
       await clearSession();
     }
-    return null;
+    return (error: null, removedUserId: userId);
+  }
+
+  /// **회원 탈퇴 / 계정 삭제** — [removedUserId]가 필요 없을 때(예: 이미 세션에서 알 때).
+  Future<String?> deleteAccount({
+    required String loginKey,
+    required String password,
+  }) async {
+    final r = await deleteAccountWithRemovedUserId(
+      loginKey: loginKey,
+      password: password,
+    );
+    return r.error;
   }
 }

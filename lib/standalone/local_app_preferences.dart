@@ -94,6 +94,21 @@ class LocalAppPreferences {
   static String _adRewardPromoIdxKey(String userId) =>
       'ad_reward_next_promo_asset_idx_${userId.trim()}';
 
+  static String _firstSetupWizardV1Key(String userId) =>
+      'first_setup_wizard_v1_done_${userId.trim()}';
+
+  /// 첫 세팅 마법사(오라클·이모 지급) 완료 여부 — 계정별.
+  static Future<bool> isFirstSetupWizardV1Done(String userId) async {
+    final m = await _load();
+    return m[_firstSetupWizardV1Key(userId)] == true;
+  }
+
+  static Future<void> markFirstSetupWizardV1Done(String userId) async {
+    final m = await _load();
+    m[_firstSetupWizardV1Key(userId)] = true;
+    await _save(m);
+  }
+
   static String _tarotEquipDefaultsV1Key(String userId) =>
       'tarot_equip_defaults_v1_done_${userId.trim()}';
 
@@ -114,6 +129,7 @@ class LocalAppPreferences {
     final m = await _load();
     m.remove(_adRewardKey(userId));
     m.remove(_adRewardPromoIdxKey(userId));
+    m.remove(_firstSetupWizardV1Key(userId));
     m.remove(_tarotEquipDefaultsV1Key(userId));
     await _save(m);
   }

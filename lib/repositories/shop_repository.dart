@@ -4,11 +4,15 @@ import 'dart:math' show Random;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/korea_major_card_catalog.dart';
+import '../config/mat_shop_catalog.dart';
 import '../config/shop_random_prices.dart';
-import '../config/starter_gifts.dart';
+import '../config/starter_gifts.dart'
+    show pickFirstSetupEmoticonIds, pickFirstSetupOracleIds, starterKoreaMajorItemIdForUser;
 import '../data/card_themes.dart' show defaultThemeId, koreaTraditionalMajorThemeId;
+import '../data/card_back_shop_assets.dart' show bundledCardBackShopRows;
 import '../data/oracle_assets.dart' show bundledOracleShopCatalogRows;
-import '../data/slot_shop_assets.dart';
+import '../data/slot_shop_assets.dart'
+    show bundledSlotShopRows, kDefaultEquippedSlotId;
 import '../models/attendance_lucky_models.dart';
 import '../models/shop_models.dart';
 import '../models/surprise_gift_models.dart';
@@ -24,6 +28,12 @@ class ShopRepository implements ShopDataSource {
   ShopRepository(this._client);
 
   final SupabaseClient _client;
+
+  /// 변조 방지: 로그인 세션과 요청 `userId`가 같을 때만 원격 별조각·보유를 수정합니다.
+  bool _sessionOwnsUser(String userId) {
+    final u = _client.auth.currentUser;
+    return u != null && u.id == userId;
+  }
 
   String _safeUserId(String id) => id.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
 
@@ -88,10 +98,27 @@ class ShopRepository implements ShopDataSource {
     items.removeWhere(
       (e) => e.id == koreaTraditionalMajorThemeId && e.type == 'card',
     );
-    if (!items.any((e) => e.type == 'korea_major_card')) {
-      items = [...items, ...koreaMajorCardShopCatalogRows()];
+    for (final row in koreaMajorCardShopCatalogRows()) {
+      if (!items.any((e) => e.id == row.id)) {
+        items.add(row);
+      }
     }
     for (final row in bundledOracleShopCatalogRows()) {
+      if (!items.any((e) => e.id == row.id)) {
+        items.add(row);
+      }
+    }
+    for (final row in bundledSlotShopRows()) {
+      if (!items.any((e) => e.id == row.id)) {
+        items.add(row);
+      }
+    }
+    for (final row in bundledCardBackShopRows()) {
+      if (!items.any((e) => e.id == row.id)) {
+        items.add(row);
+      }
+    }
+    for (final row in bundledMatShopRows()) {
       if (!items.any((e) => e.id == row.id)) {
         items.add(row);
       }
@@ -148,6 +175,9 @@ class ShopRepository implements ShopDataSource {
   /// 웹 `(main)/page`와 동일한 기본 지급.
   @override
   Future<void> ensureDefaultUserItems(String userId) async {
+    if (!_sessionOwnsUser(userId)) {
+      return;
+    }
     var owned = await fetchOwnedItems(userId);
 
     if (owned.any(
@@ -200,28 +230,6 @@ class ShopRepository implements ShopDataSource {
       }
     }
     owned = await fetchOwnedItems(userId);
-    for (final id in starterOracleItemIdsForUser(userId)) {
-      if (!owned.any((o) => o.itemType == 'oracle_card' && o.itemId == id)) {
-        try {
-          await _client.from('user_items').insert({
-            'user_id': userId,
-            'item_id': id,
-            'item_type': 'oracle_card',
-          });
-        } catch (_) {}
-      }
-    }
-    for (final emoId in starterEmoticonIdsForUser(userId)) {
-      try {
-        await _client.from('user_emoticons').insert({
-          'user_id': userId,
-          'emoticon_id': emoId,
-          'source': 'gift',
-        });
-      } catch (_) {
-        // 이미 있으면 unique 위반 등 — 무시
-      }
-    }
     final koreaGift = starterKoreaMajorItemIdForUser(userId);
     if (!owned.any((e) => e.itemType == 'korea_major_card' && e.itemId == koreaGift)) {
       try {
@@ -243,6 +251,9 @@ class ShopRepository implements ShopDataSource {
     required UserProfileRow profile,
     required List<UserItemRow> owned,
   }) async {
+    if (!_sessionOwnsUser(userId)) {
+      return false;
+    }
     if (profile.starFragments < price) {
       return false;
     }
@@ -301,6 +312,9 @@ class ShopRepository implements ShopDataSource {
     required String itemId,
     required String type,
   }) async {
+    if (!_sessionOwnsUser(userId)) {
+      return null;
+    }
     if (type == 'oracle_card' || type == 'korea_major_card') {
       final res =
           await _client.from('user_profiles').select().eq('id', userId).single();
@@ -323,6 +337,9 @@ class ShopRepository implements ShopDataSource {
 
   @override
   Future<AttendanceDailyRewardResult?> grantAttendanceDailyReward(String userId) async {
+    if (!_sessionOwnsUser(userId)) {
+      return null;
+    }
     final profile = await fetchProfile(userId);
     if (profile == null) {
       return null;
@@ -354,7 +371,6 @@ class ShopRepository implements ShopDataSource {
     String? luckyName;
     var luckyGranted = false;
     final row = lucky.grantedItem;
-    final applyNext = lucky.applyNextEligibleAfterUtc;
 
     if (row != null) {
       final ownedNow = await fetchOwnedItems(userId);
@@ -371,10 +387,8 @@ class ShopRepository implements ShopDataSource {
       }
     }
 
-    if (applyNext != null) {
-      luckyState.nextEligibleAfterUtc = applyNext;
-      await _saveAttendanceLuckyState(userId, luckyState);
-    }
+    luckyState.nextEligibleAfterUtc = lucky.applyNextEligibleAfterUtc;
+    await _saveAttendanceLuckyState(userId, luckyState);
 
     return AttendanceDailyRewardResult(
       starFragmentsAdded: 1,
@@ -384,7 +398,63 @@ class ShopRepository implements ShopDataSource {
   }
 
   @override
+  Future<bool> completeFirstSetupWizard(String userId) async {
+    if (!_sessionOwnsUser(userId)) {
+      return false;
+    }
+    try {
+      await equipItem(
+        userId: userId,
+        itemId: 'default-card-back',
+        type: 'card_back',
+      );
+      await equipItem(
+        userId: userId,
+        itemId: kDefaultEquippedSlotId,
+        type: 'slot',
+      );
+      var owned = await fetchOwnedItems(userId);
+      final oracleHave = owned
+          .where((e) => e.itemType == 'oracle_card')
+          .map((e) => e.itemId)
+          .toSet();
+      for (final id in pickFirstSetupOracleIds(userId, oracleHave)) {
+        try {
+          await _client.from('user_items').insert({
+            'user_id': userId,
+            'item_id': id,
+            'item_type': 'oracle_card',
+          });
+          oracleHave.add(id);
+        } catch (_) {}
+      }
+      final emoRes =
+          await _client.from('user_emoticons').select('emoticon_id').eq('user_id', userId);
+      final emoHave = (emoRes as List<dynamic>)
+          .map((e) => (e as Map)['emoticon_id'] as String?)
+          .whereType<String>()
+          .toSet();
+      for (final id in pickFirstSetupEmoticonIds(userId, emoHave)) {
+        try {
+          await _client.from('user_emoticons').insert({
+            'user_id': userId,
+            'emoticon_id': id,
+            'source': 'gift',
+          });
+          emoHave.add(id);
+        } catch (_) {}
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
   Future<UserProfileRow?> grantAdRewardStars(String userId, {int amount = 3}) async {
+    if (!_sessionOwnsUser(userId)) {
+      return null;
+    }
     final profile = await fetchProfile(userId);
     if (profile == null) {
       return null;
@@ -427,6 +497,9 @@ class ShopRepository implements ShopDataSource {
     String userId,
     SurpriseGiftOffer offer,
   ) async {
+    if (!_sessionOwnsUser(userId)) {
+      return ClaimSurpriseGiftResult.failed;
+    }
     final state = await _loadSurpriseGiftState(userId);
     if (state.pendingItemId != offer.itemId || state.pendingItemType != offer.itemType) {
       return ClaimSurpriseGiftResult.failed;

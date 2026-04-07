@@ -9,14 +9,15 @@ class AttendanceLuckySyncResult {
     this.applyNextEligibleAfterUtc,
   });
 
-  /// 지급할 상점 행. 성공 시에만 [applyNextEligibleAfterUtc]를 상태에 반영하세요.
+  /// 지급할 상점 행(후보가 있을 때만).
   final ShopItemRow? grantedItem;
 
-  /// 행운 주기를 이 시각(UTC) 이후로 미룸. 후보 없음·지급 성공 시 적용.
+  /// 레거시 필드 — 현재 출석 선물은 매일 무작위이므로 항상 null.
   final DateTime? applyNextEligibleAfterUtc;
 }
 
-/// 출석 시 1~3일 주기로, 상점 유료·미보유 품목 1개(깜짝 선물과 동일 타입군).
+/// 매일 출석 시 상점 **유료·미보유** 품목 중 무작위 1개(깜짝 선물과 동일 타입군).
+/// 별조각 +1은 [grantAttendanceDailyReward]에서 별도 지급.
 class AttendanceLuckySync {
   AttendanceLuckySync._();
 
@@ -29,14 +30,10 @@ class AttendanceLuckySync {
     'korea_major_card',
   };
 
-  static int _cooldownDays(Random rng) => 1 + rng.nextInt(3);
-
   static bool _isOwned(List<UserItemRow> owned, String itemId, String itemType) =>
       owned.any((e) => e.itemId == itemId && e.itemType == itemType);
 
-  /// [state]는 읽기만 합니다. 반환값을 호출 측에서 확정 후 저장하세요.
-  /// [doNotGrantKeys]: [gggomShopOwnedKey](itemId, itemType) 문자열 집합.
-  /// 깜짝 선물로 이미 예약된 품목 등, 보유 외 사유로 출석 행운 후보에서 제외합니다.
+  /// [doNotGrantKeys]: [gggomShopOwnedKey](itemId, itemType) — 깜짝 선물 예약 품목 등 제외.
   static AttendanceLuckySyncResult evaluate({
     required AttendanceLuckyState state,
     required List<ShopItemRow> catalog,
@@ -45,16 +42,7 @@ class AttendanceLuckySync {
     required DateTime nowUtc,
     Set<String>? doNotGrantKeys,
   }) {
-    final eligible = state.nextEligibleAfterUtc == null ||
-        !nowUtc.isBefore(state.nextEligibleAfterUtc!);
-
-    if (!eligible) {
-      return const AttendanceLuckySyncResult();
-    }
-
-    final nextGap =
-        nowUtc.add(Duration(days: _cooldownDays(rng)));
-
+    // [state]·[nowUtc] 는 시그니처 호환용. 쿨다운 없이 매 출석마다 후보 추첨.
     final blocked = doNotGrantKeys ?? const <String>{};
     final candidates = catalog
         .where(
@@ -68,14 +56,11 @@ class AttendanceLuckySync {
         .toList();
 
     if (candidates.isEmpty) {
-      return AttendanceLuckySyncResult(applyNextEligibleAfterUtc: nextGap);
+      return const AttendanceLuckySyncResult();
     }
 
     candidates.shuffle(rng);
     final pick = candidates.first;
-    return AttendanceLuckySyncResult(
-      grantedItem: pick,
-      applyNextEligibleAfterUtc: nextGap,
-    );
+    return AttendanceLuckySyncResult(grantedItem: pick);
   }
 }

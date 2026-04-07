@@ -20,8 +20,10 @@ import '../repositories/emoticon_repository.dart';
 import '../repositories/event_repository.dart';
 import '../repositories/disk_caching_feed_repository.dart';
 import '../repositories/feed_repository.dart';
+import '../repositories/peer_shop_repository.dart';
 import '../repositories/shop_repository.dart';
 import '../standalone/data_sources.dart';
+import '../standalone/local_peer_shop_repository.dart';
 import '../standalone/local_app_preferences.dart';
 import '../standalone/local_json_workspace_export.dart';
 import '../standalone/local_attendance_repository.dart';
@@ -39,9 +41,11 @@ import 'bag_tab.dart';
 import 'chat_tab.dart';
 import 'event_tab.dart';
 import 'feed_tab.dart';
+import 'first_setup_wizard_screen.dart';
 import 'gnb.dart';
 import 'app_motion.dart';
 import 'making_notes_screen.dart';
+import 'personal_shop_screen.dart';
 import 'shop_admin_screen.dart';
 import 'shop_tab.dart';
 import 'simple_tab_page.dart';
@@ -99,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
   var _shopLoading = false;
   SurpriseGiftOffer? _surpriseGiftOffer;
   bool? _checkedInToday;
+  var _firstSetupWizardPushStarted = false;
 
   /// 오프라인·베타 번들(Supabase 미사용)일 때만 유지 — 상태 보존.
   LocalFeedRepository? _localFeed;
@@ -134,6 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
   ShopDataSource? get _shopRepo => _usesLocalDataLayer
       ? _localShop
       : ShopRepository(Supabase.instance.client);
+
+  PeerShopDataSource get _peerShop => _usesLocalDataLayer
+      ? LocalPeerShopRepository.instance
+      : PeerShopRepository(Supabase.instance.client);
 
   AttendanceDataSource? get _attendance => _usesLocalDataLayer
       ? _localAttendance
@@ -221,6 +230,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didUpdateWidget(HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _firstSetupWizardPushStarted = false;
+    }
     if (oldWidget.displayName != widget.displayName) {
       _effectiveDisplayName = widget.displayName;
     }
@@ -320,6 +332,49 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refreshAttendance();
   }
 
+  Future<void> _scheduleFirstSetupWizardIfNeeded() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) {
+      return;
+    }
+    final repo = _shopRepo;
+    if (repo == null) {
+      return;
+    }
+    final uid = widget.userId;
+    if (await LocalAppPreferences.isFirstSetupWizardV1Done(uid)) {
+      return;
+    }
+    final oracleN = _owned.where((e) => e.itemType == 'oracle_card').length;
+    final emoN = _ownedEmoticonIds.length;
+    if (oracleN >= 5 && emoN >= 5) {
+      await LocalAppPreferences.markFirstSetupWizardV1Done(uid);
+      return;
+    }
+    if (_firstSetupWizardPushStarted) {
+      return;
+    }
+    _firstSetupWizardPushStarted = true;
+    if (!mounted) {
+      return;
+    }
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (c) => FirstSetupWizardScreen(
+          shopRepo: repo,
+          userId: uid,
+        ),
+      ),
+    );
+    if (ok != true && mounted) {
+      _firstSetupWizardPushStarted = false;
+    }
+    if (ok == true && mounted) {
+      await _refreshShop();
+    }
+  }
+
   /// Supabase에 원격 프로필이 있는 **로그인 계정**(구글 등). 가방·별조각·장착은 DB가 권위이며
   /// 클라이언트 일회 장착 스냅샷으로 덮어쓰지 않는다.
   bool _isSupabaseRemoteProfileAccount(String uid) {
@@ -402,6 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _surpriseGiftOffer = surprise;
             _shopLoading = false;
           });
+          unawaited(_scheduleFirstSetupWizardIfNeeded());
         }
       } catch (_) {
         if (mounted) {
@@ -450,6 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _surpriseGiftOffer = surprise;
           _shopLoading = false;
         });
+        unawaited(_scheduleFirstSetupWizardIfNeeded());
       }
     } catch (_) {
       if (mounted) {
@@ -486,6 +543,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openPersonalShop(BuildContext context) async {
+    final shop = _shopRepo;
+    if (shop == null || !context.mounted) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => PersonalShopScreen(
+          shopRepo: shop,
+          peerShop: _peerShop,
+          userId: widget.userId,
+          displayName: _effectiveDisplayName,
+          shopItems: _shopItems,
+          onNeedRefreshShop: _refreshShop,
+          scaffoldMessengerKey: _scaffoldMessengerKey,
+        ),
+      ),
+    );
+    if (mounted) {
+      await _refreshShop();
+    }
+  }
+
   Future<void> _openAttendance(BuildContext context) async {
     final a = _attendance;
     if (a == null) {
@@ -509,8 +589,8 @@ class _HomeScreenState extends State<HomeScreen> {
               final msg = grant.luckyShopItemGranted &&
                       grant.luckyShopItemName != null &&
                       grant.luckyShopItemName!.isNotEmpty
-                  ? '✨ 행운이 가득한 날! ⭐ +${grant.starFragmentsAdded} · 「${grant.luckyShopItemName}」을(를) 드렸어요'
-                  : '⭐ 별조각 +${grant.starFragmentsAdded} (다음 「행운이 가득한 날」에는 상점 품목도 드려요)';
+                  ? '⭐ 별조각 +${grant.starFragmentsAdded} · 출석 선물 「${grant.luckyShopItemName}」을(를) 드렸어요'
+                  : '⭐ 별조각 +${grant.starFragmentsAdded} (미보유 유료 품목이 없어 선물은 생략됐어요)';
               _scaffoldMessengerKey.currentState?.showSnackBar(
                 SnackBar(content: Text(msg)),
               );
@@ -778,6 +858,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     );
                                 }
                               },
+                              onOpenPersonalShop: () => unawaited(_openPersonalShop(context)),
                               onBetaAdReward: AppConfig.showBetaStarAdRewardMenu
                                   ? () => unawaited(_openAdReward(context))
                                   : null,
