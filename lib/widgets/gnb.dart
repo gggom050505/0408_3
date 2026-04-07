@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../config/app_config.dart';
 import '../theme/app_colors.dart';
 import 'adaptive_network_asset_image.dart';
+import 'app_footer_notices.dart';
 
 enum MainTab { tarot, feed, chat, shop, bag, event }
 
@@ -384,15 +384,8 @@ class Gnb extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              AppConfig.adInquiryContactLine,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary.withValues(alpha: 0.78),
-                fontSize: 10,
-              ),
-            ),
+            padding: const EdgeInsets.only(top: 6, left: 6, right: 6),
+            child: const AppFooterNotices(compact: true),
           ),
         ],
       ),

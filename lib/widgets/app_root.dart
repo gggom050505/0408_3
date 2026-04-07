@@ -8,6 +8,7 @@ import '../config/app_config.dart';
 import '../config/gggom_runtime_site_config.dart';
 import '../services/local_account_store.dart';
 import '../services/user_monitoring_service.dart';
+import 'app_scaffold_messenger.dart';
 import 'home_screen.dart';
 import 'local_account_auth_screens.dart';
 import 'login_screen.dart';
@@ -63,7 +64,8 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
   }
 
   Future<void> _restoreLocalAppSession() async {
-    if (AppConfig.supabaseEnabled && Supabase.instance.client.auth.currentSession != null) {
+    if (AppConfig.supabaseEnabled &&
+        Supabase.instance.client.auth.currentSession != null) {
       return;
     }
     final s = await LocalAccountStore.instance.loadSession();
@@ -154,10 +156,25 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
 
   Future<void> _openWithdraw() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (c) => const LocalWithdrawScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (c) => const LocalWithdrawScreen()),
     );
+  }
+
+  Future<void> _openGoogleLogin() async {
+    if (!AppConfig.supabaseEnabled) {
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: AppConfig.oauthRedirectUrl,
+      );
+    } catch (e, st) {
+      debugPrint('Google OAuth: $e\n$st');
+      gggomScaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('구글 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
   }
 
   Future<void> _signOut() async {
@@ -229,6 +246,7 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
       onOpenLocalLogin: _openLocalLogin,
       onOpenRegister: _openRegister,
       onOpenWithdraw: _openWithdraw,
+      onOpenGoogleLogin: AppConfig.supabaseEnabled ? _openGoogleLogin : null,
     );
   }
 }

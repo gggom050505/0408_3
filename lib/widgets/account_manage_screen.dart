@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_config.dart';
 import '../services/local_account_store.dart';
 import '../standalone/local_user_data_wipe.dart';
 import '../theme/app_colors.dart';
+import 'app_footer_notices.dart';
 
 class AccountManageScreen extends StatefulWidget {
   const AccountManageScreen({super.key, required this.session});
@@ -335,6 +337,25 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
             ),
             child: const Text('계정 삭제'),
           ),
+          const SizedBox(height: 32),
+          const Divider(height: 32),
+          Text(
+            '안내',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppConfig.localIdAccountSeparateFromOAuthLine,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const AppFooterNotices(),
         ],
       ),
     );

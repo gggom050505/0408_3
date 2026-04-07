@@ -115,6 +115,25 @@ class AppConfig {
   /// 광고·제휴 문의 — 로그인·GNB·상점·광고 시트 등 UI 공통.
   static const adInquiryContactLine = '광고 문의 gggom0505@gmail.com';
 
+  /// 불쾌·수치심 유발 이용 신고 안내 — 채팅·로그인 등.
+  static const communityMisconductReportLine =
+      '다른 사용자에게 불쾌감이나 수치심을 주는 사용자를 보시면 화면캡처해서 '
+      'gggom0505@gmail.com 으로 보내주세요';
+
+  /// ID·구글 공통 보안 리마인더 — 로그인·GNB·계정 화면 등.
+  static const accountSecurityReminderLine =
+      '계정 보안은 본인이 지키세요. 해킹으로부터 보호해 드리지 못합니다.';
+
+  /// 구글(등) 연동 계정이 기기 ID 계정과 무관함을 짧게 안내.
+  static const oauthAccountSeparateFromLocalIdLine =
+      '구글 등으로 로그인한 이 계정은, ID·비밀번호로 가입한 기기 전용 계정과 '
+      '별도로 운영되며 별조각·가방 등 데이터가 이어지지 않아요.';
+
+  /// 기기 ID 계정이 연동 로그인과 무관함을 짧게 안내.
+  static const localIdAccountSeparateFromOAuthLine =
+      '이 계정은 기기에만 저장되는 ID·비밀번호 계정이에요. '
+      '구글 등 연동 로그인 계정과는 별도이며 데이터가 이어지지 않아요.';
+
   /// 웹 미리보기·스테이징용 접근 암호. 비어 있으면 게이트 없음(공개 빌드).
   /// `flutter build web --dart-define=SITE_ACCESS_PIN=여기에암호`
   /// **주의:** 최종 JS에 문자열이 포함되며, 세션 저장은 `sessionStorage`뿐입니다.
