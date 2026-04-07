@@ -5,10 +5,7 @@ import '../standalone/local_user_data_wipe.dart';
 import '../theme/app_colors.dart';
 
 class AccountManageScreen extends StatefulWidget {
-  const AccountManageScreen({
-    super.key,
-    required this.session,
-  });
+  const AccountManageScreen({super.key, required this.session});
 
   final LocalAccountSession session;
 
@@ -46,9 +43,9 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('닉네임을 저장했어요.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('닉네임을 저장했어요.')));
     Navigator.of(context).pop(_nick.text.trim());
   }
 
@@ -106,9 +103,18 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       current.dispose();
       next.dispose();
       next2.dispose();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('새 비밀번호 확인이 일치하지 않아요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('새 비밀번호 확인이 일치하지 않아요.')));
+      return;
+    }
+    if (next.text == current.text) {
+      current.dispose();
+      next.dispose();
+      next2.dispose();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('새 비밀번호는 현재 비밀번호와 달라야 해요.')));
       return;
     }
     final err = await LocalAccountStore.instance.updatePassword(
@@ -125,9 +131,9 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호를 변경했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('비밀번호를 변경했어요.')));
     }
   }
 
@@ -207,7 +213,9 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
       return;
     }
     if (r.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.error!)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(r.error!)));
       return;
     }
 
@@ -235,7 +243,15 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
             title: const Text('아이디'),
             subtitle: Text(widget.session.loginKey),
           ),
-          const Divider(),
+          const Divider(height: 32),
+          Text(
+            '프로필',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: _nick,
             decoration: const InputDecoration(
@@ -255,35 +271,68 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
                 : const Text('닉네임 저장'),
           ),
           const SizedBox(height: 28),
-          OutlinedButton(
-            onPressed: _changePassword,
-            child: const Text('비밀번호 변경'),
+          Text(
+            '보안',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 4),
+          Text(
+            '비밀번호는 이 기기에만 저장돼요. 다른 기기와 맞지 않습니다.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0x337C3AED),
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: Color(0xFF6B21A8),
+                ),
+              ),
+              title: const Text('비밀번호 변경'),
+              subtitle: const Text('현재 비밀번호 확인 후 새 비밀번호로 바꿔요.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _changePassword,
+            ),
+          ),
+          const SizedBox(height: 28),
           Text(
             '회원 · 계정',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
             '탈퇴와 계정 삭제 모두 이 기기에서 로그인 정보와 진행 데이터를 지웁니다.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.35,
-                ),
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
             onPressed: _withdrawMembership,
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red.shade800,
+            ),
             child: const Text('회원 탈퇴'),
           ),
           const SizedBox(height: 8),
           OutlinedButton(
             onPressed: _deleteAccountAndData,
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red.shade800,
+            ),
             child: const Text('계정 삭제'),
           ),
         ],

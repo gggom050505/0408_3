@@ -23,6 +23,14 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, '회원 가입'), findsOneWidget);
     expect(find.widgetWithText(TextButton, '회원 탈퇴'), findsOneWidget);
     expect(find.textContaining('기기에 저장'), findsOneWidget);
+    expect(find.text('비밀번호 변경 안내'), findsOneWidget);
+
+    await tester.tap(find.text('비밀번호 변경 안내'));
+    await tester.pumpAndSettle();
+    expect(find.text('비밀번호 변경'), findsWidgets);
+    expect(find.textContaining('계정 관리'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'ID 계정 로그인'));
     expect(loginTapped, isTrue);

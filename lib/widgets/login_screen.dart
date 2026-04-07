@@ -170,6 +170,39 @@ class LoginScreen extends StatelessWidget {
                               ),
                               child: const Text('회원 탈퇴'),
                             ),
+                            TextButton(
+                              onPressed: () {
+                                showDialog<void>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('비밀번호 변경'),
+                                    content: const SingleChildScrollView(
+                                      child: Text(
+                                        '1) 먼저 「ID 계정 로그인」으로 들어가세요.\n\n'
+                                        '2) 로그인 후 화면 상단 오른쪽의 사람 모양 아이콘을 눌러 '
+                                        '「계정 관리」를 여세요.\n\n'
+                                        '3) 「보안」란의 「비밀번호 변경」에서 '
+                                        '현재 비밀번호·새 비밀번호를 입력하면 됩니다.\n\n'
+                                        '비밀번호는 이 기기에만 저장됩니다. 잊어버리면 복구가 어려울 수 있어요.',
+                                        style: TextStyle(height: 1.45),
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('확인'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size.fromHeight(44),
+                                foregroundColor: AppColors.textPrimary
+                                    .withValues(alpha: 0.9),
+                              ),
+                              child: const Text('비밀번호 변경 안내'),
+                            ),
                           ],
                         ),
                       ),
