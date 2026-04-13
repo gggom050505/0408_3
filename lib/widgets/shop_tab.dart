@@ -15,7 +15,6 @@ import '../theme/app_colors.dart';
 import 'adaptive_network_asset_image.dart';
 import 'app_motion.dart';
 import 'oracle_shop_bundle_screen.dart';
-import 'star_fragments_balance_panel.dart';
 
 const int _kOracleShopBundleSize = 10;
 
@@ -52,7 +51,6 @@ class ShopTab extends StatelessWidget {
     required this.emoticonPacks,
     required this.ownedEmoticonIds,
     this.onBetaAdReward,
-    this.onOpenPersonalShop,
   });
 
   final ShopDataSource repo;
@@ -69,9 +67,6 @@ class ShopTab extends StatelessWidget {
 
   /// 별조각 광고(영상 시청) 시트 — null이면 상점 배너 숨김
   final VoidCallback? onBetaAdReward;
-
-  /// 개인 상점(유저 간 별조각 거래) — null이면 배너 숨김
-  final VoidCallback? onOpenPersonalShop;
 
   bool _shopItemOwned(ShopItemRow item) =>
       ownedItems.any((e) => e.itemId == item.id && e.itemType == item.type);
@@ -352,77 +347,6 @@ class ShopTab extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-          stagger(
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: StarFragmentsBalancePanel(
-                        starFragments: profile?.starFragments,
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                    if (onOpenPersonalShop != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Material(
-                        color: const Color(0xFFE8F4FC),
-                        borderRadius: BorderRadius.circular(16),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: onOpenPersonalShop,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.storefront_outlined,
-                                  color: const Color(0xFF0369A1),
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '🏠 개인 상점',
-                                        style: Theme.of(context).textTheme.titleSmall
-                                            ?.copyWith(fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '별조각 거래',
-                                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  ],
-                ),
               ),
             ),
           ),

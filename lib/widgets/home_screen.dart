@@ -702,6 +702,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) {
       return;
     }
+    if (await LocalAppPreferences.isFeedPostEventGiftClaimedKoreaToday(
+      widget.userId,
+    )) {
+      if (!mounted) {
+        return;
+      }
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            '오늘은 이미 게시 선물(⭐5)을 받았어요. 한국 날짜 기준으로 내일 첫 게시부터 다시 드려요.',
+          ),
+        ),
+      );
+      return;
+    }
     final shop = _shopRepo;
     if (shop == null) {
       _showGiftBanner(
@@ -721,13 +736,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
       return;
     }
+    await LocalAppPreferences.markFeedPostEventGiftClaimedKoreaToday(
+      widget.userId,
+    );
     await _refreshShop();
     if (!mounted) {
       return;
     }
     _showGiftBanner(
       title: '게시 선물 지급 완료',
-      message: '게시물 이벤트로 ⭐ 별조각 5개가 가방에 바로 적용됐어요.',
+      message: '오늘 첫 게시 보상으로 ⭐ 별조각 5개가 가방에 적용됐어요. (하루 1회)',
       accentColor: AppColors.uniqueItemBorder,
     );
   }
@@ -825,6 +843,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       avatarUrl: widget.avatarUrl,
                       onSignOut: widget.onSignOut,
                       visitorCountLabel: visitorCountLabel,
+                      starFragmentBalance: _profile?.starFragments,
                       checkedInToday: _checkedInToday,
                       onAttendance: () => _openAttendance(context),
                       onAdReward:
@@ -1003,8 +1022,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     emoticonRepo: _emoticonRepo!,
                                     emoticonPacks: _emoticonPacks,
                                     ownedEmoticonIds: _ownedEmoticonIds,
-                                    onOpenPersonalShop: () =>
-                                        unawaited(_openPersonalShop(context)),
                                     onBetaAdReward:
                                         AppConfig.showBetaStarAdRewardMenu
                                         ? () =>

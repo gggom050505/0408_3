@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import 'adaptive_network_asset_image.dart';
-import 'app_footer_notices.dart';
+import 'star_fragments_balance_panel.dart';
 
 enum MainTab {
   tarot,
@@ -38,6 +38,9 @@ class Gnb extends StatelessWidget {
 
     /// Supabase 일일 방문자 집계 라벨(예: `오늘 접속 12명`) — null이면 숨김
     this.visitorCountLabel,
+
+    /// GNB 하단 한 줄 별조각 보유 — null이면 `—` 표시
+    this.starFragmentBalance,
   });
 
   final MainTab active;
@@ -58,6 +61,8 @@ class Gnb extends StatelessWidget {
   final VoidCallback? onMakingNotes;
 
   final String? visitorCountLabel;
+
+  final int? starFragmentBalance;
 
   /// 타로–게시물, 오늘의 타로–오늘의 게시 를 나란히 둡니다.
   static const _tabs = <(MainTab, String, String)>[
@@ -398,7 +403,9 @@ class Gnb extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 6, right: 6),
-            child: const AppFooterNotices(compact: true),
+            child: StarFragmentsBalanceCompact(
+              starFragments: starFragmentBalance,
+            ),
           ),
         ],
       ),

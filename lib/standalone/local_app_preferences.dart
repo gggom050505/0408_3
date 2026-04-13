@@ -121,6 +121,27 @@ class LocalAppPreferences {
   static String _ymdLocal(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// 일일 방문자 집계와 동일 — 한국 표준시(UTC+9) 기준 `YYYY-MM-DD`.
+  static String _koreaYmdNow() {
+    final korea = DateTime.now().toUtc().add(const Duration(hours: 9));
+    return _ymdLocal(korea);
+  }
+
+  static String _feedPostEventGiftKoreaYmdKey(String userId) =>
+      'feed_post_event_gift_korea_ymd_${userId.trim()}';
+
+  /// 게시물 이벤트 별조각 — 오늘(한국 날짜) 이미 지급받았는지.
+  static Future<bool> isFeedPostEventGiftClaimedKoreaToday(String userId) async {
+    final m = await _load();
+    return m[_feedPostEventGiftKoreaYmdKey(userId)] == _koreaYmdNow();
+  }
+
+  static Future<void> markFeedPostEventGiftClaimedKoreaToday(String userId) async {
+    final m = await _load();
+    m[_feedPostEventGiftKoreaYmdKey(userId)] = _koreaYmdNow();
+    await _save(m);
+  }
+
   /// 오늘의 타로 안내: 오늘 이미 완료했거나 "다음에" 눌렀으면 false.
   static Future<bool> shouldShowTodayTarotPrompt(String userId) async {
     final m = await _load();
@@ -182,6 +203,7 @@ class LocalAppPreferences {
     m.remove(_tarotEquipDefaultsV1Key(userId));
     m.remove(_todayTarotDismissedYmdKey(userId));
     m.remove(_todayTarotDoneYmdKey(userId));
+    m.remove(_feedPostEventGiftKoreaYmdKey(userId));
     await _save(m);
   }
 }

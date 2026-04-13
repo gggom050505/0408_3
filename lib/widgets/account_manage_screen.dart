@@ -4,7 +4,6 @@ import '../config/app_config.dart';
 import '../services/local_account_store.dart';
 import '../standalone/local_user_data_wipe.dart';
 import '../theme/app_colors.dart';
-import 'app_footer_notices.dart';
 
 class AccountManageScreen extends StatefulWidget {
   const AccountManageScreen({super.key, required this.session});
@@ -442,8 +441,6 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 16),
-          const AppFooterNotices(),
         ],
       ),
     );

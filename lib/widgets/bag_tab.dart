@@ -27,7 +27,6 @@ import '../theme/app_colors.dart';
 import 'adaptive_network_asset_image.dart';
 import 'app_motion.dart';
 import 'oracle_collection_screen.dart';
-import 'star_fragments_balance_panel.dart';
 
 /// 한국전통 메이저 **덱** 선택 시 가방에 표시하는 안내(타로는 보유한 장만 섞음).
 const String _koreaTraditionalDeckEquipHint =
@@ -91,7 +90,7 @@ class BagTab extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final VoidCallback onNeedLogin;
 
-  /// 상점 탭과 동일 — 개인 상점 바로가기(없으면 숨김).
+  /// 가방 전용 개인 상점 배너(없으면 숨김).
   final VoidCallback? onOpenPersonalShop;
 
   ShopItemRow? _shop(String id) {
@@ -447,84 +446,64 @@ class BagTab extends StatelessWidget {
               ),
             ),
           ),
-          stagger(
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: StarFragmentsBalancePanel(
-                        starFragments: profile?.starFragments,
-                        padding: EdgeInsets.zero,
+          if (onOpenPersonalShop != null)
+            stagger(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Material(
+                  color: const Color(0xFFE8F4FC),
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: onOpenPersonalShop,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
                       ),
-                    ),
-                    if (onOpenPersonalShop != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Material(
-                          color: const Color(0xFFE8F4FC),
-                          borderRadius: BorderRadius.circular(16),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: onOpenPersonalShop,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.storefront_outlined,
-                                    color: const Color(0xFF0369A1),
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '🏠 개인 상점',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '별조각 거래',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall
-                                              ?.copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ],
-                              ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.storefront_outlined,
+                            color: const Color(0xFF0369A1),
+                            size: 26,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '🏠 개인 상점',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '별조각 거래 · 유저 간 진열·구매',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
           stagger(_sectionTitle(context, '🃏 카드 덱')),
           _equipTypeGrid(context, cards, 'card'),
           if (cards.any((c) => c.id == koreaTraditionalMajorThemeId))

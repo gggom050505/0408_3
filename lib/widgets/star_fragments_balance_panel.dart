@@ -2,63 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// 가방·상점 등에서 같은 별조각 보유 수를 동일한 스타일로 표시합니다.
-class StarFragmentsBalancePanel extends StatelessWidget {
-  const StarFragmentsBalancePanel({
+/// 로그인 랜딩·GNB 등 — 큰 배너 대신 한 줄로 별조각 보유를 표시합니다.
+class StarFragmentsBalanceCompact extends StatelessWidget {
+  const StarFragmentsBalanceCompact({
     super.key,
     required this.starFragments,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
   });
 
+  /// `null`이면 `—`(아직 불러오지 않음·랜딩 등).
   final int? starFragments;
-  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: padding,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.accentLilac.withValues(alpha: 0.32),
-              AppColors.accentPurple.withValues(alpha: 0.22),
-            ],
+    return Text(
+      '⭐ 별조각 ${starFragments?.toString() ?? '—'}',
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: AppColors.textSecondary.withValues(alpha: 0.92),
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            height: 1.3,
           ),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: AppColors.accentPurple.withValues(alpha: 0.42),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accentViolet.withValues(alpha: 0.14),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            const Text('⭐', style: TextStyle(fontSize: 22)),
-            Text(
-              starFragments?.toString() ?? '—',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            Text(
-              '별조각 보유',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

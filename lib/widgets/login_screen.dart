@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
 import '../theme/app_colors.dart';
-import 'app_footer_notices.dart';
 import 'app_motion.dart';
+import 'star_fragments_balance_panel.dart';
 
 /// 랜딩: Google 로그인 + 게스트 둘러보기.
 class LoginScreen extends StatelessWidget {
@@ -117,15 +117,18 @@ class LoginScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           if (AppConfig.googleLoginEnabled) ...[
-                            FilledButton.tonal(
+                            FilledButton(
                               style: FilledButton.styleFrom(
                                 minimumSize: const Size(220, 48),
+                                backgroundColor: AppColors.accentLilac
+                                    .withValues(alpha: 0.72),
+                                foregroundColor: AppColors.textPrimary,
                               ),
                               onPressed: onOpenGoogleLogin,
                               child: const Text('구글로 로그인'),
                             ),
                           ] else ...[
-                            FilledButton.tonal(
+                            FilledButton(
                               style: FilledButton.styleFrom(
                                 minimumSize: const Size(220, 48),
                               ),
@@ -209,8 +212,8 @@ class LoginScreen extends StatelessWidget {
                     StaggerItem(
                       index: 3,
                       child: Text(
-                        '로그인하면 별조각·가방·상점 이용 기록을 안전하게 이어 갈 수 있어요.\n'
-                        'Google 로그인은 브라우저 변경이나 기기 변경 시에도 복구에 유리해요.',
+                        '위에서 로그인하면 별조각·가방·상점 이용 기록을 안전하게 이어 갈 수 있어요.\n'
+                        '브라우저나 기기를 바꿔도 같은 계정으로 복구하기 쉬워요.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
@@ -219,7 +222,12 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    StaggerItem(index: 4, child: const AppFooterNotices()),
+                    StaggerItem(
+                      index: 4,
+                      child: const StarFragmentsBalanceCompact(
+                        starFragments: null,
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -23,15 +23,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final googleLoginButton = find.text('Google로 로그인');
-    final googleSetupButton = find.text('Google 설정 필요');
+    final googleLoginButton = find.text('구글로 로그인');
+    final googleSetupButton = find.text('구글 설정 필요');
     expect(
       googleLoginButton.evaluate().isNotEmpty || googleSetupButton.evaluate().isNotEmpty,
       isTrue,
     );
-    expect(find.text('로그인 없이 둘러보기'), findsWidgets);
-    expect(find.text('Google 계정'), findsOneWidget);
-    expect(find.textContaining('로그인'), findsWidgets);
+    expect(find.text('로그인 없이 둘러보기'), findsOneWidget);
+    expect(find.text('오늘의 타로 운세'), findsOneWidget);
 
     if (googleLoginButton.evaluate().isNotEmpty) {
       await tester.tap(googleLoginButton);
