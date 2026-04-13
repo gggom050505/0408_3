@@ -122,7 +122,7 @@ class LoginScreen extends StatelessWidget {
                                 minimumSize: const Size(220, 48),
                               ),
                               onPressed: onOpenGoogleLogin,
-                              child: const Text('Google로 로그인'),
+                              child: const Text('구글로 로그인'),
                             ),
                           ] else ...[
                             FilledButton.tonal(
@@ -130,7 +130,7 @@ class LoginScreen extends StatelessWidget {
                                 minimumSize: const Size(220, 48),
                               ),
                               onPressed: null,
-                              child: const Text('Google 설정 필요'),
+                              child: const Text('구글 설정 필요'),
                             ),
                           ],
                           const SizedBox(height: 8),
@@ -219,92 +219,7 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    StaggerItem(
-                      index: 4,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: AppColors.cardBorder.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Google 계정',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
-                                  ),
-                            ),
-                            const SizedBox(height: 16),
-                            if (AppConfig.googleLoginEnabled) ...[
-                              FilledButton.tonal(
-                                style: FilledButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(52),
-                                ),
-                                onPressed: onOpenGoogleLogin,
-                                child: const Text('Google로 로그인'),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '기기 분실/브라우저 변경에도 기록을 잇기 쉽도록 Google 로그인도 지원해요.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      height: 1.25,
-                                    ),
-                              ),
-                            ] else ...[
-                              FilledButton.tonal(
-                                style: FilledButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(52),
-                                ),
-                                onPressed: null,
-                                child: const Text('Google 설정 필요'),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '배포 빌드에 SUPABASE_URL / SUPABASE_ANON_KEY 를 넣으면 Google 로그인이 활성화됩니다.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      height: 1.25,
-                                    ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    StaggerItem(
-                      index: 5,
-                      child: TextButton(
-                        onPressed: onContinueAsGuest,
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          foregroundColor: AppColors.textPrimary
-                              .withValues(alpha: 0.92),
-                        ),
-                        child: const Text(
-                          '로그인 없이 둘러보기',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    StaggerItem(index: 6, child: const AppFooterNotices()),
+                    StaggerItem(index: 4, child: const AppFooterNotices()),
                   ],
                 ),
               ),
