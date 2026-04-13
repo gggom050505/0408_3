@@ -2,9 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../config/app_config.dart';
 import '../config/bundle_emoticon_catalog.dart';
-import '../config/gggom_site_public_catalog.dart';
 import '../config/starter_gifts.dart' show starterEmoticonIdsForUser;
 import '../models/emoticon_models.dart';
 import 'data_sources.dart';
@@ -12,7 +10,7 @@ import 'local_shop_repository.dart';
 
 /// 오프라인·베타 번들 이모티콘.
 ///
-/// 채팅 피커는 [kBundleEmoticonRows](`assets/emoticon/emoticon(1~61).png`)만 사용합니다.
+/// 채팅 피커는 [kBundleEmoticonRows](`assets/emoticon/emo_01.png`~`emo_61.png`)만 사용합니다.
 /// 보유: 첫 세팅·구매분이 [LocalShopRepository] 에 저장됨 (+ 선택적 원격).
 class LocalEmoticonRepository implements EmoticonDataSource {
   static const _extraCatalogUrl =
@@ -31,11 +29,7 @@ class LocalEmoticonRepository implements EmoticonDataSource {
     if (u.isNotEmpty) {
       return u.replaceAll(RegExp(r'/$'), '');
     }
-    final main = AppConfig.supabaseUrl.trim();
-    if (main.isNotEmpty) {
-      return main.replaceAll(RegExp(r'/$'), '');
-    }
-    return GggomSitePublicCatalog.supabaseRestBase.replaceAll(RegExp(r'/$'), '');
+    return '';
   }
 
   String _anonKey() {
@@ -43,11 +37,7 @@ class LocalEmoticonRepository implements EmoticonDataSource {
     if (k.isNotEmpty) {
       return k;
     }
-    final main = AppConfig.supabaseAnonKey.trim();
-    if (main.isNotEmpty) {
-      return main;
-    }
-    return GggomSitePublicCatalog.anonKey;
+    return '';
   }
 
   Future<List<String>?> _tryFetchRemoteOwned(String userId) async {

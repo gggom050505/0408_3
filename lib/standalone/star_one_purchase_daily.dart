@@ -7,7 +7,7 @@ String _safeUserId(String id) => id.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
 
 String _starOneFile(String userId) => 'local_star_one_purchase_v1_${_safeUserId(userId)}.json';
 
-/// 온라인(Supabase): ⭐1 일일 1건 — 로컬 JSON.
+/// ⭐1 일일 1건 제한 — 로컬 JSON.
 Future<String?> loadStarOneDailyPurchaseYmd(String userId) async {
   final raw = await loadLocalJsonFile(_starOneFile(userId));
   if (raw == null || raw.isEmpty) {

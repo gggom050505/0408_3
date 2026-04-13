@@ -39,7 +39,7 @@ void main() {
     expect(back.likes.length, 2);
   });
 
-  test('orderedFeedPosts: 최신순·오래된순·인기순', () {
+  test('orderedFeedPosts: 최신순·오래된순·좋아요순·타로점수순', () {
     final posts = [
       FeedPost(
         id: 1,
@@ -87,6 +87,56 @@ void main() {
     expect(
       orderedFeedPosts(posts, FeedSortMode.popular).map((e) => e.id).toList(),
       [3, 2, 1],
+    );
+  });
+
+  test('parseTodayTarotTotalScoreFromPostContent', () {
+    expect(
+      parseTodayTarotTotalScoreFromPostContent('합계 28점 (10장)'),
+      28,
+    );
+    expect(parseTodayTarotTotalScoreFromPostContent('일반 글'), isNull);
+  });
+
+  test('orderedFeedPosts: 타로점수순', () {
+    final posts = [
+      FeedPost(
+        id: 1,
+        username: 'a',
+        avatar: '🔮',
+        timeAgo: '1월',
+        content: '합계 5점 (10장)',
+        heartCount: 99,
+        tags: const [],
+        comments: const [],
+        likes: const [],
+      ),
+      FeedPost(
+        id: 2,
+        username: 'b',
+        avatar: '🔮',
+        timeAgo: '1월',
+        content: '합계 32점 (10장)',
+        heartCount: 0,
+        tags: const [],
+        comments: const [],
+        likes: const [],
+      ),
+      FeedPost(
+        id: 3,
+        username: 'c',
+        avatar: '🔮',
+        timeAgo: '1월',
+        content: '점수 없음',
+        heartCount: 1,
+        tags: const [],
+        comments: const [],
+        likes: const [],
+      ),
+    ];
+    expect(
+      orderedFeedPosts(posts, FeedSortMode.tarotScore).map((e) => e.id).toList(),
+      [2, 1, 3],
     );
   });
 }

@@ -1,8 +1,9 @@
 /**
- * Supabase emoticons / emoticon_packs → 로컬 에셋 + lib/config/emoticon_offline_manifest.g.dart
+ * PostgREST 호환 API(emoticons / emoticon_packs) → 로컬 에셋 + lib/config/emoticon_offline_manifest.g.dart
+ * (선택) 앱과 동일하게 EMOTICON_CATALOG_URL · EMOTICON_CATALOG_ANON_KEY 가 있으면 동기화, 없으면 빈 매니페스트.
  *
- *   $env:SUPABASE_URL="https://xxxx.supabase.co"
- *   $env:SUPABASE_ANON_KEY="eyJ..."
+ *   $env:EMOTICON_CATALOG_URL="https://example.com"
+ *   $env:EMOTICON_CATALOG_ANON_KEY="eyJ..."
  *   node tooling/sync_emoticons.mjs
  */
 
@@ -107,10 +108,12 @@ ${packEntries}
 }
 
 async function main() {
-  const base = process.env.SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_ANON_KEY?.trim();
+  const base = process.env.EMOTICON_CATALOG_URL?.trim();
+  const key = process.env.EMOTICON_CATALOG_ANON_KEY?.trim();
   if (!base || !key) {
-    console.warn("[sync_emoticons] SUPABASE_URL / SUPABASE_ANON_KEY 없음 — 빈 매니페스트만 유지합니다.");
+    console.warn(
+      "[sync_emoticons] EMOTICON_CATALOG_URL / EMOTICON_CATALOG_ANON_KEY 없음 — 빈 매니페스트만 유지합니다.",
+    );
     await writeManifestDart({}, {}, {});
     process.exit(0);
   }

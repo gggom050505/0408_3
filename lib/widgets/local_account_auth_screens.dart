@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import '../config/app_config.dart';
 import '../services/local_account_store.dart';
 import '../standalone/local_user_data_wipe.dart';
 import '../theme/app_colors.dart';
+import 'app_scaffold_messenger.dart';
 
 Future<void> _announceIfMounted(BuildContext context, String message) async {
   final d = Directionality.maybeOf(context);
@@ -33,8 +37,16 @@ class _LocalLoginScreenState extends State<LocalLoginScreen> {
   @override
   void initState() {
     super.initState();
+    if (AppConfig.devWebPrefillLoginId) {
+      _user.text = AppConfig.devWebSeedLogin;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (!mounted) {
+        return;
+      }
+      if (AppConfig.devWebPrefillLoginId) {
+        _passFocus.requestFocus();
+      } else {
         _userFocus.requestFocus();
       }
     });
@@ -60,7 +72,8 @@ class _LocalLoginScreenState extends State<LocalLoginScreen> {
     }
     setState(() => _busy = false);
     if (s == null) {
-      const msg = '아이디 또는 비밀번호를 확인해 주세요.';
+      const msg = '아이디 또는 비밀번호를 확인해 주세요.\n'
+          '이 브라우저(기기)에 해당 아이디 계정이 없을 수도 있어요.';
       setState(() => _error = msg);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -174,6 +187,208 @@ class _LocalLoginScreenState extends State<LocalLoginScreen> {
                     )
                   : const Text('로그인'),
             ),
+          ),
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () {
+                    unawaited(
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (c) => const LocalForgotPasswordReuseScreen(),
+                        ),
+                      ),
+                    );
+                  },
+            child: const Text('비밀번호를 잊었어요 · 같은 아이디로 다시 가입'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 비밀번호 분실 시 이 기기에서만 계정을 지워 같은 아이디로 재가입할 수 있게 합니다.
+class LocalForgotPasswordReuseScreen extends StatefulWidget {
+  const LocalForgotPasswordReuseScreen({super.key});
+
+  @override
+  State<LocalForgotPasswordReuseScreen> createState() =>
+      _LocalForgotPasswordReuseScreenState();
+}
+
+class _LocalForgotPasswordReuseScreenState
+    extends State<LocalForgotPasswordReuseScreen> {
+  final _user = TextEditingController();
+  final _confirmUser = TextEditingController();
+  var _understand = false;
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _user.dispose();
+    _confirmUser.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final key = LocalAccountStore.instance.normalizeUsername(_user.text);
+    final key2 = LocalAccountStore.instance.normalizeUsername(_confirmUser.text);
+    if (key == null || key2 == null) {
+      setState(
+        () => _error =
+            '아이디는 3~24자, 영문 소문자·숫자·밑줄(_)만 사용할 수 있어요.',
+      );
+      return;
+    }
+    if (key != key2) {
+      setState(() => _error = '아이디 확인 칸이 위와 같아야 해요.');
+      return;
+    }
+    if (!_understand) {
+      setState(() => _error = '안내에 동의해 주세요.');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('계정 삭제 후 재가입'),
+        content: const Text(
+          '이 아이디의 로그인 정보와 이 기기에 묶인 진행 데이터가 '
+          '모두 지워집니다. 되돌릴 수 없습니다. 계속할까요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제 후 재가입'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final r =
+        await LocalAccountStore.instance.deleteAccountWithoutPasswordForReuse(
+      loginKey: key,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    if (r.error != null) {
+      setState(() => _error = r.error);
+      return;
+    }
+    final uid = r.removedUserId;
+    if (uid != null) {
+      await wipeStandaloneArtifactsForAppUserId(uid);
+    }
+    if (!mounted) {
+      return;
+    }
+    gggomScaffoldMessengerKey.currentState?.showSnackBar(
+      const SnackBar(
+        content: Text(
+          '이 기기에서 계정을 지웠어요. 랜딩에서 「회원 가입」으로 같은 아이디를 다시 만들 수 있어요.',
+        ),
+      ),
+    );
+    Navigator.of(context).pop();
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('비밀번호를 잊었어요'),
+        backgroundColor: AppColors.bgMain,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            '비밀번호는 이 기기에만 저장돼 이메일·문자로 찾을 수 없어요. '
+            '같은 아이디로 새 비밀번호를 쓰려면, 아래에서 이 기기의 해당 계정을 지운 뒤 '
+            '랜딩 화면의 「회원 가입」을 다시 진행해 주세요.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _user,
+            textCapitalization: TextCapitalization.none,
+            autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.visiblePassword,
+            decoration: const InputDecoration(
+              labelText: '아이디',
+              hintText: '지우려는 계정의 아이디',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _confirmUser,
+            textCapitalization: TextCapitalization.none,
+            autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.visiblePassword,
+            decoration: const InputDecoration(
+              labelText: '아이디 확인',
+              hintText: '위와 똑같이 입력',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          CheckboxListTile(
+            value: _understand,
+            onChanged: (v) => setState(() => _understand = v ?? false),
+            title: Text(
+              '이 계정의 진행 데이터가 이 기기에서 모두 삭제됨을 이해했습니다.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35),
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+            ),
+          ],
+          const SizedBox(height: 28),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              minimumSize: const Size.fromHeight(48),
+            ),
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('이 기기에서 계정 지우기'),
           ),
         ],
       ),
@@ -355,8 +570,16 @@ class _RegisterAccountScreenState extends State<RegisterAccountScreen> {
   @override
   void initState() {
     super.initState();
+    if (AppConfig.devWebPrefillLoginId) {
+      _user.text = AppConfig.devWebSeedLogin;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (!mounted) {
+        return;
+      }
+      if (AppConfig.devWebPrefillLoginId) {
+        _nickFocus.requestFocus();
+      } else {
         _userFocus.requestFocus();
       }
     });

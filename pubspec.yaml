@@ -32,7 +32,6 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  supabase_flutter: ^2.8.4
   share_plus: ^10.1.4
   path_provider: ^2.1.5
   url_launcher: ^6.3.1
@@ -47,12 +46,14 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   video_player: ^2.11.1
   web: ^1.1.0
+  supabase_flutter: ^2.10.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
+  path_provider_platform_interface: ^2.1.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -60,6 +61,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -81,12 +83,26 @@ flutter:
     - assets/oracle/
     # 한국전통 메이저: majors(0).png ~ majors(21).png (플레이스홀더는 실제 일러로 교체)
     - assets/koreacard/
+    # 클레이풍 메이저 24일러 (0~21 + 82·83) — 웹 번들
+    - assets/major/
+    # 클레이 마이너 60일러 — 숫자 40 + 궁정·확장 20 (웹 경로 분리)
+    - assets/cards/minor_number_clay/
+    - assets/cards/minor_number_clay/wands/
+    - assets/cards/minor_number_clay/cups/
+    - assets/cards/minor_number_clay/swords/
+    - assets/cards/minor_number_clay/pentacles/
+    - assets/cards/minor_court_clay/
+    - assets/cards/minor_court_clay/wands/
+    - assets/cards/minor_court_clay/cups/
+    - assets/cards/minor_court_clay/swords/
+    - assets/cards/minor_court_clay/pentacles/
+    - assets/cards/minor_court_clay/special/
     - assets/www_gggom/splash.png
     - assets/www_gggom/favicon.ico
     - assets/www_gggom/cards/default/
     - assets/www_gggom/cards/korean-clay/
     - assets/www_gggom/card_backs/
-    # 채팅 이모티콘 61장: emo_01.png ~ emo_61.png
+    # 채팅 이모티콘 61장: emo_01.png ~ emo_61.png (괄호 파일명 금지 — 웹 로드 안정화)
     - assets/emoticon/
     # 타로 빈 슬롯 프레임 (상점 type: slot)
     - assets/slot/

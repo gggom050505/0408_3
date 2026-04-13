@@ -28,11 +28,16 @@ const List<(String, String, String)> kBundledSlotShopAssetTuples = [
   ),
 ];
 
-int _slotStarPrice(String id) {
+int slotShopStarPriceForId(String id) {
   if (id == kDefaultEquippedSlotId) {
     return 0;
   }
-  return gggomFixedStarPrice(id, min: 3, max: 5);
+  return switch (id) {
+    'slot-decor-2' => 4,
+    'slot-decor-3' => 2,
+    'slot-decor-4' => 3,
+    _ => gggomFixedStarPrice(id, min: 2, max: 5),
+  };
 }
 
 List<ShopItemRow> bundledSlotShopRows() {
@@ -42,7 +47,7 @@ List<ShopItemRow> bundledSlotShopRows() {
         id: t.$1,
         name: t.$2,
         type: 'slot',
-        price: _slotStarPrice(t.$1),
+        price: slotShopStarPriceForId(t.$1),
         thumbnailUrl: t.$3,
         isActive: true,
       ),

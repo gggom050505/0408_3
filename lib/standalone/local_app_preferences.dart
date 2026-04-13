@@ -112,6 +112,55 @@ class LocalAppPreferences {
   static String _tarotEquipDefaultsV1Key(String userId) =>
       'tarot_equip_defaults_v1_done_${userId.trim()}';
 
+  static String _todayTarotDismissedYmdKey(String userId) =>
+      'today_tarot_dismissed_ymd_${userId.trim()}';
+
+  static String _todayTarotDoneYmdKey(String userId) =>
+      'today_tarot_done_ymd_${userId.trim()}';
+
+  static String _ymdLocal(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// 오늘의 타로 안내: 오늘 이미 완료했거나 "다음에" 눌렀으면 false.
+  static Future<bool> shouldShowTodayTarotPrompt(String userId) async {
+    final m = await _load();
+    final today = _ymdLocal(DateTime.now());
+    if (m[_todayTarotDoneYmdKey(userId)] == today) {
+      return false;
+    }
+    if (m[_todayTarotDismissedYmdKey(userId)] == today) {
+      return false;
+    }
+    return true;
+  }
+
+  static Future<void> markTodayTarotPromptDismissedToday(String userId) async {
+    final m = await _load();
+    m[_todayTarotDismissedYmdKey(userId)] = _ymdLocal(DateTime.now());
+    await _save(m);
+  }
+
+  static Future<void> markTodayTarotCompletedToday(String userId) async {
+    final m = await _load();
+    m[_todayTarotDoneYmdKey(userId)] = _ymdLocal(DateTime.now());
+    await _save(m);
+  }
+
+  /// 오늘(로컬) 이미 오늘의 타로를 **끝까지 완료**해 잠겼는지.
+  static Future<bool> isTodayTarotCompletedToday(String userId) async {
+    final m = await _load();
+    final today = _ymdLocal(DateTime.now());
+    return m[_todayTarotDoneYmdKey(userId)] == today;
+  }
+
+  /// 오늘의 타로: 완료·「다음에」 표시를 지워 홈 안내·다시 시작이 가능하게.
+  static Future<void> clearTodayTarotDayMarks(String userId) async {
+    final m = await _load();
+    m.remove(_todayTarotDismissedYmdKey(userId));
+    m.remove(_todayTarotDoneYmdKey(userId));
+    await _save(m);
+  }
+
   /// 아직 [markTarotEquipDefaultsV1Done] 전이면 `true` — 덱·뒷면·슬롯 기본 장착 일회 적용용.
   static Future<bool> needsTarotEquipDefaultsV1(String userId) async {
     final m = await _load();
@@ -131,6 +180,8 @@ class LocalAppPreferences {
     m.remove(_adRewardPromoIdxKey(userId));
     m.remove(_firstSetupWizardV1Key(userId));
     m.remove(_tarotEquipDefaultsV1Key(userId));
+    m.remove(_todayTarotDismissedYmdKey(userId));
+    m.remove(_todayTarotDoneYmdKey(userId));
     await _save(m);
   }
 }

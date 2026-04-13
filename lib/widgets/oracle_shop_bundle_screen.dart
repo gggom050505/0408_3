@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
+import '../config/unique_shop_items.dart';
 import '../data/card_themes.dart' show resolveShopItemThumbnailSrc;
 import '../models/shop_models.dart';
 import '../theme/app_colors.dart';
@@ -69,11 +70,17 @@ class _OracleShopBundleScreenState extends State<OracleShopBundleScreen> {
             itemBuilder: (context, i) {
               final item = widget.items[i];
               final owned = _isOwned(item.id);
+              final uniqueItem = isUniqueShopItemRow(item);
               final thumb =
                   resolveShopItemThumbnailSrc(item.thumbnailUrl, AppConfig.assetOrigin);
               return Card(
                 color: Colors.white.withValues(alpha: 0.45),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: uniqueItem
+                      ? const BorderSide(color: AppColors.uniqueItemBorder, width: 2)
+                      : BorderSide.none,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
                   child: Column(
@@ -99,17 +106,34 @@ class _OracleShopBundleScreenState extends State<OracleShopBundleScreen> {
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               fontSize: 10,
+                              color:
+                                  uniqueItem ? AppColors.uniqueItemForeground : null,
                             ),
                       ),
                       const SizedBox(height: 2),
                       if (owned)
                         Text(
-                          '수집',
+                          uniqueItem ? '유니크 수집' : '수집',
                           style: TextStyle(
                             fontSize: 9,
-                            color: AppColors.textSecondary,
+                            color: uniqueItem
+                                ? AppColors.uniqueItemForeground
+                                : AppColors.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
+                        )
+                      else if (uniqueItem)
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.uniqueItemSurface,
+                            foregroundColor: AppColors.uniqueItemForeground,
+                            disabledBackgroundColor: AppColors.uniqueItemSurface,
+                            disabledForegroundColor: AppColors.uniqueItemForeground,
+                            minimumSize: const Size(double.infinity, 26),
+                            padding: EdgeInsets.zero,
+                          ),
+                          onPressed: null,
+                          child: const Text('유니크', style: TextStyle(fontSize: 9)),
                         )
                       else if (item.price == 0)
                         FilledButton(

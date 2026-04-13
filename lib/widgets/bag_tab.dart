@@ -6,12 +6,15 @@ import '../config/app_config.dart';
 import '../config/bundle_emoticon_catalog.dart';
 import '../config/emoticon_offline.dart';
 import '../config/korea_major_card_catalog.dart';
+import '../config/unique_shop_items.dart';
 import '../data/card_themes.dart'
     show
         defaultThemeId,
         kKoreaTraditionalMajorShopThumbnailAsset,
         koreaTraditionalMajorAssetPath,
         koreaTraditionalMajorThemeId,
+        majorClayThemeId,
+        mixedMinorKoreaTraditionalMajorThemeId,
         resolvePublicAssetUrl,
         resolveShopItemThumbnailSrc,
         kCardThemeThumbnailPath;
@@ -30,6 +33,10 @@ import 'star_fragments_balance_panel.dart';
 const String _koreaTraditionalDeckEquipHint =
     '이 덱을 선택하면 타로 화면에는 가방에서 모은 「한국전통 메이저」장만 섞여 나와요. '
     '22장을 다 모을 필요 없고, 아래 🇰🇷 한국전통 메이저 목록에 보유한 카드만 사용됩니다.';
+
+const String _mixedMinorKoreaDeckEquipHint =
+    'RW 마이너 56장은 모두 들어가고, 한국전통 메이저는 가방에서 모은 장만 섞입니다. '
+    '앞면 그림: 마이너=기본 덱, 메이저=한국전통.';
 
 String? _koreaMajorBagPreviewSrc(_OwnedVisual c) {
   if (c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty) {
@@ -70,6 +77,7 @@ class BagTab extends StatelessWidget {
     this.ownedEmoticonIds = const [],
     required this.onRefresh,
     required this.onNeedLogin,
+    this.onOpenPersonalShop,
   });
 
   final ShopDataSource repo;
@@ -82,6 +90,9 @@ class BagTab extends StatelessWidget {
   final List<String> ownedEmoticonIds;
   final Future<void> Function() onRefresh;
   final VoidCallback onNeedLogin;
+
+  /// 상점 탭과 동일 — 개인 상점 바로가기(없으면 숨김).
+  final VoidCallback? onOpenPersonalShop;
 
   ShopItemRow? _shop(String id) {
     for (final s in shopItems) {
@@ -107,6 +118,10 @@ class BagTab extends StatelessWidget {
                   ? '기본카드'
                   : item.itemId == koreaTraditionalMajorThemeId
                   ? '한국전통 메이저카드'
+                  : item.itemId == mixedMinorKoreaTraditionalMajorThemeId
+                  ? '마이너 + 한국전통 메이저 (혼합)'
+                  : item.itemId == majorClayThemeId
+                  ? '클레이 덱 (메이저 24 + 마이너 60)'
                   : '카드 덱'),
           thumbnailUrl: si?.thumbnailUrl != null
               ? resolveShopItemThumbnailSrc(
@@ -354,6 +369,8 @@ class BagTab extends StatelessWidget {
     return id;
   }
 
+  bool _isUniqueOwned(String id, String type) => isUniqueShopItem(id, type);
+
   Future<void> _equip(
     BuildContext context,
     String id,
@@ -405,19 +422,25 @@ class BagTab extends StatelessWidget {
           stagger(
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    '🎒 가방',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '덱·카드 뒷면·타로 매트·슬롯 테두리를 장착하면 타로 화면에 바로 반영됩니다.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🎒 가방',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '보유한 덱·뒷면·매트·슬롯을 장착하면 타로 화면에 곧바로 반영돼요.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -425,26 +448,104 @@ class BagTab extends StatelessWidget {
             ),
           ),
           stagger(
-            StarFragmentsBalancePanel(starFragments: profile?.starFragments),
-          ),
-          stagger(_header(context, '🃏 카드 덱')),
-          ...cards.map(
-            (c) => _equipTile(
-              context,
-              c,
-              'card',
-              footnote: c.id == koreaTraditionalMajorThemeId
-                  ? _koreaTraditionalDeckEquipHint
-                  : null,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: StarFragmentsBalancePanel(
+                        starFragments: profile?.starFragments,
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+                    if (onOpenPersonalShop != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Material(
+                          color: const Color(0xFFE8F4FC),
+                          borderRadius: BorderRadius.circular(16),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: onOpenPersonalShop,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.storefront_outlined,
+                                    color: const Color(0xFF0369A1),
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '🏠 개인 상점',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '별조각 거래',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall
+                                              ?.copyWith(
+                                                color: AppColors.textSecondary,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-          stagger(_header(context, '🎴 카드 뒷면')),
-          ...cardBacks.map((c) => _equipTile(context, c, 'card_back')),
-          stagger(_header(context, '🧘 타로 매트')),
-          ...mats.map((m) => _equipTile(context, m, 'mat')),
-          stagger(_header(context, '🪟 카드 슬롯')),
-          ...slots.map((s) => _equipTile(context, s, 'slot')),
-          _oracleSectionHeader(context, oracles),
+          stagger(_sectionTitle(context, '🃏 카드 덱')),
+          _equipTypeGrid(context, cards, 'card'),
+          if (cards.any((c) => c.id == koreaTraditionalMajorThemeId))
+            _deckFootnote(context, _koreaTraditionalDeckEquipHint),
+          if (cards.any((c) => c.id == mixedMinorKoreaTraditionalMajorThemeId))
+            _deckFootnote(context, _mixedMinorKoreaDeckEquipHint),
+          stagger(_sectionTitle(context, '🎴 카드 뒷면')),
+          _equipTypeGrid(context, cardBacks, 'card_back'),
+          stagger(_sectionTitle(context, '🧘 타로 매트')),
+          _equipTypeGrid(context, mats, 'mat'),
+          stagger(_sectionTitle(context, '🪟 카드 슬롯')),
+          _equipTypeGrid(context, slots, 'slot'),
+          stagger(
+            _oracleSectionTitleRow(
+              context,
+              ownedCount: oracles.length,
+              onOpenCollection: oracles.isEmpty
+                  ? null
+                  : () => _openOracleCollection(context, oracles),
+            ),
+          ),
           if (oracles.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -454,38 +555,342 @@ class BagTab extends StatelessWidget {
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
+            )
+          else
+            _oracleThumbnailGrid(context, oracles),
+          if (koreaPieces.isNotEmpty) ...[
+            stagger(
+              _sectionTitle(
+                context,
+                '🇰🇷 한국전통 메이저 · ${koreaPieces.length} / 22',
+                uniqueAccent: true,
+              ),
             ),
-          if (oracles.isNotEmpty)
-            ...oracles.map((c) {
-              final imageSrc =
-                  (c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
-                  ? c.thumbnailUrl!
-                  : resolveOracleCollectionImageSrc(
-                      itemId: c.id,
-                      shopThumbnailUrl: _shop(c.id)?.thumbnailUrl,
-                    );
-              return ListTile(
-                leading: SizedBox(
-                  width: 40,
-                  height: 52,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: AdaptiveNetworkOrAssetImage(
-                      src: imageSrc,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        alignment: Alignment.center,
-                        color: AppColors.cardInner,
-                        child: const Text('🔮', style: TextStyle(fontSize: 20)),
-                      ),
-                    ),
+            _koreaPieceGrid(context, koreaPieces),
+          ],
+          if (emoticons.isNotEmpty) ...[
+            stagger(
+              _sectionTitle(
+                context,
+                '😊 이모티콘 (보유 ${emoticons.length})',
+              ),
+            ),
+            _ownedEmoticonGridShopStyle(context, emoticons),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(
+    BuildContext context,
+    String t, {
+    bool uniqueAccent = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        t,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: uniqueAccent ? AppColors.uniqueItemForeground : null,
+            ),
+      ),
+    );
+  }
+
+  Widget _deckFootnote(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+      ),
+    );
+  }
+
+  Widget _oracleSectionTitleRow(
+    BuildContext context, {
+    required int ownedCount,
+    required VoidCallback? onOpenCollection,
+  }) {
+    final total = kBundledOracleCardCount;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onOpenCollection,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '🔮 오라클 카드',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.uniqueItemForeground,
+                        ),
                   ),
                 ),
-                title: Text(c.name),
-                subtitle: const Text(
-                  '보유 · 눌러서 크게 보기',
-                  style: TextStyle(fontSize: 12),
+                Text(
+                  '$ownedCount / $total',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
+                if (onOpenCollection != null)
+                  Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openOracleCollection(
+    BuildContext context,
+    List<_OwnedVisual> oracles,
+  ) {
+    final entries = <OracleCollectionEntry>[];
+    for (final v in oracles) {
+      final imageSrc =
+          (v.thumbnailUrl != null && v.thumbnailUrl!.isNotEmpty)
+          ? v.thumbnailUrl!
+          : resolveOracleCollectionImageSrc(
+              itemId: v.id,
+              shopThumbnailUrl: _shop(v.id)?.thumbnailUrl,
+            );
+      entries.add(
+        OracleCollectionEntry(
+          id: v.id,
+          name: v.name,
+          imageSrc: imageSrc,
+        ),
+      );
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (ctx) => OracleCollectionScreen(
+          entries: entries,
+          ownedCount: oracles.length,
+          totalCount: kBundledOracleCardCount,
+        ),
+      ),
+    );
+  }
+
+  Widget _equipTypeGrid(
+    BuildContext context,
+    List<_OwnedVisual> items,
+    String equipType,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisExtent: 200,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, i) {
+          final v = items[i];
+          return AppearAnimation(
+            delay: Duration(milliseconds: 24 * i.clamp(0, 12)),
+            duration: const Duration(milliseconds: 340),
+            child: _equipGridCell(context, v, equipType),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _equGridThumb(
+    BuildContext context,
+    _OwnedVisual v,
+    String equipType,
+  ) {
+    if (v.matThemeId != null) {
+      final mat = matById(v.matThemeId!);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(gradient: mat.background),
+          child: const SizedBox.expand(),
+        ),
+      );
+    }
+    if (v.thumbnailUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AdaptiveNetworkOrAssetImage(
+          src: v.thumbnailUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _fallbackDeck(equipType),
+        ),
+      );
+    }
+    return _fallbackDeck(equipType);
+  }
+
+  Widget _equipGridCell(
+    BuildContext context,
+    _OwnedVisual v,
+    String equipType,
+  ) {
+    final p = profile;
+    final isKoreaDeck =
+        equipType == 'card' && v.id == koreaTraditionalMajorThemeId;
+    final koreaDeckActive =
+        isKoreaDeck && p?.equippedCard == koreaTraditionalMajorThemeId;
+    final equipped = switch (equipType) {
+      'card' => p?.equippedCard == v.id,
+      'card_back' => p?.equippedCardBack == v.id,
+      'mat' => p?.equippedMat == v.id,
+      'slot' => p?.equippedSlot == v.id,
+      _ => false,
+    };
+    final uniqueBorder =
+        equipType != 'mat' &&
+        equipType != 'card' &&
+        _isUniqueOwned(v.id, equipType);
+
+    Widget action;
+    if (equipType == 'card' && koreaDeckActive) {
+      action = OutlinedButton(
+        onPressed: () => _equip(
+          context,
+          defaultThemeId,
+          'card',
+          successMessage: '기본 카드 덱으로 바꿨어요',
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.accentPurple,
+          side: const BorderSide(color: AppColors.accentPurple),
+          minimumSize: const Size(double.infinity, 34),
+          padding: EdgeInsets.zero,
+        ),
+        child: const Text('취소', style: TextStyle(fontSize: 11)),
+      );
+    } else if (equipped) {
+      action = Text(
+        '장착 중',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+      );
+    } else {
+      action = FilledButton(
+        onPressed: () => _equip(
+          context,
+          v.id,
+          equipType,
+          successMessage: isKoreaDeck ? '한국전통 메이저 덱을 선택했어요' : null,
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.accentPurple,
+          minimumSize: const Size(double.infinity, 34),
+        ),
+        child: Text(
+          equipType == 'card' ? '선택' : '장착',
+          style: const TextStyle(fontSize: 11),
+        ),
+      );
+    }
+
+    return Card(
+      color: Colors.white.withValues(alpha: 0.45),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: uniqueBorder
+            ? const BorderSide(color: AppColors.uniqueItemBorder, width: 2)
+            : BorderSide.none,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 0.75,
+                child: _equGridThumb(context, v, equipType),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              v.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: uniqueBorder ? AppColors.uniqueItemForeground : null,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            action,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _oracleThumbnailGrid(
+    BuildContext context,
+    List<_OwnedVisual> oracles,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisExtent: 200,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: oracles.length,
+        itemBuilder: (context, i) {
+          final c = oracles[i];
+          final imageSrc =
+              (c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+              ? c.thumbnailUrl!
+              : resolveOracleCollectionImageSrc(
+                  itemId: c.id,
+                  shopThumbnailUrl: _shop(c.id)?.thumbnailUrl,
+                );
+          final oracleUnique = _isUniqueOwned(c.id, 'oracle_card');
+          return AppearAnimation(
+            delay: Duration(milliseconds: 24 * i.clamp(0, 12)),
+            duration: const Duration(milliseconds: 340),
+            child: Card(
+              color: Colors.white.withValues(alpha: 0.45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: oracleUnique
+                    ? const BorderSide(
+                        color: AppColors.uniqueItemBorder,
+                        width: 2,
+                      )
+                    : BorderSide.none,
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
                 onTap: () => unawaited(
                   showOwnedCardImagePreviewDialog(
                     context,
@@ -493,40 +898,97 @@ class BagTab extends StatelessWidget {
                     imageSrc: imageSrc,
                   ),
                 ),
-              );
-            }),
-          if (koreaPieces.isNotEmpty) ...[
-            _koreaMajorBagHeader(context, koreaPieces.length),
-            ...koreaPieces.map(
-              (c) => ListTile(
-                leading: SizedBox(
-                  width: 40,
-                  height: 52,
-                  child: c.thumbnailUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: AdaptiveNetworkOrAssetImage(
-                            src: c.thumbnailUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const Center(
-                              child: Text(
-                                '🇰🇷',
-                                style: TextStyle(fontSize: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: AspectRatio(
+                          aspectRatio: 0.75,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: AdaptiveNetworkOrAssetImage(
+                              src: imageSrc,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _fallbackDeck(
+                                'oracle_card',
                               ),
                             ),
                           ),
-                        )
-                      : const Center(
-                          child: Text('🇰🇷', style: TextStyle(fontSize: 20)),
                         ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        c.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: oracleUnique
+                                  ? AppColors.uniqueItemForeground
+                                  : null,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        oracleUnique ? '유니크 · 탭하여 확대' : '탭하여 확대',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: oracleUnique
+                                  ? AppColors.uniqueItemForeground
+                                  : AppColors.textSecondary,
+                              fontWeight:
+                                  oracleUnique ? FontWeight.w600 : null,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-                title: Text(c.name),
-                subtitle: const Text(
-                  '보유 · 눌러서 크게 보기',
-                  style: TextStyle(fontSize: 12),
-                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _koreaPieceGrid(
+    BuildContext context,
+    List<_OwnedVisual> koreaPieces,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisExtent: 200,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: koreaPieces.length,
+        itemBuilder: (context, i) {
+          final c = koreaPieces[i];
+          final koreaUnique = _isUniqueOwned(c.id, 'korea_major_card');
+          final src = _koreaMajorBagPreviewSrc(c);
+          return AppearAnimation(
+            delay: Duration(milliseconds: 24 * i.clamp(0, 12)),
+            duration: const Duration(milliseconds: 340),
+            child: Card(
+              color: Colors.white.withValues(alpha: 0.45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: koreaUnique
+                    ? const BorderSide(
+                        color: AppColors.uniqueItemBorder,
+                        width: 2,
+                      )
+                    : BorderSide.none,
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
                 onTap: () {
-                  final src = _koreaMajorBagPreviewSrc(c);
                   if (src == null || src.isEmpty) {
                     return;
                   }
@@ -538,289 +1000,162 @@ class BagTab extends StatelessWidget {
                     ),
                   );
                 },
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: AspectRatio(
+                          aspectRatio: 0.75,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: src != null
+                                ? AdaptiveNetworkOrAssetImage(
+                                    src: src,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => _fallbackDeck(
+                                      'korea_major_card',
+                                    ),
+                                  )
+                                : _fallbackDeck('korea_major_card'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        koreaUnique ? '${c.name} · 유니크' : c.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: koreaUnique
+                                  ? AppColors.uniqueItemForeground
+                                  : null,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '탭하여 확대',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-          if (emoticons.isNotEmpty) ...[
-            stagger(_header(context, '😊 이모티콘')),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisExtent: 104,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: emoticons.length,
-                itemBuilder: (context, i) {
-                  final id = emoticons[i];
-                  final path = bundleEmoticonImagePathForId(id) ?? '';
-                  return Card(
-                    color: Colors.white.withValues(alpha: 0.45),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: AdaptiveNetworkOrAssetImage(
-                              src: resolveEmoticonImageSrc(
-                                remoteImageUrl: path,
-                                emoticonId: id,
-                              ),
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) =>
-                                  const Icon(Icons.sentiment_satisfied),
-                            ),
-                          ),
-                          Text(
-                            _emoticonDisplayName(id),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _ownedEmoticonGridShopStyle(
+    BuildContext context,
+    List<String> emoticons,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          mainAxisExtent: 128,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: emoticons.length,
+        itemBuilder: (context, i) {
+          final id = emoticons[i];
+          final path = bundleEmoticonImagePathForId(id) ?? '';
+          final emoUnique = isUniqueEmoticonId(id);
+          return AppearAnimation(
+            delay: Duration(milliseconds: 20 * i.clamp(0, 15)),
+            duration: const Duration(milliseconds: 320),
+            child: Card(
+              color: Colors.white.withValues(alpha: 0.45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: emoUnique
+                    ? const BorderSide(
+                        color: AppColors.uniqueItemBorder,
+                        width: 2,
+                      )
+                    : BorderSide.none,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: AdaptiveNetworkOrAssetImage(
+                        src: resolveEmoticonImageSrc(
+                          remoteImageUrl: path,
+                          emoticonId: id,
+                        ),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.sentiment_satisfied),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context, String t) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      child: Text(
-        t,
-        style: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _koreaMajorBagHeader(BuildContext context, int ownedCount) {
-    const total = 22;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '🇰🇷 한국전통 메이저',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Text(
-            '$ownedCount / $total',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _oracleSectionHeader(
-    BuildContext context,
-    List<_OwnedVisual> oracles,
-  ) {
-    final n = oracles.length;
-    final total = kBundledOracleCardCount;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            final entries = <OracleCollectionEntry>[];
-            for (final v in oracles) {
-              final imageSrc =
-                  (v.thumbnailUrl != null && v.thumbnailUrl!.isNotEmpty)
-                  ? v.thumbnailUrl!
-                  : resolveOracleCollectionImageSrc(
-                      itemId: v.id,
-                      shopThumbnailUrl: _shop(v.id)?.thumbnailUrl,
-                    );
-              entries.add(
-                OracleCollectionEntry(
-                  id: v.id,
-                  name: v.name,
-                  imageSrc: imageSrc,
-                ),
-              );
-            }
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (ctx) => OracleCollectionScreen(
-                  entries: entries,
-                  ownedCount: n,
-                  totalCount: total,
-                ),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '🔮 오라클 카드',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    Text(
+                      emoUnique
+                          ? '${_emoticonDisplayName(id)} · 유니크'
+                          : _emoticonDisplayName(id),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: emoUnique ? AppColors.uniqueItemForeground : null,
+                      ),
                     ),
-                  ),
+                    if (emoUnique)
+                      Text(
+                        '개인 상점 거래 가능',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.uniqueItemForeground,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                  ],
                 ),
-                Text(
-                  '$n / $total',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: AppColors.textSecondary),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _equipTile(
-    BuildContext context,
-    _OwnedVisual v,
-    String type, {
-    String? footnote,
-  }) {
-    final p = profile;
-    final isKoreaDeck = type == 'card' && v.id == koreaTraditionalMajorThemeId;
-    final koreaDeckActive =
-        isKoreaDeck && p?.equippedCard == koreaTraditionalMajorThemeId;
-
-    Widget trailing;
-    if (koreaDeckActive) {
-      trailing = OutlinedButton(
-        onPressed: () => _equip(
-          context,
-          defaultThemeId,
-          'card',
-          successMessage: '기본 카드 덱으로 바꿨어요',
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.accentPurple,
-          side: const BorderSide(color: AppColors.accentPurple),
-        ),
-        child: const Text('취소'),
-      );
-    } else {
-      trailing = FilledButton(
-        onPressed: () => _equip(
-          context,
-          v.id,
-          type,
-          successMessage: isKoreaDeck ? '한국전통 메이저 덱을 선택했어요' : null,
-        ),
-        style: FilledButton.styleFrom(backgroundColor: AppColors.accentPurple),
-        child: Text(type == 'card' ? '선택' : '장착'),
-      );
-    }
-
-    final Widget leading;
-    if (v.matThemeId != null) {
-      final mat = matById(v.matThemeId!);
-      leading = ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          width: 48,
-          height: 56,
-          child: DecoratedBox(
-            decoration: BoxDecoration(gradient: mat.background),
-          ),
-        ),
-      );
-    } else if (v.thumbnailUrl != null) {
-      leading = SizedBox(
-        width: 48,
-        height: 56,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: AdaptiveNetworkOrAssetImage(
-            src: v.thumbnailUrl!,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => _ph(type),
-          ),
-        ),
-      );
-    } else {
-      leading = _ph(type);
-    }
-
-    final tile = ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: leading,
-      title: Text(v.name),
-      trailing: trailing,
-    );
-    if (footnote == null || footnote.isEmpty) {
-      return tile;
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        tile,
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Text(
-            footnote,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _ph(String type) {
+  Widget _fallbackDeck(String itemType) {
+    final emoji = itemType == 'card_back'
+        ? '🎴'
+        : itemType == 'oracle_card'
+        ? '🔮'
+        : itemType == 'korea_major_card'
+        ? '🇰🇷'
+        : itemType == 'slot'
+        ? '🪟'
+        : itemType == 'mat'
+        ? '🧘'
+        : '🃏';
     return Container(
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.cardInner,
-        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [AppColors.cardInner, Color(0xFF98BFAA)],
+        ),
         border: Border.all(color: AppColors.cardBorder),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        type == 'card'
-            ? '🃏'
-            : type == 'card_back'
-            ? '🎴'
-            : type == 'oracle_card'
-            ? '🔮'
-            : type == 'korea_major_card'
-            ? '🇰🇷'
-            : type == 'slot'
-            ? '🪟'
-            : '🧘',
-      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 28)),
     );
   }
 }

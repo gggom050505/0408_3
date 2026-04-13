@@ -18,7 +18,7 @@ void main() {
           themeId: koreaTraditionalMajorThemeId,
           cardId: i,
         ),
-        'assets/koreacard/majors($i).png',
+        'assets/koreacard/korean majors($i).png',
       );
     }
     expect(

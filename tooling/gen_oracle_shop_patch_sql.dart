@@ -6,7 +6,7 @@ import 'package:gggom_tarot/data/oracle_assets.dart';
 void main() {
   final b = StringBuffer()
     ..writeln('-- 오라클 80종: 상점 표시명·썸네일 URL 패치 (www.gggom0505.kr / Flutter 웹 공통)')
-    ..writeln('-- Supabase → SQL Editor 에서 실행. id 기준으로만 갱신(가격 등 다른 컬럼은 유지).')
+    ..writeln('-- SQL 에디터에서 실행. id 기준으로만 갱신(가격 등 다른 컬럼은 유지).')
     ..writeln(
         '-- DB에 행이 없으면 앱이 번들 카탈로그를 쓰고, 행이 있으면 여기 값이 노출됩니다.')
     ..writeln();

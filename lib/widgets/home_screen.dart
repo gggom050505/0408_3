@@ -2,26 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
-import '../config/shop_admin_gate.dart';
 import '../config/gggom_offline_landing.dart' show kGggomBundledPublicRoot;
 import '../theme/app_colors.dart';
 import '../data/card_themes.dart' show resolveShopItemThumbnailSrc;
+import '../data/feed_tags.dart';
 import '../config/korea_major_card_catalog.dart';
 import '../data/oracle_assets.dart' show oracleItemIdToCardNumber;
 import '../data/slot_shop_assets.dart';
 import '../models/emoticon_models.dart';
 import '../models/shop_models.dart';
-import '../models/surprise_gift_models.dart';
-import '../repositories/attendance_repository.dart';
-import '../repositories/emoticon_repository.dart';
-import '../repositories/event_repository.dart';
-import '../repositories/disk_caching_feed_repository.dart';
-import '../repositories/feed_repository.dart';
-import '../repositories/peer_shop_repository.dart';
-import '../repositories/shop_repository.dart';
 import '../standalone/data_sources.dart';
 import '../standalone/local_peer_shop_repository.dart';
 import '../standalone/local_app_preferences.dart';
@@ -30,14 +21,14 @@ import '../standalone/local_attendance_repository.dart';
 import '../standalone/local_emoticon_repository.dart';
 import '../standalone/local_event_repository.dart';
 import '../standalone/local_feed_repository.dart';
+import '../standalone/local_periodic_backup.dart';
 import '../standalone/local_shop_repository.dart';
-import '../services/local_account_store.dart';
+import '../services/daily_visitor_counter.dart';
+import '../services/local_account_store.dart' show LocalAccountSession;
 import 'account_manage_screen.dart';
-import 'supabase_account_screen.dart';
 import 'ad_reward_sheet.dart';
 import 'attendance_modal.dart';
 import 'bag_tab.dart';
-import 'chat_tab.dart';
 import 'event_tab.dart';
 import 'feed_tab.dart';
 import 'first_setup_wizard_screen.dart';
@@ -45,11 +36,11 @@ import 'gnb.dart';
 import 'app_motion.dart';
 import 'making_notes_screen.dart';
 import 'personal_shop_screen.dart';
-import 'shop_admin_screen.dart';
 import 'shop_tab.dart';
 import 'simple_tab_page.dart';
 import 'standalone_chat_tab.dart';
 import 'tarot_tab.dart';
+import 'today_tarot_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -84,8 +75,11 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late String _effectiveDisplayName;
+  final List<_GiftBannerData> _giftBanners = <_GiftBannerData>[];
+  final Map<String, Future<void> Function()> _giftBannerClaimActions =
+      <String, Future<void> Function()>{};
 
   final _workspaceFlushSignal = ValueNotifier<int>(0);
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -102,64 +96,37 @@ class _HomeScreenState extends State<HomeScreen> {
   List<EmoticonPackRow> _emoticonPacks = [];
   List<String> _ownedEmoticonIds = [];
   var _shopLoading = false;
-  SurpriseGiftOffer? _surpriseGiftOffer;
   bool? _checkedInToday;
   var _firstSetupWizardPushStarted = false;
+  var _todayTarotPromptInFlight = false;
 
-  /// 오프라인·베타 번들(Supabase 미사용)일 때만 유지 — 상태 보존.
+  /// Supabase 연동 시 GNB «오늘 접속 N명» — [AppConfig.supabaseEnabled] 가 false면 미사용.
+  var _todayVisitorCountLoaded = false;
+  int? _todayVisitorCount;
+  Timer? _backupTimer;
+
   LocalFeedRepository? _localFeed;
   LocalShopRepository? _localShop;
   LocalEmoticonRepository? _localEmo;
   LocalEventRepository? _localEvent;
   LocalAttendanceRepository? _localAttendance;
 
-  /// Supabase 모드에서 `build()`마다 새 인스턴스를 만들면 탭·시트가 서로 다른 리포를 참조할 수 있어 한 번만 생성.
-  FeedRepository? _supabaseFeed;
-  DiskCachingFeedRepository? _supabaseFeedCached;
+  FeedDataSource? get _feed => _localFeed;
 
-  /// [initState] 직후에는 Supabase 세션이 아직 없어 [shopAdminGateAllowsCurrentUser] 가 false일 수 있음.
-  /// 그러면 [_localShop] 이 비어 상점 「관리자」 버튼이 붙지 않음 → 한 프레임 뒤 세션 반영 시 로컬 미러 리포를 만듦.
-  var _pendingAdminLocalShop = false;
+  ShopDataSource? get _shopRepo => _localShop;
 
-  /// **기본 로그인(아이디·비밀번호)** 과 동일한 데이터 경로: Supabase 미사용 · `local-acc-…` · (예전부터 남은) `local-guest`.
-  /// 일반 구글 사용자 세션은 쓰지 않으므로, 연동 빌드에서도 로컬 계정·게스트는 기기 로컬 레포로 통일합니다.
-  bool get _usesLocalDataLayer =>
-      !AppConfig.supabaseEnabled ||
-      LocalAccountStore.isLocalAppUserId(widget.userId) ||
-      widget.userId == 'local-guest';
+  PeerShopDataSource get _peerShop => LocalPeerShopRepository.instance;
 
-  FeedDataSource? get _feed {
-    if (_usesLocalDataLayer) {
-      return _localFeed;
-    }
-    _supabaseFeed ??= FeedRepository(Supabase.instance.client);
-    _supabaseFeedCached ??= DiskCachingFeedRepository(_supabaseFeed!);
-    return _supabaseFeedCached;
-  }
+  AttendanceDataSource? get _attendance => _localAttendance;
 
-  ShopDataSource? get _shopRepo => _usesLocalDataLayer
-      ? _localShop
-      : ShopRepository(Supabase.instance.client);
+  EmoticonDataSource? get _emoticonRepo => _localEmo;
 
-  PeerShopDataSource get _peerShop => _usesLocalDataLayer
-      ? LocalPeerShopRepository.instance
-      : PeerShopRepository(Supabase.instance.client);
-
-  AttendanceDataSource? get _attendance => _usesLocalDataLayer
-      ? _localAttendance
-      : AttendanceRepository(Supabase.instance.client);
-
-  EmoticonDataSource? get _emoticonRepo => _usesLocalDataLayer
-      ? _localEmo
-      : EmoticonRepository(Supabase.instance.client);
-
-  EventDataSource? get _eventRepo => _usesLocalDataLayer
-      ? _localEvent
-      : EventRepository(Supabase.instance.client);
+  EventDataSource? get _eventRepo => _localEvent;
 
   @override
   void dispose() {
-    _authStateSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _backupTimer?.cancel();
     _workspaceFlushSignal.dispose();
     super.dispose();
   }
@@ -200,33 +167,99 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  StreamSubscription<AuthState>? _authStateSub;
+  void _showGiftBanner({
+    required String title,
+    required String message,
+    Color? accentColor,
+    String? claimLabel,
+    Future<void> Function()? onClaim,
+  }) {
+    if (!mounted) {
+      return;
+    }
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    setState(() {
+      _giftBanners.add(
+        _GiftBannerData(
+          id: id,
+          title: title,
+          message: message,
+          accentColor: accentColor ?? AppColors.uniqueItemBorder,
+          claimLabel: claimLabel,
+        ),
+      );
+      if (onClaim != null) {
+        _giftBannerClaimActions[id] = onClaim;
+      }
+    });
+  }
+
+  void _removeGiftBanner(String id) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _giftBanners.removeWhere((b) => b.id == id);
+      _giftBannerClaimActions.remove(id);
+    });
+  }
+
+  void _updateGiftBanner(String id, {bool? claiming, bool? claimed}) {
+    final idx = _giftBanners.indexWhere((b) => b.id == id);
+    if (idx < 0) {
+      return;
+    }
+    setState(() {
+      _giftBanners[idx] = _giftBanners[idx].copyWith(
+        claiming: claiming,
+        claimed: claimed,
+      );
+    });
+  }
+
+  Future<void> _claimGiftBanner(String id) async {
+    final banner = _giftBanners.where((b) => b.id == id).firstOrNull;
+    final claim = _giftBannerClaimActions[id];
+    if (banner == null || claim == null || banner.claimed || banner.claiming) {
+      return;
+    }
+    _updateGiftBanner(id, claiming: true);
+    try {
+      await claim();
+      _updateGiftBanner(id, claiming: false, claimed: true);
+    } catch (e) {
+      _updateGiftBanner(id, claiming: false);
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text('선물 적용 중 오류: $e')),
+      );
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _effectiveDisplayName = widget.displayName;
-    if (_usesLocalDataLayer) {
-      _localFeed = LocalFeedRepository();
-      _localShop = LocalShopRepository(widget.userId);
-      _localEmo = LocalEmoticonRepository(wallet: _localShop);
-      _localEvent = LocalEventRepository();
-      _localAttendance = LocalAttendanceRepository();
-    } else if (AppConfig.supabaseEnabled && shopAdminGateAllowsCurrentUser()) {
-      _localShop = LocalShopRepository(widget.userId);
-    }
-    if (AppConfig.supabaseEnabled) {
-      _authStateSub = Supabase.instance.client.auth.onAuthStateChange.listen((
-        _,
-      ) {
-        if (!mounted) {
-          return;
-        }
-        setState(() {});
-      });
-    }
+    _localFeed = LocalFeedRepository();
+    _localShop = LocalShopRepository(widget.userId);
+    _localEmo = LocalEmoticonRepository(wallet: _localShop);
+    _localEvent = LocalEventRepository();
+    _localAttendance = LocalAttendanceRepository();
     unawaited(_restoreMainTab());
     _bootstrap();
+    _startPeriodicBackup();
+    if (AppConfig.supabaseEnabled) {
+      unawaited(_refreshTodayVisitorCount());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(LocalPeriodicBackup.backupNow(widget.userId));
+    }
   }
 
   @override
@@ -234,13 +267,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId) {
       _firstSetupWizardPushStarted = false;
+      _localShop = LocalShopRepository(widget.userId);
+      _localEmo = LocalEmoticonRepository(wallet: _localShop);
+      unawaited(_refreshShop());
+      _startPeriodicBackup();
     }
     if (oldWidget.displayName != widget.displayName) {
       _effectiveDisplayName = widget.displayName;
-    }
-    if (oldWidget.userId != widget.userId && AppConfig.supabaseEnabled) {
-      _localShop = null;
-      _pendingAdminLocalShop = false;
     }
   }
 
@@ -268,19 +301,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openAccountSettings() async {
     if (widget.localAccountSession != null) {
       await _openAccountManage();
-      return;
-    }
-    if (!AppConfig.supabaseEnabled || widget.userId == 'local-guest') {
-      return;
-    }
-    final withdrew = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (c) => const SupabaseAccountScreen()),
-    );
-    if (!mounted) {
-      return;
-    }
-    if (withdrew == true) {
-      widget.onSignOut();
     }
   }
 
@@ -311,6 +331,118 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refreshAttendance();
   }
 
+  void _startPeriodicBackup() {
+    _backupTimer?.cancel();
+    unawaited(_runPeriodicBackupIfDue());
+    _backupTimer = Timer.periodic(
+      const Duration(minutes: 20),
+      (_) => unawaited(_runPeriodicBackupIfDue()),
+    );
+  }
+
+  Future<void> _runPeriodicBackupIfDue() async {
+    try {
+      await LocalPeriodicBackup.backupIfDue(widget.userId);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshTodayVisitorCount() async {
+    if (!AppConfig.supabaseEnabled) {
+      return;
+    }
+    final n = await DailyVisitorCounter.instance.registerAndFetchTodayCount();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _todayVisitorCount = n;
+      _todayVisitorCountLoaded = true;
+    });
+  }
+
+  Future<void> _runPostHomeDialogs() async {
+    await _scheduleFirstSetupWizardIfNeeded();
+    if (!mounted) {
+      return;
+    }
+    await _maybePromptTodayTarot();
+  }
+
+  Future<void> _maybePromptTodayTarot() async {
+    if (_todayTarotPromptInFlight || !mounted) {
+      return;
+    }
+    _todayTarotPromptInFlight = true;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!mounted || _shopLoading) {
+        return;
+      }
+      if (!await LocalAppPreferences.shouldShowTodayTarotPrompt(
+        widget.userId,
+      )) {
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+      final go = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('오늘의 타로'),
+          content: const Text(
+            '오늘의 타로에 참여하시겠어요?\n\n'
+            '오늘의 키워드를 떠올리며 덱에서 카드를 받아 5×2 슬롯에 올리고, '
+            '한 장씩 뒤집을 수 있어요. 모두 뒤집으면 결과·점수가 정리되고, '
+            '연동 시 결과 화면에서 «게시하기»를 눌러 피드에 올리거나 «게시 안함»을 고를 수 있어요.\n\n'
+            '완료 후에도 «다시 뽑기»로 같은 날 다시 할 수 있어요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('다음에'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('참여하기'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      if (go == true) {
+        await Navigator.of(context, rootNavigator: true).push<void>(
+          MaterialPageRoute<void>(
+            fullscreenDialog: true,
+            builder: (c) => TodayTarotScreen(
+              userId: widget.userId,
+              displayName: _effectiveDisplayName,
+              avatarEmojiOrUrl: widget.avatarUrl ?? '🔮',
+              cardBackImageSrc: _resolveEquippedCardBackThumb(
+                _profile?.equippedCardBack ?? defaultEquippedCardBack,
+              ),
+              emptySlotImageSrc: _resolveEquippedSlotDecorationSrc(
+                _profile?.equippedSlot ?? kDefaultEquippedSlotId,
+              ),
+              feed: _feed,
+              onPosted: _onPostedTodayTarotToFeed,
+              embeddedInHomeShell: false,
+            ),
+          ),
+        );
+      } else if (go == false) {
+        await LocalAppPreferences.markTodayTarotPromptDismissedToday(
+          widget.userId,
+        );
+      }
+    } finally {
+      _todayTarotPromptInFlight = false;
+    }
+  }
+
   Future<void> _scheduleFirstSetupWizardIfNeeded() async {
     await Future<void>.delayed(Duration.zero);
     if (!mounted) {
@@ -326,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final oracleN = _owned.where((e) => e.itemType == 'oracle_card').length;
     final emoN = _ownedEmoticonIds.length;
-    if (oracleN >= 5 && emoN >= 5) {
+    if (oracleN >= 8 && emoN >= 7) {
       await LocalAppPreferences.markFirstSetupWizardV1Done(uid);
       return;
     }
@@ -348,29 +480,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (ok == true && mounted) {
       await _refreshShop();
+      _setMainTab(MainTab.bag);
     }
   }
 
-  /// Supabase에 원격 프로필이 있는 **로그인 계정**(구글 등). 가방·별조각·장착은 DB가 권위이며
-  /// 클라이언트 일회 장착 스냅샷으로 덮어쓰지 않는다.
-  bool _isSupabaseRemoteProfileAccount(String uid) {
-    return AppConfig.supabaseEnabled &&
-        uid != 'local-guest' &&
-        !LocalAccountStore.isLocalAppUserId(uid);
-  }
-
-  /// 덱·카드 뒷면·슬롯을 기본값으로 **계정당 한 번만** 맞춤(로컬·게스트·오프라인 스냅샷용).
-  /// 서버 로그인 계정은 적용하지 않아 별조각·가방 아이템·장착 상태를 DB 그대로 유지한다.
+  /// 덱·카드 뒷면·슬롯을 기본값으로 **계정당 한 번만** 맞춤(로컬·게스트).
   Future<void> _maybeApplyTarotEquipDefaultsV1Once(
     ShopDataSource repo,
     String uid,
   ) async {
-    if (_isSupabaseRemoteProfileAccount(uid)) {
-      if (await LocalAppPreferences.needsTarotEquipDefaultsV1(uid)) {
-        await LocalAppPreferences.markTarotEquipDefaultsV1Done(uid);
-      }
-      return;
-    }
     if (!await LocalAppPreferences.needsTarotEquipDefaultsV1(uid)) {
       return;
     }
@@ -398,98 +516,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshShop() async {
     final uid = widget.userId;
-    if (!AppConfig.supabaseEnabled) {
-      final repo = _localShop;
-      if (repo == null) {
-        return;
-      }
-      setState(() => _shopLoading = true);
-      try {
-        final items = await repo.fetchShopItems();
-        await repo.ensureDefaultUserItems(uid);
-        await _maybeApplyTarotEquipDefaultsV1Once(repo, uid);
-        final owned = await repo.fetchOwnedItems(uid);
-        final profile = await repo.fetchProfile(uid);
-        var ownedEmo = <String>[];
-        final emo = _emoticonRepo;
-        if (emo != null) {
-          try {
-            ownedEmo = await emo.fetchOwned(uid);
-          } catch (_) {}
-        }
-        SurpriseGiftOffer? surprise;
-        try {
-          surprise = await repo.syncSurpriseGift(uid, items);
-        } catch (_) {
-          surprise = null;
-        }
-        if (mounted) {
-          setState(() {
-            _shopItems = items;
-            _owned = owned;
-            _profile = profile;
-            _emoticonPacks = [];
-            _ownedEmoticonIds = ownedEmo;
-            _surpriseGiftOffer = surprise;
-            _shopLoading = false;
-          });
-          unawaited(_scheduleFirstSetupWizardIfNeeded());
-        }
-      } catch (_) {
-        if (mounted) {
-          setState(() {
-            _shopLoading = false;
-            _surpriseGiftOffer = null;
-          });
-        }
-      }
-      return;
-    }
-    final repo = _shopRepo;
+    final repo = _localShop;
     if (repo == null) {
       return;
     }
     setState(() => _shopLoading = true);
     try {
       final items = await repo.fetchShopItems();
-      await repo.fetchProfile(uid);
       await repo.ensureDefaultUserItems(uid);
       await _maybeApplyTarotEquipDefaultsV1Once(repo, uid);
       final owned = await repo.fetchOwnedItems(uid);
       final profile = await repo.fetchProfile(uid);
-      var packs = <EmoticonPackRow>[];
-      var ownedEmo = <String>[];
+      final ownedEmoSet = <String>{};
       final emo = _emoticonRepo;
       if (emo != null) {
         try {
-          packs = await emo.fetchPacks();
-          ownedEmo = await emo.fetchOwned(uid);
+          ownedEmoSet.addAll(await emo.fetchOwned(uid));
         } catch (_) {}
       }
-      SurpriseGiftOffer? surprise;
       try {
-        surprise = await repo.syncSurpriseGift(uid, items);
-      } catch (_) {
-        surprise = null;
-      }
+        ownedEmoSet.addAll(await repo.getOwnedEmoticonIds());
+      } catch (_) {}
+      final ownedEmo = ownedEmoSet.toList()..sort();
       if (mounted) {
+        final starterPackJustApplied = repo
+            .consumeStarterWelcomePackJustAppliedFlag();
         setState(() {
           _shopItems = items;
           _owned = owned;
           _profile = profile;
-          _emoticonPacks = packs;
+          _emoticonPacks = [];
           _ownedEmoticonIds = ownedEmo;
-          _surpriseGiftOffer = surprise;
           _shopLoading = false;
         });
-        unawaited(_scheduleFirstSetupWizardIfNeeded());
+        if (starterPackJustApplied) {
+          _showGiftBanner(
+            title: '환영 선물 도착',
+            message: '⭐20 · 이모티콘 7 · 오라클 8 지급 완료',
+            accentColor: AppColors.accentMint,
+            claimLabel: '받기',
+            onClaim: () async {
+              _setMainTab(MainTab.bag);
+              await _refreshShop();
+            },
+          );
+        }
+        unawaited(_runPostHomeDialogs());
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _shopLoading = false;
-          _surpriseGiftOffer = null;
         });
+        unawaited(_runPostHomeDialogs());
       }
     }
   }
@@ -568,8 +647,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       grant.luckyShopItemName!.isNotEmpty
                   ? '⭐ 별조각 +${grant.starFragmentsAdded} · 출석 선물 「${grant.luckyShopItemName}」을(를) 드렸어요'
                   : '⭐ 별조각 +${grant.starFragmentsAdded} (미보유 유료 품목이 없어 선물은 생략됐어요)';
-              _scaffoldMessengerKey.currentState?.showSnackBar(
-                SnackBar(content: Text(msg)),
+              _showGiftBanner(
+                title: '출석 선물 도착',
+                message: msg,
+                accentColor: AppColors.accentPurple,
+                claimLabel: '받기',
+                onClaim: () async {
+                  _setMainTab(MainTab.bag);
+                  await _refreshShop();
+                },
               );
             }
           } catch (e) {
@@ -592,12 +678,58 @@ class _HomeScreenState extends State<HomeScreen> {
     ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
   }
 
-  void _onPostedToFeed() {
+  /// 오늘의 타로 탭에서 피드에 올린 뒤 — 「오늘의 게시」만 갱신·이동.
+  void _onPostedTodayTarotToFeed() {
+    unawaited(_grantFeedPostEventReward());
+    setState(() {
+      _feedReloadToken++;
+      _tab = MainTab.todayTarotFeed;
+    });
+    _persistMainTab(MainTab.todayTarotFeed);
+  }
+
+  /// 타로 탭 스프레드 캡처 게시 후 — 「게시물」만 갱신·이동.
+  void _onPostedTarotSpreadToFeed() {
+    unawaited(_grantFeedPostEventReward());
     setState(() {
       _feedReloadToken++;
       _tab = MainTab.feed;
     });
     _persistMainTab(MainTab.feed);
+  }
+
+  Future<void> _grantFeedPostEventReward() async {
+    if (!mounted) {
+      return;
+    }
+    final shop = _shopRepo;
+    if (shop == null) {
+      _showGiftBanner(
+        title: '게시 선물',
+        message: '상점을 불러오지 못해 별조각을 지급하지 못했어요. 잠시 후 다시 시도해 주세요.',
+        accentColor: AppColors.uniqueItemBorder,
+      );
+      return;
+    }
+    final profile = await shop.grantAdRewardStars(widget.userId, amount: 5);
+    if (!mounted) {
+      return;
+    }
+    if (profile == null) {
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('별조각 지급에 실패했어요. 나중에 다시 시도해 주세요.')),
+      );
+      return;
+    }
+    await _refreshShop();
+    if (!mounted) {
+      return;
+    }
+    _showGiftBanner(
+      title: '게시 선물 지급 완료',
+      message: '게시물 이벤트로 ⭐ 별조각 5개가 가방에 바로 적용됐어요.',
+      accentColor: AppColors.uniqueItemBorder,
+    );
   }
 
   String? _resolveEquippedCardBackThumb(String equippedId) {
@@ -619,36 +751,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return null;
   }
 
-  void _ensureSupabaseAdminLocalShopIfNeeded() {
-    if (_usesLocalDataLayer || !AppConfig.supabaseEnabled) {
-      return;
-    }
-    if (!shopAdminGateAllowsCurrentUser()) {
-      _pendingAdminLocalShop = false;
-      return;
-    }
-    if (_localShop != null || _pendingAdminLocalShop) {
-      return;
-    }
-    _pendingAdminLocalShop = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _pendingAdminLocalShop = false;
-      if (!mounted ||
-          _usesLocalDataLayer ||
-          !AppConfig.supabaseEnabled ||
-          !shopAdminGateAllowsCurrentUser() ||
-          _localShop != null) {
-        return;
+  String? _resolveEquippedSlotDecorationSrc(String equippedSlotId) {
+    for (final s in _shopItems) {
+      if (s.id == equippedSlotId && s.type == 'slot') {
+        final src = resolveShopItemThumbnailSrc(
+          s.thumbnailUrl,
+          AppConfig.assetOrigin,
+        );
+        if (src != null && src.isNotEmpty) {
+          return src;
+        }
+        break;
       }
-      setState(() {
-        _localShop = LocalShopRepository(widget.userId);
-      });
-    });
+    }
+    return bundledSlotAssetPathForShopId(equippedSlotId);
   }
 
   @override
   Widget build(BuildContext context) {
-    _ensureSupabaseAdminLocalShopIfNeeded();
     final uid = widget.userId;
     final avatarForFeed = widget.avatarUrl ?? '🔮';
     final helloName = _effectiveDisplayName;
@@ -657,17 +777,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final equippedCardBack =
         _profile?.equippedCardBack ?? defaultEquippedCardBack;
     final equippedSlotId = _profile?.equippedSlot ?? kDefaultEquippedSlotId;
-    String? equippedSlotDecorationSrc;
-    for (final s in _shopItems) {
-      if (s.id == equippedSlotId && s.type == 'slot') {
-        equippedSlotDecorationSrc = resolveShopItemThumbnailSrc(
-          s.thumbnailUrl,
-          AppConfig.assetOrigin,
-        );
-        break;
-      }
-    }
-    equippedSlotDecorationSrc ??= bundledSlotAssetPathForShopId(equippedSlotId);
+    final equippedSlotDecorationSrc = _resolveEquippedSlotDecorationSrc(
+      equippedSlotId,
+    );
     final equippedCardBackImageSrc = _resolveEquippedCardBackThumb(
       equippedCardBack,
     );
@@ -687,6 +799,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     ownedKoreaMajorCardIds.sort();
 
+    final visitorCountLabel = AppConfig.supabaseEnabled
+        ? (!_todayVisitorCountLoaded
+              ? '오늘 접속 · …'
+              : (_todayVisitorCount != null
+                    ? '오늘 접속 $_todayVisitorCount명'
+                    : '오늘 접속 · —'))
+        : null;
+
     return ScaffoldMessenger(
       key: _scaffoldMessengerKey,
       child: Scaffold(
@@ -703,8 +823,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTab: _setMainTab,
                       displayName: helloName,
                       avatarUrl: widget.avatarUrl,
-                      isShopAdminSession: shopAdminGateAllowsCurrentUser(),
                       onSignOut: widget.onSignOut,
+                      visitorCountLabel: visitorCountLabel,
                       checkedInToday: _checkedInToday,
                       onAttendance: () => _openAttendance(context),
                       onAdReward:
@@ -715,10 +835,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onSaveForCoding: kIsWeb
                           ? null
                           : _saveAllLocalStateForCoding,
-                      onAccountSettings:
-                          widget.localAccountSession != null ||
-                              (AppConfig.supabaseEnabled &&
-                                  widget.userId != 'local-guest')
+                      onAccountSettings: widget.localAccountSession != null
                           ? _openAccountSettings
                           : null,
                       onMakingNotes: () =>
@@ -734,6 +851,47 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: const LinearProgressIndicator(minHeight: 2),
                       ),
                     ],
+                    if (_giftBanners.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgCard.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.cardBorder.withValues(
+                                    alpha: 0.45,
+                                  ),
+                                ),
+                              ),
+                              child: const Text(
+                                '게시 이벤트 보상은 게시 직후 자동으로 가방에 반영돼요. '
+                                '환영·출석 등 「받기」가 보이는 배너는 눌러야 적용돼요.',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ),
+                            for (final b in _giftBanners)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _GiftBannerCard(
+                                  data: b,
+                                  onClaim: () => _claimGiftBanner(b.id),
+                                  onClose: () => _removeGiftBanner(b.id),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     Expanded(
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 380),
@@ -757,19 +915,54 @@ class _HomeScreenState extends State<HomeScreen> {
                             ownedKoreaMajorCardIds: ownedKoreaMajorCardIds,
                             feedRepository: _feed,
                             onNeedLogin: _needLogin,
-                            onPostedToFeed: _onPostedToFeed,
+                            onPostedToFeed: _onPostedTarotSpreadToFeed,
                             workspaceFlushSignal: kIsWeb
                                 ? null
                                 : _workspaceFlushSignal,
                           ),
+                          MainTab.todayTarot => TodayTarotScreen(
+                            key: const ValueKey('today-tarot-tab'),
+                            userId: widget.userId,
+                            displayName: helloName,
+                            avatarEmojiOrUrl: avatarForFeed,
+                            cardBackImageSrc: _resolveEquippedCardBackThumb(
+                              _profile?.equippedCardBack ??
+                                  defaultEquippedCardBack,
+                            ),
+                            emptySlotImageSrc: equippedSlotDecorationSrc,
+                            feed: _feed,
+                            onPosted: _onPostedTodayTarotToFeed,
+                            embeddedInHomeShell: true,
+                          ),
+                          MainTab.todayTarotFeed =>
+                            _feed == null
+                                ? const SimpleTabPage(
+                                    key: ValueKey('today-tarot-feed-off'),
+                                    emoji: '📿',
+                                    title: '오늘의 게시',
+                                    subtitle: '피드를 불러오지 못했어요. 앱을 다시 실행해 주세요.',
+                                  )
+                                : FeedTab(
+                                    key: ValueKey(
+                                      'today-tarot-feed-$_feedReloadToken',
+                                    ),
+                                    feed: _feed!,
+                                    currentUserId: uid,
+                                    displayName: helloName,
+                                    avatar: avatarForFeed,
+                                    onNeedLogin: _needLogin,
+                                    fixedTagFilterKey:
+                                        kFeedTagTodayTarotMatchKey,
+                                    listHeaderTitle:
+                                        '#오늘의타로 로 올린 글만 보여요 · 아래에서 정렬 변경 가능',
+                                  ),
                           MainTab.feed =>
                             _feed == null
                                 ? const SimpleTabPage(
                                     key: ValueKey('feed-off'),
                                     emoji: '📝',
                                     title: '게시물',
-                                    subtitle:
-                                        '베타: 서버(Supabase) 연동 시 피드를 불러옵니다.',
+                                    subtitle: '피드를 불러오지 못했어요. 앱을 다시 실행해 주세요.',
                                   )
                                 : FeedTab(
                                     key: ValueKey('feed-$_feedReloadToken'),
@@ -778,30 +971,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                     displayName: helloName,
                                     avatar: avatarForFeed,
                                     onNeedLogin: _needLogin,
+                                    fixedTagFilterKey:
+                                        kFeedTagTarotSpreadMatchKey,
+                                    listHeaderTitle:
+                                        '타로 탭에서 캡처해 올린 글만 보여요 (#타로스프레드) · 정렬 변경 가능',
                                   ),
-                          MainTab.chat =>
-                            _usesLocalDataLayer
-                                ? StandaloneChatTab(
-                                    key: const ValueKey('chat-standalone'),
-                                    displayName: helloName,
-                                    userId: uid,
-                                    emoticonRepo: _emoticonRepo!,
-                                  )
-                                : ChatTab(
-                                    key: ValueKey('chat-$uid'),
-                                    userId: uid,
-                                    displayName: helloName,
-                                    avatarUrl: widget.avatarUrl,
-                                    emoticonRepo: _emoticonRepo!,
-                                    onNeedLogin: _needLogin,
-                                  ),
+                          MainTab.chat => StandaloneChatTab(
+                            key: const ValueKey('chat-standalone'),
+                            displayName: helloName,
+                            userId: uid,
+                            emoticonRepo: _emoticonRepo!,
+                          ),
                           MainTab.shop =>
                             _shopRepo == null
                                 ? const SimpleTabPage(
                                     key: ValueKey('shop-off'),
                                     emoji: '🏪',
                                     title: '상점',
-                                    subtitle: '베타: Supabase 연동 시 상점이 열립니다.',
+                                    subtitle: '상점 데이터를 불러오지 못했어요.',
                                   )
                                 : ShopTab(
                                     key: ValueKey('shop-$uid'),
@@ -816,74 +1003,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                     emoticonRepo: _emoticonRepo!,
                                     emoticonPacks: _emoticonPacks,
                                     ownedEmoticonIds: _ownedEmoticonIds,
-                                    surpriseGiftOffer: _surpriseGiftOffer,
-                                    onClaimSurpriseGift: (offer) async {
-                                      final shop = _shopRepo;
-                                      if (shop == null || !mounted) {
-                                        return;
-                                      }
-                                      final result = await shop
-                                          .claimSurpriseGift(uid, offer);
-                                      if (!mounted) {
-                                        return;
-                                      }
-                                      await _refreshShop();
-                                      if (!mounted) {
-                                        return;
-                                      }
-                                      final messenger =
-                                          _scaffoldMessengerKey.currentState;
-                                      switch (result) {
-                                        case ClaimSurpriseGiftResult.granted:
-                                          messenger?.showSnackBar(
-                                            const SnackBar(
-                                              content: Text('깜짝 선물을 받았어요!'),
-                                            ),
-                                          );
-                                        case ClaimSurpriseGiftResult
-                                            .alreadyOwned:
-                                          messenger?.showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                '이미 가방에 있는 품목이에요. 중복 지급 없이 다음 깜짝 선물 주기로 넘어갔어요.',
-                                              ),
-                                            ),
-                                          );
-                                        case ClaimSurpriseGiftResult.failed:
-                                          messenger?.showSnackBar(
-                                            const SnackBar(
-                                              content: Text('선물을 받지 못했어요.'),
-                                            ),
-                                          );
-                                      }
-                                    },
                                     onOpenPersonalShop: () =>
                                         unawaited(_openPersonalShop(context)),
                                     onBetaAdReward:
                                         AppConfig.showBetaStarAdRewardMenu
                                         ? () =>
                                               unawaited(_openAdReward(context))
-                                        : null,
-                                    onOpenShopAdmin:
-                                        _localShop != null &&
-                                            shopAdminGateAllowsCurrentUser()
-                                        ? () async {
-                                            await Navigator.of(
-                                              context,
-                                              rootNavigator: true,
-                                            ).push<void>(
-                                              MaterialPageRoute<void>(
-                                                builder: (c) => ShopAdminScreen(
-                                                  repo: _localShop!,
-                                                  workspaceFlushSignal:
-                                                      _workspaceFlushSignal,
-                                                ),
-                                              ),
-                                            );
-                                            if (context.mounted) {
-                                              await _refreshShop();
-                                            }
-                                          }
                                         : null,
                                   ),
                           MainTab.bag =>
@@ -892,7 +1017,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     key: ValueKey('bag-off'),
                                     emoji: '🎒',
                                     title: '가방',
-                                    subtitle: '베타: Supabase 연동 시 보유품을 표시합니다.',
+                                    subtitle: '가방 데이터를 불러오지 못했어요.',
                                   )
                                 : BagTab(
                                     key: ValueKey('bag-$uid'),
@@ -904,6 +1029,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ownedEmoticonIds: _ownedEmoticonIds,
                                     onRefresh: _refreshShop,
                                     onNeedLogin: _needLogin,
+                                    onOpenPersonalShop: () =>
+                                        unawaited(_openPersonalShop(context)),
                                   ),
                           MainTab.event =>
                             _eventRepo == null
@@ -911,8 +1038,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     key: ValueKey('event-off'),
                                     emoji: '🎁',
                                     title: '이벤트',
-                                    subtitle:
-                                        '베타: Supabase 연동 시 이벤트·공지를 불러옵니다.',
+                                    subtitle: '이벤트 안내를 불러오지 못했어요.',
                                   )
                                 : EventTab(
                                     key: ValueKey('event-$uid'),
@@ -926,6 +1052,119 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GiftBannerData {
+  const _GiftBannerData({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.accentColor,
+    this.claimLabel,
+    this.claiming = false,
+    this.claimed = false,
+  });
+
+  final String id;
+  final String title;
+  final String message;
+  final Color accentColor;
+  final String? claimLabel;
+  final bool claiming;
+  final bool claimed;
+
+  _GiftBannerData copyWith({bool? claiming, bool? claimed}) {
+    return _GiftBannerData(
+      id: id,
+      title: title,
+      message: message,
+      accentColor: accentColor,
+      claimLabel: claimLabel,
+      claiming: claiming ?? this.claiming,
+      claimed: claimed ?? this.claimed,
+    );
+  }
+}
+
+class _GiftBannerCard extends StatelessWidget {
+  const _GiftBannerCard({
+    required this.data,
+    required this.onClaim,
+    required this.onClose,
+  });
+
+  final _GiftBannerData data;
+  final VoidCallback onClaim;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.uniqueItemSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: data.accentColor, width: 1.4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('🎁', style: TextStyle(fontSize: 18, color: data.accentColor)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.title,
+                    style: TextStyle(
+                      color: data.accentColor,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    data.message,
+                    style: const TextStyle(
+                      color: AppColors.textOnLightCard,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (data.claimLabel != null) ...[
+              const SizedBox(width: 8),
+              FilledButton.tonal(
+                onPressed: data.claiming || data.claimed ? null : onClaim,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(56, 32),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: AppColors.uniqueItemSurface,
+                  foregroundColor: AppColors.textOnLightCard,
+                ),
+                child: Text(
+                  data.claimed
+                      ? '받음'
+                      : (data.claiming ? '처리중' : data.claimLabel!),
+                ),
+              ),
+            ],
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: AppColors.textSecondary,
+              tooltip: '닫기',
+            ),
+          ],
         ),
       ),
     );

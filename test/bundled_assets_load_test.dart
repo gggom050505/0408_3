@@ -44,6 +44,7 @@ void main() {
         defaultThemeId,
         koreanClayThemeId,
         koreaTraditionalMajorThemeId,
+        majorClayThemeId,
       ];
       final uniqueCardPaths = <String>{};
       for (final card in tarotDeck) {

@@ -22,6 +22,17 @@ enum FeedSortMode {
   newest,
   oldest,
   popular,
+  /// 본문 `합계 N점` 파싱(오늘의 타로 게시). 없으면 맨 아래.
+  tarotScore,
+}
+
+/// 오늘의 타로 게시 본문에서 합계 점수만 추출. 없으기 null.
+int? parseTodayTarotTotalScoreFromPostContent(String content) {
+  final m = RegExp(r'합계\s*(\d+)\s*점').firstMatch(content);
+  if (m == null) {
+    return null;
+  }
+  return int.tryParse(m.group(1)!);
 }
 
 List<FeedPost> orderedFeedPosts(List<FeedPost> posts, FeedSortMode sort) {
@@ -36,6 +47,19 @@ List<FeedPost> orderedFeedPosts(List<FeedPost> posts, FeedSortMode sort) {
         final h = b.heartCount.compareTo(a.heartCount);
         if (h != 0) {
           return h;
+        }
+        return b.id.compareTo(a.id);
+      });
+    case FeedSortMode.tarotScore:
+      copy.sort((a, b) {
+        final sa = parseTodayTarotTotalScoreFromPostContent(a.content);
+        final sb = parseTodayTarotTotalScoreFromPostContent(b.content);
+        if (sa != null || sb != null) {
+          final va = sa ?? -1;
+          final vb = sb ?? -1;
+          if (va != vb) {
+            return vb.compareTo(va);
+          }
         }
         return b.id.compareTo(a.id);
       });
@@ -74,6 +98,10 @@ class FeedTab extends StatefulWidget {
     required this.displayName,
     required this.avatar,
     required this.onNeedLogin,
+
+    /// 설정 시 태그 필터가 고정되고, 아래 칩 행은 숨깁니다. (GNB «오늘의 게시» 전용)
+    this.fixedTagFilterKey,
+    this.listHeaderTitle,
   });
 
   final FeedDataSource feed;
@@ -81,6 +109,12 @@ class FeedTab extends StatefulWidget {
   final String displayName;
   final String avatar;
   final VoidCallback onNeedLogin;
+
+  /// 예: `'오늘의타로'`
+  final String? fixedTagFilterKey;
+
+  /// 목록 위 안내 한 줄(고정 필터 탭용)
+  final String? listHeaderTitle;
 
   @override
   State<FeedTab> createState() => _FeedTabState();
@@ -94,12 +128,25 @@ class _FeedTabState extends State<FeedTab> {
   /// `null`이면 태그 필터 «전체».
   String? _selectedTagKey;
 
+  bool get _tagFilterLocked => widget.fixedTagFilterKey != null;
+
   @override
   void initState() {
     super.initState();
-    unawaited(_restoreFeedSort());
+    if (widget.fixedTagFilterKey != null) {
+      _selectedTagKey = widget.fixedTagFilterKey;
+      _sort = widget.fixedTagFilterKey == kFeedTagTodayTarotMatchKey
+          ? FeedSortMode.tarotScore
+          : FeedSortMode.newest;
+    } else {
+      unawaited(_restoreFeedSort());
+    }
     _load();
   }
+
+  bool get _showTarotScoreSort =>
+      widget.fixedTagFilterKey == null ||
+      widget.fixedTagFilterKey == kFeedTagTodayTarotMatchKey;
 
   Future<void> _restoreFeedSort() async {
     final name = await LocalAppPreferences.getFeedSortName();
@@ -338,72 +385,116 @@ class _FeedTabState extends State<FeedTab> {
         ),
       );
     }
-    final ordered = orderedFeedPosts(_posts, _sort);
+    final effectiveTag = _tagFilterLocked ? widget.fixedTagFilterKey : _selectedTagKey;
+    final effectiveSort =
+        !_showTarotScoreSort && _sort == FeedSortMode.tarotScore
+            ? FeedSortMode.newest
+            : _sort;
+    final ordered = orderedFeedPosts(_posts, effectiveSort);
     final filtered =
-        ordered.where((p) => _feedPostMatchesTagFilter(p, _selectedTagKey)).toList();
+        ordered.where((p) => _feedPostMatchesTagFilter(p, effectiveTag)).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.listHeaderTitle != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 18, color: AppColors.accentPurple),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.listHeaderTitle!,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+          padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
           child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
+            spacing: 6,
+            runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 '정렬',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: AppColors.textSecondary,
+                      fontSize: 12,
                     ),
               ),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SegmentedButton<FeedSortMode>(
                   showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    textStyle: WidgetStateProperty.all(
+                      const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  segments: [
+                    const ButtonSegment(
                       value: FeedSortMode.newest,
                       label: Text('최신순'),
-                      icon: Icon(Icons.schedule, size: 16),
+                      icon: Icon(Icons.schedule, size: 14),
                     ),
-                    ButtonSegment(
+                    const ButtonSegment(
                       value: FeedSortMode.oldest,
                       label: Text('오래된순'),
-                      icon: Icon(Icons.history, size: 16),
+                      icon: Icon(Icons.history, size: 14),
                     ),
-                    ButtonSegment(
+                    const ButtonSegment(
                       value: FeedSortMode.popular,
-                      label: Text('인기순'),
-                      icon: Icon(Icons.favorite_outline, size: 16),
+                      label: Text('좋아요순'),
+                      icon: Icon(Icons.favorite_outline, size: 14),
                     ),
+                    if (_showTarotScoreSort)
+                      const ButtonSegment(
+                        value: FeedSortMode.tarotScore,
+                        label: Text('타로점수순'),
+                        icon: Icon(Icons.psychology_outlined, size: 14),
+                      ),
                   ],
-                  selected: {_sort},
+                  selected: {effectiveSort},
                   onSelectionChanged: (s) {
                     final mode = s.first;
                     setState(() => _sort = mode);
-                    unawaited(LocalAppPreferences.setFeedSortName(mode.name));
+                    if (!_tagFilterLocked) {
+                      unawaited(LocalAppPreferences.setFeedSortName(mode.name));
+                    }
                   },
                 ),
               ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 10,
-            children: [
-              for (final opt in kFeedTagChips)
-                _FeedTagPill(
-                  label: opt.label,
-                  selected: opt.matchKey == _selectedTagKey,
-                  onTap: () => setState(() => _selectedTagKey = opt.matchKey),
-                ),
-            ],
+        if (!_tagFilterLocked)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 2),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final opt in kFeedTagChips)
+                  _FeedTagPill(
+                    label: opt.label,
+                    selected: opt.matchKey == _selectedTagKey,
+                    onTap: () => setState(() => _selectedTagKey = opt.matchKey),
+                  ),
+              ],
+            ),
           ),
-        ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _load,
@@ -414,7 +505,7 @@ class _FeedTabState extends State<FeedTab> {
                     children: [
                       Center(
                         child: Text(
-                          _selectedTagKey == null
+                          effectiveTag == null
                               ? '게시물이 없습니다'
                               : '이 태그의 게시물이 없습니다',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -430,7 +521,7 @@ class _FeedTabState extends State<FeedTab> {
               itemBuilder: (context, i) {
                 final p = filtered[i];
                 return _PostTile(
-                  key: ValueKey('post-${p.id}-${_sort.name}-${_selectedTagKey ?? 'all'}'),
+                  key: ValueKey('post-${p.id}-${effectiveSort.name}-${effectiveTag ?? 'all'}'),
                   post: p,
                   assetOrigin: AppConfig.assetOrigin,
                   currentUserId: widget.currentUserId,
@@ -491,11 +582,12 @@ class _FeedTagPill extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Text(
               label,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
+                    fontSize: 12,
                     color: selected ? Colors.white : AppColors.textPrimary,
                     letterSpacing: -0.2,
                   ),

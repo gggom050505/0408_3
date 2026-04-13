@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../config/starter_gifts.dart'
+    show
+        kFirstSetupEmoticonGiftCount,
+        kFirstSetupOracleGiftCount,
+        kStarterWelcomeStarFragments;
 import '../standalone/data_sources.dart';
 import '../standalone/local_app_preferences.dart';
 import '../theme/app_colors.dart';
 
-/// 첫 가입 후 1회 — 기본 카드 뒷면·슬롯, 오라클 7장·이모티콘 8개(무작위) 지급.
+/// 첫 가입 후 1회 — 확인 시 ⭐·이모·오라클을 가방·채팅에 반영, 기본 뒷면·슬롯 장착.
 class FirstSetupWizardScreen extends StatefulWidget {
   const FirstSetupWizardScreen({
     super.key,
@@ -21,6 +26,7 @@ class FirstSetupWizardScreen extends StatefulWidget {
 
 class _FirstSetupWizardScreenState extends State<FirstSetupWizardScreen> {
   var _busy = false;
+  var _step = 0;
 
   Future<void> _complete() async {
     if (_busy) {
@@ -69,32 +75,64 @@ class _FirstSetupWizardScreenState extends State<FirstSetupWizardScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  '아래를 누르면 이렇게 맞춰 드려요.\n\n'
-                  '• 카드 뒷면·슬롯 테두리 → 기본 스타일로 장착\n'
-                  '• 오라클 카드 7장 → 계정마다 다른 무작위\n'
-                  '• 이모티콘 8개 → 무작위\n\n'
-                  '언제든 가방·상점에서 바꿀 수 있어요.',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.45,
+                if (_step == 0) ...[
+                  Text(
+                    '서비스로 아래를 드려요.\n\n'
+                    '• ⭐ 별조각 $kStarterWelcomeStarFragments개\n'
+                    '• 이모티콘 $kFirstSetupEmoticonGiftCount개 (무작위)\n'
+                    '• 오라클 카드 $kFirstSetupOracleGiftCount장 (무작위)\n\n'
+                    '다음 화면에서 「확인」을 누르면 가방과 채팅 이모에 반영돼요.\n'
+                    '카드 뒷면·슬롯은 기본 스타일로 맞춥니다.\n\n'
+                    '한국전통 메이저 조각 1장·무료 덱 등은 이미 가방에 들어 있을 수 있어요.',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.45,
+                    ),
                   ),
-                ),
+                ] else ...[
+                  Text(
+                    '지급 내용을 확인했어요.\n\n'
+                    '「확인하고 가방에 받기」를 누르면 ⭐·이모·오라클이 저장되고 '
+                    '가방 탭에서 바로 볼 수 있어요.',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
                 const Spacer(),
-                FilledButton(
-                  onPressed: _busy ? null : _complete,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.accentPurple,
+                if (_step == 0)
+                  FilledButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _step = 1),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.accentPurple,
+                    ),
+                    child: const Text('다음'),
+                  )
+                else ...[
+                  FilledButton(
+                    onPressed: _busy ? null : _complete,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.accentPurple,
+                    ),
+                    child: _busy
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('확인하고 가방에 받기'),
                   ),
-                  child: _busy
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('시작하기'),
-                ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: _busy ? null : () => setState(() => _step = 0),
+                    child: const Text('이전'),
+                  ),
+                ],
               ],
             ),
           ),

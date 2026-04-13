@@ -4,30 +4,35 @@ import 'dart:math' show Random;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
+import '../config/app_config.dart';
 import '../config/bundle_emoticon_catalog.dart';
+import '../config/bundled_card_deck_shop_catalog.dart';
 import '../config/korea_major_card_catalog.dart';
 import '../config/shop_random_prices.dart';
 import '../config/mat_shop_catalog.dart';
 import '../config/starter_gifts.dart'
     show
+        kStarterWelcomeStarFragments,
         pickFirstSetupEmoticonIds,
         pickFirstSetupOracleIds,
         starterEmoticonIdsForUser,
         starterKoreaMajorItemIdForUser;
 import '../data/card_back_shop_assets.dart';
 import '../data/card_themes.dart'
-    show defaultThemeId, koreaTraditionalMajorThemeId;
+    show
+        defaultThemeId,
+        koreaTraditionalMajorThemeId,
+        majorClayThemeId,
+        mixedMinorKoreaTraditionalMajorThemeId;
 import '../data/mat_themes.dart';
 import '../data/oracle_assets.dart';
 import '../data/slot_shop_assets.dart';
 import '../models/attendance_lucky_models.dart';
 import '../models/shop_models.dart';
-import '../models/surprise_gift_models.dart';
 import 'data_sources.dart';
 import 'attendance_lucky_sync.dart';
 import 'local_economy_integrity.dart';
 import 'local_json_store.dart';
-import 'surprise_gift_sync.dart';
 import 'shop_catalog_workspace.dart';
 
 /// 오프라인·베타 번들 상점·가방.
@@ -88,7 +93,6 @@ class LocalShopRepository implements ShopDataSource {
   var _catalogReady = false;
   var _userStateReady = false;
 
-  var _surpriseGiftState = SurpriseGiftState();
   var _attendanceLuckyState = AttendanceLuckyState();
 
   /// ⭐1 상품: UTC 날짜 — 같은 날 1건만.
@@ -98,20 +102,20 @@ class LocalShopRepository implements ShopDataSource {
   String? _starTwoPurchaseUtcYmd;
   var _starTwoPurchaseCount = 0;
 
+  /// [AppConfig.devGrantUserRequestPack] 1회 지급 완료 여부(저장본 `dev_grants` 또는 이번 기동에서 방금 적용).
+  var _devUserRequestPackApplied = false;
+
+  /// 접속 환영팩(⭐20 + 이모7 + 오라클8) 지급 완료 여부(현재 앱 세션에서 1회).
+  var _starterWelcomePackAppliedInSession = false;
+  var _starterWelcomePackJustApplied = false;
+
   /// 오라클 80종 — PNG는 `assets/oracle/`, 상점 썸네일은 `oracle_cards/oracle(n).png` 논리 경로.
   static List<ShopItemRow> _bundledOracleShopRows() =>
       bundledOracleShopCatalogRows();
 
   List<ShopItemRow> _defaultCatalog() {
     return [
-      ShopItemRow(
-        id: 'default',
-        name: '기본 카드 덱',
-        type: 'card',
-        price: 0,
-        thumbnailUrl: null,
-        isActive: true,
-      ),
+      ...bundledCardDeckShopRows(),
       ...koreaMajorCardShopCatalogRows(),
       ShopItemRow(
         id: 'default-card-back',
@@ -179,6 +183,8 @@ class LocalShopRepository implements ShopDataSource {
     _syncBundledSlotShopRowsFromCode();
     _mergeOracleShopItemsIfMissing();
     _syncBundledOracleShopRowsFromCode();
+    _syncBundledCardDeckRowsFromCode();
+    _ensureBundledCatalogRowsActive();
     _normalizeCatalogStarPrices();
     _syncMatShopNamesFromThemes();
     _catalogReady = true;
@@ -316,6 +322,71 @@ class LocalShopRepository implements ShopDataSource {
         name: b.name,
         type: e.type,
         price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: b.isActive,
+      );
+      changed = true;
+    }
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  /// [_defaultCatalog] 과 같은 id·type 조합이 JSON에서만 `is_active: false` 인 행을 다시 노출합니다.
+  void _ensureBundledCatalogRowsActive() {
+    final bundledByKey = <String, ShopItemRow>{
+      for (final r in _defaultCatalog()) '${r.id}\u{1e}${r.type}': r,
+    };
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      final b = bundledByKey['${e.id}\u{1e}${e.type}'];
+      if (b == null || !b.isActive) {
+        continue;
+      }
+      if (e.isActive) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: e.price,
+        thumbnailUrl: b.thumbnailUrl,
+        isActive: true,
+      );
+      changed = true;
+    }
+    if (changed) {
+      unawaited(_persistCatalog());
+    }
+  }
+
+  /// 무료 덱 3종(기본·혼합·클레이)이 예전 JSON에서 숨김 처리된 경우 번들과 맞춥니다.
+  void _syncBundledCardDeckRowsFromCode() {
+    final bundled = bundledCardDeckShopRows();
+    final byId = {for (final r in bundled) r.id: r};
+    var changed = false;
+    for (var i = 0; i < _catalogItems.length; i++) {
+      final e = _catalogItems[i];
+      if (e.type != 'card') {
+        continue;
+      }
+      final b = byId[e.id];
+      if (b == null) {
+        continue;
+      }
+      if (e.name == b.name &&
+          e.thumbnailUrl == b.thumbnailUrl &&
+          e.price == b.price &&
+          e.isActive == b.isActive) {
+        continue;
+      }
+      _catalogItems[i] = ShopItemRow(
+        id: e.id,
+        name: b.name,
+        type: e.type,
+        price: b.price,
         thumbnailUrl: b.thumbnailUrl,
         isActive: b.isActive,
       );
@@ -608,7 +679,7 @@ class LocalShopRepository implements ShopDataSource {
   }
 
   /// 무결성 실패·초기화 시 생성자와 동일한 경제 상태.
-  void _resetEconomyToFactoryForUser() {
+  Future<void> _resetEconomyToFactoryForUser() async {
     _profile = UserProfileRow(
       id: _userId,
       starFragments: kInitialStarFragments,
@@ -638,12 +709,13 @@ class LocalShopRepository implements ShopDataSource {
         ),
       );
     _emoticonOwned.clear();
-    _surpriseGiftState = SurpriseGiftState();
     _attendanceLuckyState = AttendanceLuckyState();
     _starOnePurchaseUtcYmd = null;
     _starTwoPurchaseUtcYmd = null;
     _starTwoPurchaseCount = 0;
-    _ensureStarterGifts();
+    _devUserRequestPackApplied = false;
+    _starterWelcomePackAppliedInSession = false;
+    await _ensureStarterGifts();
   }
 
   Future<void> _ensureUserStateLoaded() async {
@@ -684,7 +756,7 @@ class LocalShopRepository implements ShopDataSource {
                 debugPrint(
                   'LocalShopRepository: economy 무결성 실패 → $_userId 기본 경제 상태로 복구',
                 );
-                _resetEconomyToFactoryForUser();
+                await _resetEconomyToFactoryForUser();
                 await _persistUserState();
                 applyFile = false;
               }
@@ -740,12 +812,6 @@ class LocalShopRepository implements ShopDataSource {
                 }
               }
             }
-            final sg = decoded['surprise_gift'];
-            if (sg is Map) {
-              _surpriseGiftState = SurpriseGiftState.fromJson(
-                Map<String, dynamic>.from(sg),
-              );
-            }
             final al = decoded['attendance_lucky'];
             if (al is Map) {
               _attendanceLuckyState = AttendanceLuckyState.fromJson(
@@ -767,6 +833,10 @@ class LocalShopRepository implements ShopDataSource {
               _starTwoPurchaseUtcYmd = null;
               _starTwoPurchaseCount = 0;
             }
+            final dg = decoded['dev_grants'];
+            if (dg is Map && dg['user_request_pack_v1'] == true) {
+              _devUserRequestPackApplied = true;
+            }
           }
         }
       }
@@ -774,9 +844,54 @@ class LocalShopRepository implements ShopDataSource {
     _migrateRetiredKoreanClayUserState();
     _migrateKoreaTraditionalFullDeckToPieces();
     _migrateKoreaEquippedIfNoPieces();
+    _ensureCoreOwnedItems();
     _ensureDefaultSlotOwned();
-    _ensureStarterGifts();
+    await _ensureStarterGifts();
+    await _applyStarterWelcomePackOnce();
+    await _maybeApplyDevUserRequestPackOnce();
     _userStateReady = true;
+  }
+
+  /// 저장본 누락/마이그레이션 오류로 기본 보유품이 비었을 때 자동 복구합니다.
+  void _ensureCoreOwnedItems() {
+    var dirty = false;
+    bool hasOwned(String itemId, String itemType) =>
+        _owned.any((e) => e.itemId == itemId && e.itemType == itemType);
+    if (!hasOwned('default', 'card')) {
+      _owned.add(
+        UserItemRow(itemId: 'default', itemType: 'card', purchasedAt: _now),
+      );
+      dirty = true;
+    }
+    if (!hasOwned('default-mint', 'mat')) {
+      _owned.add(
+        UserItemRow(itemId: 'default-mint', itemType: 'mat', purchasedAt: _now),
+      );
+      dirty = true;
+    }
+    if (!hasOwned('default-card-back', 'card_back')) {
+      _owned.add(
+        UserItemRow(
+          itemId: 'default-card-back',
+          itemType: 'card_back',
+          purchasedAt: _now,
+        ),
+      );
+      dirty = true;
+    }
+    if (!hasOwned(kDefaultEquippedSlotId, 'slot')) {
+      _owned.add(
+        UserItemRow(
+          itemId: kDefaultEquippedSlotId,
+          itemType: 'slot',
+          purchasedAt: _now,
+        ),
+      );
+      dirty = true;
+    }
+    if (dirty) {
+      unawaited(_persistUserState());
+    }
   }
 
   /// 예전 저장본에 슬롯 보유가 없으면 기본 무료 슬롯만 지급합니다.
@@ -844,8 +959,34 @@ class LocalShopRepository implements ShopDataSource {
   }
 
   /// 한국전통 조각 1장 — 유저마다 다른 무작위(시드 고정). 오라클·이모는 [completeFirstSetupWizard].
-  void _ensureStarterGifts() {
+  Future<void> _ensureStarterGifts() async {
     var dirty = false;
+    if (!_owned.any(
+      (e) =>
+          e.itemType == 'card' &&
+          e.itemId == mixedMinorKoreaTraditionalMajorThemeId,
+    )) {
+      _owned.add(
+        UserItemRow(
+          itemId: mixedMinorKoreaTraditionalMajorThemeId,
+          itemType: 'card',
+          purchasedAt: _now,
+        ),
+      );
+      dirty = true;
+    }
+    if (!_owned.any(
+      (e) => e.itemType == 'card' && e.itemId == majorClayThemeId,
+    )) {
+      _owned.add(
+        UserItemRow(
+          itemId: majorClayThemeId,
+          itemType: 'card',
+          purchasedAt: _now,
+        ),
+      );
+      dirty = true;
+    }
     final koreaGift = starterKoreaMajorItemIdForUser(_userId);
     if (!_owned.any(
       (e) => e.itemType == 'korea_major_card' && e.itemId == koreaGift,
@@ -860,8 +1001,100 @@ class LocalShopRepository implements ShopDataSource {
       dirty = true;
     }
     if (dirty) {
-      unawaited(_persistUserState());
+      await _persistUserState();
     }
+  }
+
+  /// 접속 환영팩(⭐20 + 이모7 + 오라클8) — 앱 세션당 1회 자동 지급.
+  Future<void> _applyStarterWelcomePackOnce() async {
+    if (_starterWelcomePackAppliedInSession) {
+      return;
+    }
+    final ts = DateTime.now().toUtc().toIso8601String();
+    final oracleHave = _owned
+        .where((e) => e.itemType == 'oracle_card')
+        .map((e) => e.itemId)
+        .toSet();
+    for (final id in pickFirstSetupOracleIds(_userId, oracleHave)) {
+      if (_owned.any((e) => e.itemId == id && e.itemType == 'oracle_card')) {
+        continue;
+      }
+      _owned.add(
+        UserItemRow(itemId: id, itemType: 'oracle_card', purchasedAt: ts),
+      );
+    }
+    final emoHave = {..._emoticonOwned};
+    for (final id in pickFirstSetupEmoticonIds(_userId, emoHave)) {
+      if (_emoticonOwned.contains(id)) {
+        continue;
+      }
+      _emoticonOwned.add(id);
+    }
+    _profile = UserProfileRow(
+      id: _profile.id,
+      starFragments: _profile.starFragments + kStarterWelcomeStarFragments,
+      equippedCard: _profile.equippedCard,
+      equippedMat: _profile.equippedMat,
+      equippedCardBack: _profile.equippedCardBack,
+      equippedSlot: _profile.equippedSlot,
+    );
+    _starterWelcomePackAppliedInSession = true;
+    _starterWelcomePackJustApplied = true;
+    await _persistUserState();
+  }
+
+  /// 홈에서 1회 알림용으로 소비합니다.
+  bool consumeStarterWelcomePackJustAppliedFlag() {
+    final v = _starterWelcomePackJustApplied;
+    _starterWelcomePackJustApplied = false;
+    return v;
+  }
+
+  /// 디버그 전용 — [AppConfig.devGrantUserRequestPack] 이 켜져 있고 아직 적용 전일 때만.
+  Future<void> _maybeApplyDevUserRequestPackOnce() async {
+    if (!AppConfig.devGrantUserRequestPack || _devUserRequestPackApplied) {
+      return;
+    }
+    final onlyUserId = AppConfig.devGrantUserRequestPackOnlyUserId;
+    if (onlyUserId.isNotEmpty && _userId != onlyUserId) {
+      return;
+    }
+    _devUserRequestPackApplied = true;
+    final ts = DateTime.now().toUtc().toIso8601String();
+    for (var i = 1; i <= 12; i++) {
+      final id = 'oracle-card-${i.toString().padLeft(2, '0')}';
+      if (!_owned.any((e) => e.itemId == id && e.itemType == 'oracle_card')) {
+        _owned.add(
+          UserItemRow(itemId: id, itemType: 'oracle_card', purchasedAt: ts),
+        );
+      }
+    }
+    for (var i = 0; i <= 9; i++) {
+      final id = koreaMajorCardShopItemId(i);
+      if (!_owned.any(
+        (e) => e.itemType == 'korea_major_card' && e.itemId == id,
+      )) {
+        _owned.add(
+          UserItemRow(
+            itemId: id,
+            itemType: 'korea_major_card',
+            purchasedAt: ts,
+          ),
+        );
+      }
+    }
+    for (var i = 1; i <= 10; i++) {
+      _emoticonOwned.add('emo_asset_${i.toString().padLeft(2, '0')}');
+    }
+    _profile = UserProfileRow(
+      id: _profile.id,
+      starFragments: _profile.starFragments + 50,
+      equippedCard: _profile.equippedCard,
+      equippedMat: _profile.equippedMat,
+      equippedCardBack: _profile.equippedCardBack,
+      equippedSlot: _profile.equippedSlot,
+    );
+    await _persistUserState();
   }
 
   Future<void> ensureUserEconomyReady() async {
@@ -946,7 +1179,8 @@ class LocalShopRepository implements ShopDataSource {
       },
       'owned': _owned.map((e) => e.toJson()).toList(),
       'emoticons': emoList,
-      'surprise_gift': _surpriseGiftState.toJson(),
+      if (_devUserRequestPackApplied)
+        'dev_grants': {'user_request_pack_v1': true},
       'attendance_lucky': _attendanceLuckyState.toJson(),
       if (_starOnePurchaseUtcYmd != null && _starOnePurchaseUtcYmd!.isNotEmpty)
         'star_one_purchase_utc_ymd': _starOnePurchaseUtcYmd,
@@ -1020,7 +1254,7 @@ class LocalShopRepository implements ShopDataSource {
       return;
     }
     await ensureUserEconomyReady();
-    _ensureStarterGifts();
+    await _ensureStarterGifts();
   }
 
   @override
@@ -1117,6 +1351,8 @@ class LocalShopRepository implements ShopDataSource {
     } else if (type == 'card') {
       if (itemId != defaultThemeId &&
           itemId != koreaTraditionalMajorThemeId &&
+          itemId != mixedMinorKoreaTraditionalMajorThemeId &&
+          itemId != majorClayThemeId &&
           !owns(itemId, 'card')) {
         return null;
       }
@@ -1182,19 +1418,12 @@ class LocalShopRepository implements ShopDataSource {
     );
 
     final catalog = _catalogItems.where((e) => e.isActive).toList();
-    final blockSurprise = <String>{};
-    final spId = _surpriseGiftState.pendingItemId;
-    final spType = _surpriseGiftState.pendingItemType;
-    if (spId != null && spType != null) {
-      blockSurprise.add(gggomShopOwnedKey(spId, spType));
-    }
     final lucky = AttendanceLuckySync.evaluate(
       state: _attendanceLuckyState,
       catalog: catalog,
       owned: _owned,
       rng: Random(),
       nowUtc: DateTime.now().toUtc(),
-      doNotGrantKeys: blockSurprise.isEmpty ? null : blockSurprise,
     );
 
     String? luckyName;
@@ -1238,20 +1467,7 @@ class LocalShopRepository implements ShopDataSource {
         itemId: kDefaultEquippedSlotId,
         type: 'slot',
       );
-      final oracleHave = _owned
-          .where((e) => e.itemType == 'oracle_card')
-          .map((e) => e.itemId)
-          .toSet();
-      for (final id in pickFirstSetupOracleIds(userId, oracleHave)) {
-        _owned.add(
-          UserItemRow(itemId: id, itemType: 'oracle_card', purchasedAt: _now),
-        );
-      }
-      final emoHave = {..._emoticonOwned};
-      for (final id in pickFirstSetupEmoticonIds(userId, emoHave)) {
-        _emoticonOwned.add(id);
-      }
-      await _persistUserState();
+      await _applyStarterWelcomePackOnce();
       return true;
     } catch (_) {
       return false;
@@ -1280,74 +1496,6 @@ class LocalShopRepository implements ShopDataSource {
     await _persistUserState();
     return _profile;
   }
-
-  @override
-  Future<SurpriseGiftOffer?> syncSurpriseGift(
-    String userId,
-    List<ShopItemRow> activeCatalog,
-  ) async {
-    if (userId != _userId) {
-      return null;
-    }
-    await ensureUserEconomyReady();
-    final r = SurpriseGiftSync.run(
-      state: _surpriseGiftState,
-      catalog: activeCatalog,
-      owned: _owned,
-      rng: Random(),
-      nowUtc: DateTime.now().toUtc(),
-    );
-    if (r.stateChanged) {
-      await _persistUserState();
-    }
-    return r.offer;
-  }
-
-  @override
-  Future<ClaimSurpriseGiftResult> claimSurpriseGift(
-    String userId,
-    SurpriseGiftOffer offer,
-  ) async {
-    if (userId != _userId) {
-      return ClaimSurpriseGiftResult.failed;
-    }
-    await ensureUserEconomyReady();
-    if (_surpriseGiftState.pendingItemId != offer.itemId ||
-        _surpriseGiftState.pendingItemType != offer.itemType) {
-      return ClaimSurpriseGiftResult.failed;
-    }
-    final ownedKeys = _owned
-        .map((e) => gggomShopOwnedKey(e.itemId, e.itemType))
-        .toSet();
-    if (ownedKeys.contains(gggomShopOwnedKey(offer.itemId, offer.itemType))) {
-      SurpriseGiftSync.clearPendingAndScheduleNext(
-        state: _surpriseGiftState,
-        nowUtc: DateTime.now().toUtc(),
-        rng: Random(),
-      );
-      await _persistUserState();
-      return ClaimSurpriseGiftResult.alreadyOwned;
-    }
-    if (!_catalogItems.any(
-      (e) => e.id == offer.itemId && e.type == offer.itemType && e.isActive,
-    )) {
-      return ClaimSurpriseGiftResult.failed;
-    }
-    _owned.add(
-      UserItemRow(
-        itemId: offer.itemId,
-        itemType: offer.itemType,
-        purchasedAt: _now,
-      ),
-    );
-    SurpriseGiftSync.clearPendingAndScheduleNext(
-      state: _surpriseGiftState,
-      nowUtc: DateTime.now().toUtc(),
-      rng: Random(),
-    );
-    await _persistUserState();
-    return ClaimSurpriseGiftResult.granted;
-  }
 }
 
 /// 로컬 상점 행의 별조각 가격: 기본·데일리 품목은 0, 나머지 1~10.
@@ -1368,7 +1516,7 @@ int suggestedStarPriceForShopItem(ShopItemRow e) {
       if (e.id == 'default-card-back') {
         return 0;
       }
-      return gggomFixedStarPrice(e.id, min: 4, max: 6);
+      return cardBackShopStarPriceForId(e.id);
     case 'mat':
       if (e.id == MatThemeData.defaultId) {
         return 0;
@@ -1388,7 +1536,7 @@ int suggestedStarPriceForShopItem(ShopItemRow e) {
       if (e.id == kDefaultEquippedSlotId) {
         return 0;
       }
-      return gggomFixedStarPrice(e.id, min: 3, max: 5);
+      return slotShopStarPriceForId(e.id);
     default:
       if (e.price <= 0) {
         return 0;

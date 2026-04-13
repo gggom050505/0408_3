@@ -43,6 +43,21 @@ class LocalAccountSession {
   }
 }
 
+@immutable
+class LocalAccountIdentitySnapshot {
+  const LocalAccountIdentitySnapshot({
+    required this.loginKey,
+    required this.displayName,
+    required this.userId,
+    required this.createdAt,
+  });
+
+  final String loginKey;
+  final String displayName;
+  final String userId;
+  final DateTime? createdAt;
+}
+
 /// 기기 내 자체 계정(아이디·비밀번호). 서버 없이 [SharedPreferences]에만 저장합니다.
 class LocalAccountStore {
   LocalAccountStore._();
@@ -161,6 +176,7 @@ class LocalAccountStore {
     accounts[key] = {
       'userId': _newUserId(),
       'displayName': nick,
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
       'passwordHash': _hash(password, salt),
       'salt': salt,
     };
@@ -288,6 +304,35 @@ class LocalAccountStore {
     return (error: null, removedUserId: userId);
   }
 
+  /// 비밀번호를 잊어 **같은 아이디로 다시 가입**할 때만 사용합니다.
+  /// 검증 없이 이 기기의 계정 행만 지우므로, 호출 전에 사용자 확인이 필요합니다.
+  Future<({String? error, String? removedUserId})>
+      deleteAccountWithoutPasswordForReuse({
+    required String loginKey,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final accounts = _readAccountsMap(prefs);
+    final row = accounts[loginKey];
+    if (row is! Map) {
+      return (
+        error: '이 기기에 해당 아이디가 없어요. 아이디를 확인하거나 새로 회원 가입해 보세요.',
+        removedUserId: null,
+      );
+    }
+    final m = Map<String, dynamic>.from(row);
+    final userId = m['userId'] as String?;
+    if (userId == null || userId.isEmpty) {
+      return (error: '계정 데이터가 올바르지 않아요.', removedUserId: null);
+    }
+    accounts.remove(loginKey);
+    await prefs.setString(_kAccounts, jsonEncode(accounts));
+    final sess = await loadSession();
+    if (sess?.loginKey == loginKey) {
+      await clearSession();
+    }
+    return (error: null, removedUserId: userId);
+  }
+
   /// **회원 탈퇴 / 계정 삭제** — [removedUserId]가 필요 없을 때(예: 이미 세션에서 알 때).
   Future<String?> deleteAccount({
     required String loginKey,
@@ -298,5 +343,47 @@ class LocalAccountStore {
       password: password,
     );
     return r.error;
+  }
+
+  Future<List<LocalAccountIdentitySnapshot>> listAccountsByDisplayName(
+    String displayName,
+  ) async {
+    final nick = displayName.trim();
+    if (nick.isEmpty) {
+      return const [];
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final accounts = _readAccountsMap(prefs);
+    final out = <LocalAccountIdentitySnapshot>[];
+    accounts.forEach((rawLoginKey, rawRow) {
+      if (rawRow is! Map) return;
+      final row = Map<String, dynamic>.from(rawRow);
+      final rowNick = (row['displayName'] as String? ?? '').trim();
+      if (rowNick != nick) return;
+      final userId = (row['userId'] as String? ?? '').trim();
+      if (userId.isEmpty) return;
+      final createdAtRaw = row['createdAt'] as String?;
+      out.add(
+        LocalAccountIdentitySnapshot(
+          loginKey: rawLoginKey.toString(),
+          displayName: rowNick,
+          userId: userId,
+          createdAt: createdAtRaw == null
+              ? null
+              : DateTime.tryParse(createdAtRaw)?.toUtc(),
+        ),
+      );
+    });
+    out.sort((a, b) {
+      final aT = a.createdAt?.millisecondsSinceEpoch;
+      final bT = b.createdAt?.millisecondsSinceEpoch;
+      if (aT == null && bT == null) return a.loginKey.compareTo(b.loginKey);
+      if (aT == null) return 1;
+      if (bT == null) return -1;
+      final byTime = aT.compareTo(bT);
+      if (byTime != 0) return byTime;
+      return a.loginKey.compareTo(b.loginKey);
+    });
+    return out;
   }
 }

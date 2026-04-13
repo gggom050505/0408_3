@@ -24,7 +24,7 @@ class _LocalMsg {
   final String? emoticonId;
 }
 
-/// Supabase 실시간 채팅 대신 — 오프라인·베타 번들용 로컬 채팅. 대화는 기기에 저장되어 재실행 후에도 유지됩니다.
+/// 기기 저장 로컬 채팅(오프라인·베타 번들). 대화는 재실행 후에도 유지됩니다.
 class StandaloneChatTab extends StatefulWidget {
   const StandaloneChatTab({
     super.key,
@@ -48,11 +48,7 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
 
   Map<String, EmoticonRow> _emoById = {};
 
-  static _LocalMsg _welcomeBanner() => _LocalMsg(
-        text: '베타·오프라인 채팅입니다. 대화는 이 기기에 저장돼요. '
-            '아래 😊 버튼으로 이모티콘을 보낼 수 있어요.',
-        fromMe: false,
-      );
+  static const _legacyWelcomeText = '채팅에 오신 걸 환영해요. 아래 😊 버튼으로 이모티콘을 보낼 수 있어요.';
 
   String _storageFileName() {
     final safe = widget.userId.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
@@ -66,13 +62,9 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
   }
 
   Future<void> _bootstrap() async {
-    final hadSaved = await _tryRestore();
+    await _tryRestore();
     if (!mounted) {
       return;
-    }
-    if (!hadSaved) {
-      setState(() => _messages.add(_welcomeBanner()));
-      await _persistMessages();
     }
     await _loadEmoticonMap();
   }
@@ -97,20 +89,27 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
       if (!mounted) {
         return true;
       }
+      final restored = arr.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return _LocalMsg(
+          text: m['text'] as String? ?? '',
+          fromMe: m['from_me'] as bool? ?? false,
+          emoticonId: m['emoticon_id'] as String?,
+        );
+      }).where((m) {
+        // 이전 버전에서 자동 삽입된 환영 말풍선은 복원 시 제거합니다.
+        final text = m.text.trim();
+        final isLegacyWelcome =
+            !m.fromMe && m.emoticonId == null && text == _legacyWelcomeText;
+        return !isLegacyWelcome;
+      }).toList();
       setState(() {
         _messages
           ..clear()
-          ..addAll(
-            arr.map((e) {
-              final m = Map<String, dynamic>.from(e as Map);
-              return _LocalMsg(
-                text: m['text'] as String? ?? '',
-                fromMe: m['from_me'] as bool? ?? false,
-                emoticonId: m['emoticon_id'] as String?,
-              );
-            }),
-          );
+          ..addAll(restored);
       });
+      // 오래된 환영 말풍선이 제거된 상태를 즉시 저장해 재진입 시 다시 보이지 않게 합니다.
+      unawaited(_persistMessages());
       _scrollToEnd();
       return true;
     } catch (_) {
@@ -201,6 +200,41 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
     );
   }
 
+  Future<void> _confirmDeleteOwnMessage(int index) async {
+    if (index < 0 || index >= _messages.length) {
+      return;
+    }
+    final msg = _messages[index];
+    if (!msg.fromMe) {
+      return;
+    }
+    final isEmoticon = msg.emoticonId != null;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('채팅 삭제'),
+        content: Text(isEmoticon ? '내 이모티콘을 삭제할까요?' : '내 채팅을 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+    setState(() {
+      _messages.removeAt(index);
+    });
+    unawaited(_persistMessages());
+  }
+
   Widget _bubbleChild(_LocalMsg m) {
     if (m.emoticonId != null) {
       final row = _emoById[m.emoticonId!];
@@ -216,12 +250,12 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
       }
       return AdaptiveNetworkOrAssetImage(
         src: src,
-        width: 72,
-        height: 72,
+        width: 92,
+        height: 92,
         fit: BoxFit.contain,
         errorBuilder: (_, _, _) => Text(
           row?.name ?? '😊',
-          style: const TextStyle(fontSize: 40),
+          style: const TextStyle(fontSize: 48),
         ),
       );
     }
@@ -236,29 +270,6 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '💬 채팅 (베타·오프라인)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              Text(
-                '실시간 동기화·상대방과 대화는 Supabase 연동 빌드에서 이용해요. '
-                '여기서 나눈 대화는 이 기기에 저장되어 앱을 껐다 켜도 이어집니다.\n'
-                '이모티콘 PNG는 온라인일 때 gggom 웹과 같은 목록을 불러와요. '
-                '(오프라인이면 기본 이모지만 보일 수 있어요.)',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            ],
-          ),
-        ),
         const ChatMarqueeWarningBar(),
         Expanded(
           child: ListView.builder(
@@ -267,22 +278,35 @@ class _StandaloneChatTabState extends State<StandaloneChatTab> {
             itemCount: _messages.length,
             itemBuilder: (context, i) {
               final m = _messages[i];
+              final isEmoticon = m.emoticonId != null;
+              final content = isEmoticon
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _bubbleChild(m),
+                    )
+                  : Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      constraints: const BoxConstraints(maxWidth: 280),
+                      decoration: BoxDecoration(
+                        color: m.fromMe
+                            ? AppColors.accentPurple.withValues(alpha: 0.25)
+                            : Colors.white.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.cardBorder.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: _bubbleChild(m),
+                    );
               return Align(
                 alignment: m.fromMe ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  constraints: const BoxConstraints(maxWidth: 280),
-                  decoration: BoxDecoration(
-                    color: m.fromMe
-                        ? AppColors.accentPurple.withValues(alpha: 0.25)
-                        : Colors.white.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.cardBorder.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: _bubbleChild(m),
+                child: GestureDetector(
+                  onLongPress: m.fromMe ? () => unawaited(_confirmDeleteOwnMessage(i)) : null,
+                  child: content,
                 ),
               );
             },

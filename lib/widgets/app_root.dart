@@ -1,27 +1,16 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// 앱 세션: **일반 사용자**는 [LocalAccountSession](ID·비밀번호·기기 로컬).
 import '../config/app_config.dart';
 import '../config/gggom_runtime_site_config.dart';
-import '../config/shop_admin_gate.dart';
+import '../config/web_exit_confirm_guard.dart';
 import '../services/local_account_store.dart';
-import '../standalone/local_user_data_wipe.dart';
-import 'app_scaffold_messenger.dart';
 import 'home_screen.dart';
-import 'local_account_auth_screens.dart';
 import 'login_screen.dart';
 import 'splash_screen.dart';
-
-String _displayNameFromUser(User? user) {
-  final m = user?.userMetadata;
-  if (m == null) return '게스트';
-  final a = m['full_name'] ?? m['name'];
-  if (a is String && a.isNotEmpty) return a;
-  return '게스트';
-}
 
 class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
@@ -31,47 +20,101 @@ class AppRoot extends StatefulWidget {
 }
 
 class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
+  static const _sharedGoogleUserId = 'supabase:google-shared';
   var _showSplash = true;
   var _guestMode = false;
-  StreamSubscription<AuthState>? _authSub;
-  Session? _session;
   LocalAccountSession? _localSession;
+  User? _supabaseUser;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    if (AppConfig.supabaseEnabled) {
-      _session = Supabase.instance.client.auth.currentSession;
-      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-        setState(() {
-          _session = data.session;
-          if (data.session != null) {
-            _guestMode = false;
-            _localSession = null;
-          }
-        });
-        if (data.session != null) {
-          unawaited(() async {
-            await LocalAccountStore.instance.clearSession();
-            await LocalAccountStore.instance.setContinueAsGuest(false);
-          }());
-        }
-      });
+    if (AppConfig.skipLoginScreen) {
+      _guestMode = true;
     }
-    unawaited(_restoreLocalAppSession());
+    WidgetsBinding.instance.addObserver(this);
+    installWebExitConfirmGuard();
+    unawaited(_bootstrapSession());
   }
 
-  Future<void> _restoreLocalAppSession() async {
-    if (AppConfig.supabaseEnabled &&
-        Supabase.instance.client.auth.currentSession != null) {
-      return;
+  Future<void> _bootstrapSession() async {
+    // Google(Supabase) 세션을 먼저 복원 — 예전 로컬 ID 세션이 있어도 구글 계정이 우선입니다.
+    if (AppConfig.supabaseEnabled) {
+      await _restoreSupabaseSession();
     }
-    final s = await LocalAccountStore.instance.loadSession();
     if (!mounted) {
       return;
     }
-    if (_session != null) {
+    if (_supabaseUser != null) {
+      try {
+        await LocalAccountStore.instance.clearSession();
+      } catch (_) {}
+      return;
+    }
+    await _restoreLocalAppSession();
+    if (!mounted) {
+      return;
+    }
+    if (AppConfig.devWebSeedLocalAccountEnabled) {
+      await _maybeDevWebSeedLocalAccount();
+    }
+  }
+
+  Future<void> _restoreSupabaseSession() async {
+    if (!AppConfig.supabaseEnabled) {
+      return;
+    }
+    final session = Supabase.instance.client.auth.currentSession;
+    final user = session?.user;
+    if (!mounted || user == null) {
+      return;
+    }
+    setState(() {
+      _supabaseUser = user;
+      _guestMode = false;
+    });
+  }
+
+  Future<void> _maybeDevWebSeedLocalAccount() async {
+    if (_localSession != null || _guestMode || _supabaseUser != null) {
+      return;
+    }
+    final login = AppConfig.devWebSeedLogin;
+    final pass = AppConfig.devWebSeedPassword;
+    if (LocalAccountStore.instance.normalizeUsername(login) == null) {
+      debugPrint('GGGOM_DEV_WEB_SEED: login id 규칙에 맞지 않아요.');
+      return;
+    }
+    var s = await LocalAccountStore.instance.login(login, pass);
+    if (s == null) {
+      final err = await LocalAccountStore.instance.register(
+        username: login,
+        password: pass,
+        displayName: '동글아저씨',
+      );
+      if (err != null) {
+        debugPrint('GGGOM_DEV_WEB_SEED: register: $err');
+        return;
+      }
+      s = await LocalAccountStore.instance.login(login, pass);
+    }
+    if (s == null || !mounted) {
+      return;
+    }
+    await LocalAccountStore.instance.setContinueAsGuest(false);
+    await LocalAccountStore.instance.saveSession(s);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _localSession = s;
+      _guestMode = false;
+    });
+  }
+
+  Future<void> _restoreLocalAppSession() async {
+    final s = await LocalAccountStore.instance.loadSession();
+    if (!mounted) {
       return;
     }
     if (s != null) {
@@ -86,7 +129,7 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
       return;
     }
     final guest = await LocalAccountStore.instance.shouldContinueAsGuest();
-    if (!mounted || _session != null) {
+    if (!mounted) {
       return;
     }
     if (guest) {
@@ -96,8 +139,8 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    uninstallWebExitConfirmGuard();
     WidgetsBinding.instance.removeObserver(this);
-    _authSub?.cancel();
     super.dispose();
   }
 
@@ -110,67 +153,6 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
   }
 
   void _onSplashDone() => setState(() => _showSplash = false);
-
-  Future<void> _openLocalLogin() async {
-    final s = await Navigator.of(context).push<LocalAccountSession>(
-      MaterialPageRoute<LocalAccountSession>(
-        builder: (c) => const LocalLoginScreen(),
-      ),
-    );
-    if (s == null || !mounted) {
-      return;
-    }
-    await LocalAccountStore.instance.setContinueAsGuest(false);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _localSession = s;
-      _guestMode = false;
-    });
-  }
-
-  Future<void> _openRegister() async {
-    final s = await Navigator.of(context).push<LocalAccountSession>(
-      MaterialPageRoute<LocalAccountSession>(
-        builder: (c) => const RegisterAccountScreen(),
-      ),
-    );
-    if (s == null || !mounted) {
-      return;
-    }
-    await LocalAccountStore.instance.setContinueAsGuest(false);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _localSession = s;
-      _guestMode = false;
-    });
-  }
-
-  Future<void> _openWithdraw() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (c) => const LocalWithdrawScreen()),
-    );
-  }
-
-  Future<void> _openGoogleLogin() async {
-    if (!AppConfig.supabaseEnabled) {
-      return;
-    }
-    try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: AppConfig.oauthRedirectUrl,
-      );
-    } catch (e, st) {
-      debugPrint('Google OAuth: $e\n$st');
-      gggomScaffoldMessengerKey.currentState?.showSnackBar(
-        const SnackBar(content: Text('구글 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.')),
-      );
-    }
-  }
 
   Future<void> _signOut() async {
     if (_localSession != null) {
@@ -190,22 +172,14 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
       setState(() => _guestMode = false);
       return;
     }
-    if (!AppConfig.supabaseEnabled) return;
-    final uid =
-        _session?.user.id ?? Supabase.instance.client.auth.currentUser?.id;
-    if (uid != null && uid.isNotEmpty) {
-      try {
-        await wipeOAuthUserLocalArtifacts(uid);
-      } catch (e, st) {
-        debugPrint('wipeOAuthUserLocalArtifacts: $e\n$st');
+    if (_supabaseUser != null) {
+      if (AppConfig.supabaseEnabled) {
+        await Supabase.instance.client.auth.signOut();
       }
-    }
-    clearPendingAdminGoogleOAuth();
-    try {
-      await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
-    } catch (e, st) {
-      debugPrint('signOut(global): $e\n$st');
-      await Supabase.instance.client.auth.signOut();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _supabaseUser = null);
     }
   }
 
@@ -223,12 +197,10 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
       return SplashScreen(onComplete: _onSplashDone);
     }
 
-    if (_session != null) {
-      final user = _session!.user;
+    if (_supabaseUser != null) {
       return HomeScreen(
-        userId: user.id,
-        displayName: _displayNameFromUser(user),
-        avatarUrl: user.userMetadata?['avatar_url'] as String?,
+        userId: _sharedGoogleUserId,
+        displayName: _displayNameFromSupabase(),
         onSignOut: _signOut,
       );
     }
@@ -253,10 +225,33 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
     }
 
     return LoginScreen(
-      onOpenLocalLogin: _openLocalLogin,
-      onOpenRegister: _openRegister,
-      onOpenWithdraw: _openWithdraw,
-      onOpenGoogleLogin: AppConfig.supabaseEnabled ? _openGoogleLogin : null,
+      onContinueAsGuest: _continueAsGuest,
+      onOpenGoogleLogin: _openGoogleLogin,
     );
+  }
+
+  Future<void> _openGoogleLogin() async {
+    if (!AppConfig.googleLoginEnabled) {
+      return;
+    }
+    allowSingleNavigationWithoutConfirm();
+    final redirectTo =
+        kIsWeb ? Uri.base.origin : AppConfig.supabaseNativeRedirectUri;
+    await Supabase.instance.client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: redirectTo,
+    );
+  }
+
+  String _displayNameFromSupabase() {
+    return '공공곰';
+  }
+
+  Future<void> _continueAsGuest() async {
+    await LocalAccountStore.instance.setContinueAsGuest(true);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _guestMode = true);
   }
 }

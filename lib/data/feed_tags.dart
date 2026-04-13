@@ -6,9 +6,16 @@ class FeedTagChip {
   final String label;
 }
 
+/// GNB 「오늘의 게시」고정 필터 — [TodayTarotScreen] 게시만.
+const String kFeedTagTodayTarotMatchKey = '오늘의타로';
+
+/// 타로 탭 스프레드 캡처 게시([PostCaptureSheet]) — GNB 「게시물」고정 필터.
+const String kFeedTagTarotSpreadMatchKey = '타로스프레드';
+
 const kFeedTagChips = <FeedTagChip>[
   FeedTagChip(matchKey: null, label: '전체'),
-  FeedTagChip(matchKey: '오늘의타로', label: '#오늘의타로'),
+  FeedTagChip(matchKey: kFeedTagTodayTarotMatchKey, label: '#오늘의타로'),
+  FeedTagChip(matchKey: kFeedTagTarotSpreadMatchKey, label: '#타로스프레드'),
   FeedTagChip(matchKey: '연애운', label: '#연애운'),
   FeedTagChip(matchKey: '직장운', label: '#직장운'),
   FeedTagChip(matchKey: '시험운', label: '#시험운'),

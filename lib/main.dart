@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/app_config.dart';
 import 'config/desktop_init.dart';
+import 'services/web_bundled_data_seed.dart';
 import 'config/gggom_offline_landing.dart';
 import 'config/gggom_runtime_site_config.dart';
 import 'theme/app_colors.dart';
@@ -19,55 +20,50 @@ import 'widgets/site_access_gate.dart';
 // 웹(gggom0505.kr) 로그인·탭 기능 ↔ 플러터 복제 맵
 // -----------------------------------------------------------------------------
 // UI/버튼 구현은 모두 아래 파일에 있고, 본 main 은 "URL 로그인·세션·부팅"만 연결한다.
-// 한 파일에 수천 줄 복제는 유지보수·빌드에 불가능하므로, 진입점에서 Supabase·딥링크를
-// 공식 패턴으로 고정한다.
-//
 // | 웹/기능              | Dart 구현 |
 // |---------------------|-----------|
 // | 스플래시·랜딩        | `widgets/splash_screen.dart`, `config/gggom_offline_landing.dart` |
 // | 로그인(ID·회원가입·탈퇴)   | `widgets/login_screen.dart`, `widgets/local_account_auth_screens.dart`, `widgets/app_root.dart` |
-// | Supabase OAuth·세션(잔존) | 본 파일 `Supabase.initialize` + PKCE + `detectSessionInUri`, `app_config.oauthRedirectUrl` |
-// | 설치형·오프라인 베타 번들 | Supabase **없이** 실행 → `lib/standalone/*` + `StandaloneChatTab` (`home_screen.dart`) |
+// | 데이터 저장          | `lib/standalone/*` 로컬 JSON·기기 저장 (상점·피드·채팅·이벤트·출석) |
 // | GNB·탭              | `widgets/gnb.dart`, `widgets/home_screen.dart` |
 // | 타로·캡처·피드게시    | `widgets/tarot_tab.dart`, `widgets/post_capture_sheet.dart` |
 // | 오라클              | `widgets/oracle_modal.dart` |
 // | 게시물               | `widgets/feed_tab.dart` |
-// | 채팅                | `widgets/chat_tab.dart` |
+// | 채팅                | `widgets/standalone_chat_tab.dart` |
 // | 상점·가방            | `widgets/shop_tab.dart`, `widgets/bag_tab.dart` |
 // | 이벤트              | `widgets/event_tab.dart` |
 // | 출석                | `widgets/attendance_modal.dart` |
-// | 첫 가입 세팅        | `widgets/first_setup_wizard_screen.dart` — 뒷면·슬롯 기본, 오라클 7장·이모 8개 |
-// | 별조각 광고 | `widgets/ad_reward_sheet.dart` — `assets/advert/*.mp4` 1편 재생 → 「별조각 획득」 후 지급 · 10분 쿨타임 |
+// | 첫 가입 세팅        | `widgets/first_setup_wizard_screen.dart` — 확인 시 ⭐20·이모7·오라클8(`starter_gifts`), 뒷면·슬롯 → 가방 탭 |
+// | 별조각 광고 | `widgets/ad_reward_sheet.dart` — `assets/advert/*.mp4` 1편 재생 → 「별조각 획득」 후 별조각 3개 지급 · 10분 쿨타임 |
 // | 결과 모달·공유·복사   | `widgets/result_modal.dart` |
 // | 메이킹 노트(앱 내)   | `widgets/making_notes_screen.dart` — GNB 도서 아이콘, 에셋 `docs/MAKING_NOTES.md` |
 //
-// 기본: `www.gggom0505.kr` 과 동일 Supabase·에셋 (`lib/config/gggom_site_public_catalog.dart`).
-// 재배포 없이 URL/키 변경: 사이트 `app/flutter_runtime_config.json` ([GggomRuntimeSiteConfig]).
-// 가비아·정적 호스팅: `web/app/flutter_runtime_config.json` 이 `build/web/app/` 로 포함됨. 없으면 번들 폴백.
-// 선택(스테이징/로컬 Next 등):
-//   `--dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...`
-//   `--dart-define=ASSET_ORIGIN=http://localhost:3000`  (에셋 호스트만 바꿀 때)
-//   `--dart-define=OAUTH_REDIRECT_URL=...`    (딥링크 또는 Next `/auth/callback` 등; **웹 기본은 현재 오리진**으로 복귀)
-// 오프라인 전용(번들·시뮬): `--dart-define=GGGOM_OFFLINE_BUNDLE=true` → Supabase 미초기화
+// 기본: `www.gggom0505.kr` 가비아 정적 호스팅·에셋 (`lib/config/gggom_site_public_catalog.dart`).
+// 재배포 없이 에셋 오리진 변경: 사이트 `app/flutter_runtime_config.json` ([GggomRuntimeSiteConfig]).
+// 가비아 업로드: `web/app/flutter_runtime_config.json` 이 `build/web/app/` 로 포함됨. 없으면 번들 폴백.
+// 선택(로컬 등): `--dart-define=ASSET_ORIGIN=http://localhost:3000`
+// 오프라인 전용(번들·시뮬): `--dart-define=GGGOM_OFFLINE_BUNDLE=true` → 런타임 사이트 JSON 로드 생략
+// 웹 로컬 테스트: `--dart-define=GGGOM_SKIP_LOGIN=true` → 스플래시 후 로그인 화면 없이 게스트 홈
+// 디버그·프로파일 웹: 시드로 첫 방문 자동 가입·로그인 + 같은 define이면 로그인/가입 화면에 아이디 미리 입력
+//   `--dart-define=GGGOM_DEV_WEB_SEED_LOGIN=gggom050501 --dart-define=GGGOM_DEV_WEB_SEED_PASSWORD=6자이상`
+//   비밀번호는 화면에서 직접 입력해 로그인해도 됨(아이디 칸은 define이 있으면 자동 채움).
 //   `--dart-define=GGGOM_PROJECT_ROOT=C:\path\to\gggom0505_0403`  (로컬 JSON → assets/local_dev_state/ 미러)
 //   (호환) `--dart-define=SHOP_CATALOG_REPO_ROOT=...`
-//   연동 빌드에서만 시뮬 메뉴: `--dart-define=AD_REWARD_TEST_MODE=true`
-//   보상 개수: `--dart-define=AD_REWARD_STARS=1` (기본 1)
+//   광고 시뮬 플래그: `--dart-define=AD_REWARD_TEST_MODE=true`
+//   보상 개수: `--dart-define=AD_REWARD_STARS=N` (기본 3)
 //   오프라인 번들 이모 덮어쓰기: `EMOTICON_CATALOG_*`
 //   웹 미리보기·스테이징만 암호 게이트: `--dart-define=SITE_ACCESS_PIN=비번` (공개 프로덕션 빌드에는 이 define을 넣지 않음.
 //   Vercel이면 Preview 전용 Build Command에만 `SITE_ACCESS_PIN` 넣기 권장)
-//
-// 실행 예(스테이징만 바꿀 때):
-//   flutter run --dart-define=SUPABASE_URL=https://xxx.supabase.co --dart-define=SUPABASE_ANON_KEY=eyJ...
 // =============================================================================
 
 Future<void> main() async {
   await _bootstrapBindingAndDesktop();
+  await maybeSeedWebBundledData();
+  await _initSupabaseIfEnabled();
   await _lockPortraitOnPhones();
   if (!AppConfig.useOfflineBundleOnly) {
     await GggomRuntimeSiteConfig.instance.load();
   }
-  await _initSupabaseIfConfigured();
   runApp(
     ListenableBuilder(
       listenable: GggomRuntimeSiteConfig.instance,
@@ -81,6 +77,16 @@ Future<void> main() async {
   );
 }
 
+Future<void> _initSupabaseIfEnabled() async {
+  if (!AppConfig.supabaseEnabled) {
+    return;
+  }
+  await Supabase.initialize(
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
+  );
+}
+
 Future<void> _bootstrapBindingAndDesktop() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initDesktopWindow();
@@ -90,33 +96,6 @@ Future<void> _lockPortraitOnPhones() async {
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
-}
-
-/// Supabase + URL 로그인(OAuth) 복귀 처리.
-/// [FlutterAuthClientOptions.detectSessionInUri] → app_links 로 `login-callback` URI 에서 세션 확보.
-/// [AuthFlowType.pkce] → 브라우저에서 로그인 후 `?code=` 로 앱 복귀(권장).
-///
-/// 원격 JSON으로 Supabase URL/키가 바뀌어도, 이미 [Supabase.initialize] 된 세션은 **콜드 스타트**까지
-/// 이전 엔드포인트를 쓸 수 있습니다. 에셋 오리진 등은 [ListenableBuilder]로 즉시 반영됩니다.
-Future<void> _initSupabaseIfConfigured() async {
-  if (AppConfig.useOfflineBundleOnly) {
-    return;
-  }
-  final url = AppConfig.supabaseUrl;
-  final key = AppConfig.supabaseAnonKey;
-  if (url.isEmpty || key.isEmpty) {
-    return;
-  }
-  await Supabase.initialize(
-    url: url,
-    anonKey: key,
-    authOptions: const FlutterAuthClientOptions(
-      authFlowType: AuthFlowType.pkce,
-      autoRefreshToken: true,
-      detectSessionInUri: true,
-    ),
-  );
-  AppConfig.supabaseEnabled = true;
 }
 
 class GgomTarotApp extends StatelessWidget {

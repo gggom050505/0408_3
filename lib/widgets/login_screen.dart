@@ -1,26 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_config.dart';
 import '../theme/app_colors.dart';
 import 'app_footer_notices.dart';
 import 'app_motion.dart';
 
-/// 랜딩: **ID 계정**(기기 로컬) + Supabase 연동 시 **구글 로그인**.
-/// 두 방식은 [onOpenGoogleLogin] 이 null 이면 구글 블록을 숨깁니다(오프라인 번들 등).
+/// 랜딩: Google 로그인 + 게스트 둘러보기.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({
     super.key,
-    required this.onOpenLocalLogin,
-    required this.onOpenRegister,
-    required this.onOpenWithdraw,
-    this.onOpenGoogleLogin,
+    required this.onContinueAsGuest,
+    required this.onOpenGoogleLogin,
   });
 
-  final VoidCallback onOpenLocalLogin;
-  final VoidCallback onOpenRegister;
-  final VoidCallback onOpenWithdraw;
-
-  /// Supabase 초기화 빌드에서만 전달. null 이면 구글 메뉴 미표시.
-  final VoidCallback? onOpenGoogleLogin;
+  /// 별도 계정 없이 `local-guest` 홈으로 — 웹·첫 방문 둘러보기용.
+  final VoidCallback onContinueAsGuest;
+  final VoidCallback onOpenGoogleLogin;
 
   @override
   Widget build(BuildContext context) {
@@ -102,28 +97,130 @@ class LoginScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     StaggerItem(
                       index: 1,
-                      child: Text(
-                        '오늘의 타로 운세',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                      child: Column(
+                        children: [
+                          Text(
+                            '오늘의 타로 운세',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '타로 · 오라클 · 수집 · 개인 상점 — 한 판의 리듬을 모아 보세요.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  color: AppColors.accentPurple,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (AppConfig.googleLoginEnabled) ...[
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(220, 48),
+                              ),
+                              onPressed: onOpenGoogleLogin,
+                              child: const Text('Google로 로그인'),
+                            ),
+                          ] else ...[
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(220, 48),
+                              ),
+                              onPressed: null,
+                              child: const Text('Google 설정 필요'),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: onContinueAsGuest,
+                            child: const Text(
+                              '로그인 없이 둘러보기',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     StaggerItem(
                       index: 2,
-                      child: Text(
-                        'ID 계정으로 로그인하고 별조각·상점·진행을 이어가세요.\n'
-                        '데이터는 이 기기에 저장됩니다.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                          height: 1.4,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentPurple.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.accentPurple.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '이 앱에서 만나 보세요',
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: 12),
+                            _LoginHighlightLine(
+                              icon: '🌅',
+                              text:
+                                  '오늘의 타로 — 매일 바뀌는 키워드, 106장 덱에서 직감으로 10장. '
+                                  '점수가 쌓이는 데일리 한 판이 기다려요.',
+                            ),
+                            _LoginHighlightLine(
+                              icon: '🃏',
+                              text:
+                                  '스프레드·캡처·피드 — 매트와 덱을 바꿔 꾸미고, 한 판을 그림처럼 남겨 '
+                                  '기록과 해석을 이어 갈 수 있어요.',
+                            ),
+                            _LoginHighlightLine(
+                              icon: '⭐',
+                              text:
+                                  '별조각·출석 — 모으고 열리는 상점, '
+                                  '게임처럼 박자 맞춰 컬렉션을 채워 보세요.',
+                            ),
+                            _LoginHighlightLine(
+                              icon: '🏪',
+                              text:
+                                  '개인 상점 — 희귀 카드와 이모티콘을 거래·탐색하는 '
+                                  '또 다른 재미가 있어요.',
+                            ),
+                            _LoginHighlightLine(
+                              icon: '💬',
+                              text:
+                                  '채팅·이모티콘 — 타로만이 아니라 대화와 꾸미기까지, '
+                                  '콘텐츠를 가볍게 즐길 수 있어요.',
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 16),
                     StaggerItem(
                       index: 3,
+                      child: Text(
+                        '로그인하면 별조각·가방·상점 이용 기록을 안전하게 이어 갈 수 있어요.\n'
+                        'Google 로그인은 브라우저 변경이나 기기 변경 시에도 복구에 유리해요.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    StaggerItem(
+                      index: 4,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
@@ -138,7 +235,7 @@ class LoginScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'ID 계정',
+                              'Google 계정',
                               style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.w800,
@@ -146,150 +243,104 @@ class LoginScreen extends StatelessWidget {
                                   ),
                             ),
                             const SizedBox(height: 16),
-                            FilledButton(
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size.fromHeight(52),
-                              ),
-                              onPressed: onOpenLocalLogin,
-                              child: const Text('ID 계정 로그인'),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(48),
-                                side: BorderSide(
-                                  color: AppColors.accentPurple.withValues(
-                                    alpha: 0.65,
-                                  ),
+                            if (AppConfig.googleLoginEnabled) ...[
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(52),
                                 ),
+                                onPressed: onOpenGoogleLogin,
+                                child: const Text('Google로 로그인'),
                               ),
-                              onPressed: onOpenRegister,
-                              child: const Text('회원 가입'),
-                            ),
-                            const SizedBox(height: 10),
-                            TextButton(
-                              onPressed: onOpenWithdraw,
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red.shade800,
-                                minimumSize: const Size.fromHeight(44),
-                              ),
-                              child: const Text('회원 탈퇴'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                showDialog<void>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('비밀번호 변경'),
-                                    content: const SingleChildScrollView(
-                                      child: Text(
-                                        '1) 먼저 「ID 계정 로그인」으로 들어가세요.\n\n'
-                                        '2) 로그인 후 화면 상단 오른쪽의 사람 모양 아이콘을 눌러 '
-                                        '「계정 관리」를 여세요.\n\n'
-                                        '3) 「보안」란의 「비밀번호 변경」에서 '
-                                        '현재 비밀번호·새 비밀번호를 입력하면 됩니다.\n\n'
-                                        '비밀번호는 이 기기에만 저장됩니다. 잊어버리면 복구가 어려울 수 있어요.',
-                                        style: TextStyle(height: 1.45),
-                                      ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '기기 분실/브라우저 변경에도 기록을 잇기 쉽도록 Google 로그인도 지원해요.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      height: 1.25,
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text('확인'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size.fromHeight(44),
-                                foregroundColor: AppColors.textPrimary
-                                    .withValues(alpha: 0.9),
                               ),
-                              child: const Text('비밀번호 변경 안내'),
-                            ),
+                            ] else ...[
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(52),
+                                ),
+                                onPressed: null,
+                                child: const Text('Google 설정 필요'),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '배포 빌드에 SUPABASE_URL / SUPABASE_ANON_KEY 를 넣으면 Google 로그인이 활성화됩니다.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      height: 1.25,
+                                    ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
                     ),
-                    if (onOpenGoogleLogin != null) ...[
-                      const SizedBox(height: 20),
-                      StaggerItem(
-                        index: 6,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.09),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: AppColors.cardBorder.withValues(
-                                alpha: 0.25,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                '구글 계정',
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
-                                    ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '구글 로그인은 ID·비밀번호 계정과 별도로 운영됩니다. '
-                                '별조각·가방·진행 데이터가 서로 이어지지 않습니다.',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      height: 1.45,
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '같은 기기에서 두 방식을 함께 쓰면, '
-                                '로컬에 쌓이는 데이터가 늘어나 저장 공간을 조금 더 쓸 수 있어요. '
-                                '보통은 수~수십 MB 수준이며, 기기 저장 여유가 있다면 부담이 크지 않은 편입니다.',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary.withValues(
-                                        alpha: 0.88,
-                                      ),
-                                      height: 1.4,
-                                    ),
-                              ),
-                              const SizedBox(height: 16),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(50),
-                                  side: BorderSide(
-                                    color: AppColors.accentPurple.withValues(
-                                      alpha: 0.75,
-                                    ),
-                                  ),
-                                  foregroundColor: AppColors.textPrimary,
-                                ),
-                                onPressed: onOpenGoogleLogin,
-                                icon: const Icon(Icons.login_rounded, size: 22),
-                                label: const Text('구글 계정으로 로그인'),
-                              ),
-                            ],
+                    const SizedBox(height: 20),
+                    StaggerItem(
+                      index: 5,
+                      child: TextButton(
+                        onPressed: onContinueAsGuest,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          foregroundColor: AppColors.textPrimary
+                              .withValues(alpha: 0.92),
+                        ),
+                        child: const Text(
+                          '로그인 없이 둘러보기',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 24),
-                    StaggerItem(index: 4, child: const AppFooterNotices()),
+                    ),
+                    const SizedBox(height: 16),
+                    StaggerItem(index: 6, child: const AppFooterNotices()),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LoginHighlightLine extends StatelessWidget {
+  const _LoginHighlightLine({required this.icon, required this.text});
+
+  final String icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 18, height: 1.35)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textPrimary.withValues(alpha: 0.92),
+                    height: 1.45,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -8,7 +8,7 @@ import 'local_peer_shop_repository.dart';
 String safeStandaloneUserFileId(String id) =>
     id.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
 
-/// Supabase·구글 로그아웃 시 이 계정 `userId`(UUID)에 묶인 로컬 데이터와
+/// 계정 전환·로그아웃 시 이 계정 `userId`에 묶인 로컬 데이터와
 /// 원격 피드 캐시 파일(`disk_caching_feed_repository` 의 스냅샷과 동일 이름)을 지웁니다.
 /// (공유 카탈로그 `local_shop_catalog_v1.json` 은 건드리지 않습니다.)
 Future<void> wipeOAuthUserLocalArtifacts(String userId) async {
@@ -27,7 +27,6 @@ Future<void> wipeStandaloneArtifactsForAppUserId(String userId) async {
     'local_shop_user_state_v1_$su.json',
     'local_star_one_purchase_v1_$su.json',
     'local_star_two_purchase_v1_$su.json',
-    'local_surprise_gift_v1_$su.json',
     'local_attendance_lucky_v1_$su.json',
     'local_tarot_session_v1_$su.json',
     'local_chat_${su}_v1.json',

@@ -11,10 +11,9 @@ void main() {
     expect(koreaMajorCardIndexFromShopItemId('oracle-card-01'), isNull);
   });
 
-  test('한국전통 조각 별조각가 6~8 고정 구간', () {
+  test('한국전통 조각 별조각: 전 품목 7~9 고정가', () {
     for (var i = 0; i <= 21; i++) {
-      final p = koreaMajorPieceShopStarPrice(i);
-      expect(p, inInclusiveRange(6, 8));
+      expect(koreaMajorPieceShopStarPrice(i), inInclusiveRange(7, 9));
     }
   });
 

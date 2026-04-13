@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "assetRoot": "C:/gggom0505_0403/assets/cards/minor_court_clay",
+  "publicPathPrefix": "/cards/minor_court_clay/",
+  "cards": [
+    {
+      "id": 32,
+      "kind": "court",
+      "suit": "wands",
+      "rank": "page",
+      "path": "assets/cards/minor_court_clay/wands/page.png",
+      "publicPath": "/cards/minor_court_clay/wands/page.png"
+    },
+    {
+      "id": 33,
+      "kind": "court",
+      "suit": "wands",
+      "rank": "knight",
+      "path": "assets/cards/minor_court_clay/wands/knight.png",
+      "publicPath": "/cards/minor_court_clay/wands/knight.png"
+    },
+    {
+      "id": 34,
+      "kind": "court",
+      "suit": "wands",
+      "rank": "queen",
+      "path": "assets/cards/minor_court_clay/wands/queen.png",
+      "publicPath": "/cards/minor_court_clay/wands/queen.png"
+    },
+    {
+      "id": 35,
+      "kind": "court",
+      "suit": "wands",
+      "rank": "king",
+      "path": "assets/cards/minor_court_clay/wands/king.png",
+      "publicPath": "/cards/minor_court_clay/wands/king.png"
+    },
+    {
+      "id": 46,
+      "kind": "court",
+      "suit": "cups",
+      "rank": "page",
+      "path": "assets/cards/minor_court_clay/cups/page.png",
+      "publicPath": "/cards/minor_court_clay/cups/page.png"
+    },
+    {
+      "id": 47,
+      "kind": "court",
+      "suit": "cups",
+      "rank": "knight",
+      "path": "assets/cards/minor_court_clay/cups/knight.png",
+      "publicPath": "/cards/minor_court_clay/cups/knight.png"
+    },
+    {
+      "id": 48,
+      "kind": "court",
+      "suit": "cups",
+      "rank": "queen",
+      "path": "assets/cards/minor_court_clay/cups/queen.png",
+      "publicPath": "/cards/minor_court_clay/cups/queen.png"
+    },
+    {
+      "id": 49,
+      "kind": "court",
+      "suit": "cups",
+      "rank": "king",
+      "path": "assets/cards/minor_court_clay/cups/king.png",
+      "publicPath": "/cards/minor_court_clay/cups/king.png"
+    },
+    {
+      "id": 60,
+      "kind": "court",
+      "suit": "swords",
+      "rank": "page",
+      "path": "assets/cards/minor_court_clay/swords/page.png",
+      "publicPath": "/cards/minor_court_clay/swords/page.png"
+    },
+    {
+      "id": 61,
+      "kind": "court",
+      "suit": "swords",
+      "rank": "knight",
+      "path": "assets/cards/minor_court_clay/swords/knight.png",
+      "publicPath": "/cards/minor_court_clay/swords/knight.png"
+    },
+    {
+      "id": 62,
+      "kind": "court",
+      "suit": "swords",
+      "rank": "queen",
+      "path": "assets/cards/minor_court_clay/swords/queen.png",
+      "publicPath": "/cards/minor_court_clay/swords/queen.png"
+    },
+    {
+      "id": 63,
+      "kind": "court",
+      "suit": "swords",
+      "rank": "king",
+      "path": "assets/cards/minor_court_clay/swords/king.png",
+      "publicPath": "/cards/minor_court_clay/swords/king.png"
+    },
+    {
+      "id": 74,
+      "kind": "court",
+      "suit": "pentacles",
+      "rank": "page",
+      "path": "assets/cards/minor_court_clay/pentacles/page.png",
+      "publicPath": "/cards/minor_court_clay/pentacles/page.png"
+    },
+    {
+      "id": 75,
+      "kind": "court",
+      "suit": "pentacles",
+      "rank": "knight",
+      "path": "assets/cards/minor_court_clay/pentacles/knight.png",
+      "publicPath": "/cards/minor_court_clay/pentacles/knight.png"
+    },
+    {
+      "id": 76,
+      "kind": "court",
+      "suit": "pentacles",
+      "rank": "queen",
+      "path": "assets/cards/minor_court_clay/pentacles/queen.png",
+      "publicPath": "/cards/minor_court_clay/pentacles/queen.png"
+    },
+    {
+      "id": 77,
+      "kind": "court",
+      "suit": "pentacles",
+      "rank": "king",
+      "path": "assets/cards/minor_court_clay/pentacles/king.png",
+      "publicPath": "/cards/minor_court_clay/pentacles/king.png"
+    },
+    {
+      "id": 78,
+      "kind": "court",
+      "suit": "special",
+      "rank": "son_of_wands",
+      "path": "assets/cards/minor_court_clay/special/son_of_wands.png",
+      "publicPath": "/cards/minor_court_clay/special/son_of_wands.png"
+    },
+    {
+      "id": 79,
+      "kind": "court",
+      "suit": "special",
+      "rank": "daughter_of_pentacles",
+      "path": "assets/cards/minor_court_clay/special/daughter_of_pentacles.png",
+      "publicPath": "/cards/minor_court_clay/special/daughter_of_pentacles.png"
+    },
+    {
+      "id": 80,
+      "kind": "court",
+      "suit": "special",
+      "rank": "daughter_of_cups",
+      "path": "assets/cards/minor_court_clay/special/daughter_of_cups.png",
+      "publicPath": "/cards/minor_court_clay/special/daughter_of_cups.png"
+    },
+    {
+      "id": 81,
+      "kind": "court",
+      "suit": "special",
+      "rank": "son_of_swords",
+      "path": "assets/cards/minor_court_clay/special/son_of_swords.png",
+      "publicPath": "/cards/minor_court_clay/special/son_of_swords.png"
+    }
+  ]
+}

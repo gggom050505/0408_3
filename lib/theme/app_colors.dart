@@ -42,6 +42,15 @@ class AppColors {
   /// 밝은 글자/태그
   static const textLight = Color(0xFFF8F5FF);
 
+  /// 유니크 품목(한국전통·오라클·이모) 본문·제목 강조 — 진한 골드톤(노란 계열, 가독성)
+  static const uniqueItemForeground = Color(0xFFB8860B);
+
+  /// 유니크 배지·비활성 버튼 배경
+  static const uniqueItemSurface = Color(0xFFFFF9E6);
+
+  /// 유니크 카드·칩 테두리
+  static const uniqueItemBorder = Color(0xFFFFC947);
+
   /// 스플래시·로그인 등 상단→하단 그라데이션 (민트·라벤더·연보라)
   static const List<Color> scaffoldGradientStops = [
     Color(0xFFEFF6F3),

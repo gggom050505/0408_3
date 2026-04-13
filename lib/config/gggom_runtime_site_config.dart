@@ -6,20 +6,17 @@ import 'package:http/http.dart' as http;
 
 import 'gggom_site_public_catalog.dart';
 
-/// 사이트에 올려 둔 JSON으로 Supabase URL·anon 키·에셋 오리진 등을 **앱 재설치 없이** 바꿉니다.
+/// 사이트에 올려 둔 JSON으로 에셋 오리진·(선택) 웹 콜백 경로 등을 **앱 재설치 없이** 바꿉니다.
 /// `dart-define`으로 넣은 값은 [AppConfig]에서 항상 우선합니다.
 ///
 /// **가비아·정적 호스팅**: `flutter build web` 결과의 `app/flutter_runtime_config.json`(본 저장소는 [web/app/flutter_runtime_config.json] 이 빌드에 포함됨).
-/// **Next.js 등**: `public/app/flutter_runtime_config.json` 과 동일 경로로 배포해도 됨.
 /// 원격이 404이면 앱은 번들 폴백 JSON을 쓰고, 사이트에 파일이 있으면 원격이 우선합니다.
 ///
 /// 단일 URL만 쓰고 싶을 때: `--dart-define=RUNTIME_CONFIG_URL=https://.../x.json`
 ///
-/// 서버 예시:
+/// 기본 예시(가비아 정적만):
 /// ```json
 /// {
-///   "supabase_url": "https://xxxx.supabase.co",
-///   "supabase_anon_key": "eyJ...",
 ///   "asset_origin": "https://www.gggom0505.kr",
 ///   "web_auth_callback_path": "/auth/callback"
 /// }
@@ -33,8 +30,6 @@ class GggomRuntimeSiteConfig extends ChangeNotifier {
 
   static const _bundledAssetPath = 'assets/config/flutter_runtime_config.json';
 
-  String? _supabaseUrl;
-  String? _supabaseAnonKey;
   String? _assetOrigin;
   String? _webAuthCallbackPath;
 
@@ -49,8 +44,6 @@ class GggomRuntimeSiteConfig extends ChangeNotifier {
   /// 마지막으로 설정이 확정된 시각(원격 200 또는 번들 적용).
   DateTime? get lastFetchUtc => _lastFetchUtc;
 
-  String? get supabaseUrl => _nonEmpty(_supabaseUrl);
-  String? get supabaseAnonKey => _nonEmpty(_supabaseAnonKey);
   String? get assetOrigin => _nonEmpty(_assetOrigin);
   String? get webAuthCallbackPath => _nonEmpty(_webAuthCallbackPath);
 
@@ -140,8 +133,6 @@ class GggomRuntimeSiteConfig extends ChangeNotifier {
   }
 
   void _applyJson(Map<String, dynamic> j) {
-    _supabaseUrl = null;
-    _supabaseAnonKey = null;
     _assetOrigin = null;
     _webAuthCallbackPath = null;
 
@@ -153,9 +144,6 @@ class GggomRuntimeSiteConfig extends ChangeNotifier {
       return null;
     }
 
-    _supabaseUrl = str('supabase_url') ?? str('supabaseUrl');
-    _supabaseAnonKey =
-        str('supabase_anon_key') ?? str('supabaseAnonKey') ?? str('anon_key');
     _assetOrigin = str('asset_origin') ?? str('assetOrigin') ?? str('site_origin');
     _webAuthCallbackPath =
         str('web_auth_callback_path') ?? str('webAuthCallbackPath');

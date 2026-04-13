@@ -1,6 +1,4 @@
 {
-  "supabase_url": "https://nktapegejzujsxuhdcxz.supabase.co",
-  "supabase_anon_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5rdGFwZWdlanp1anN4dWhkY3h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjMxNzcsImV4cCI6MjA4ODc5OTE3N30.9_2NWfnDoKfrnwbfFG1YGFrKD7pwF8Hq5TjEAvzCSFU",
   "asset_origin": "https://www.gggom0505.kr",
   "web_auth_callback_path": "/auth/callback"
 }

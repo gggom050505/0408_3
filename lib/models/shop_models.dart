@@ -1,5 +1,6 @@
-/// 신규 프로필(로컬 첫 생성·Supabase `user_profiles` 첫 insert)에만 적용되는 기본 별조각.
-const int kInitialStarFragments = 20;
+/// 신규 프로필(로컬 첫 생성) 시점 별조각.
+/// 환영 ⭐20개는 첫 설정 마법사를 끝낼 때 [completeFirstSetupWizard]에서 올립니다.
+const int kInitialStarFragments = 0;
 
 class ShopItemRow {
   ShopItemRow({
@@ -19,8 +20,14 @@ class ShopItemRow {
   final bool isActive;
 
   factory ShopItemRow.fromJson(Map<String, dynamic> j) {
+    final idRaw = j['id'];
+    final id = idRaw == null
+        ? ''
+        : idRaw is String
+        ? idRaw
+        : idRaw.toString();
     return ShopItemRow(
-      id: j['id'] as String,
+      id: id,
       name: j['name'] as String? ?? '',
       type: j['type'] as String? ?? 'card',
       price: (j['price'] as num?)?.toInt() ?? 0,

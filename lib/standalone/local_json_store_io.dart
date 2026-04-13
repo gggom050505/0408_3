@@ -7,11 +7,22 @@ import 'local_json_workspace_mirror_io.dart';
 
 Future<String?> loadLocalJsonFile(String name) async {
   final dir = await getApplicationSupportDirectory();
-  final file = File(p.join(dir.path, 'gggom_standalone', name));
-  if (!await file.exists()) {
+  final sub = Directory(p.join(dir.path, 'gggom_standalone'));
+  final file = File(p.join(sub.path, name));
+  if (await file.exists()) {
+    try {
+      return await file.readAsString();
+    } catch (_) {}
+  }
+  final bak = File(p.join(sub.path, '_backup_$name'));
+  if (!await bak.exists()) {
     return null;
   }
-  return file.readAsString();
+  try {
+    return await bak.readAsString();
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<void> saveLocalJsonFile(String name, String data) async {
@@ -22,6 +33,10 @@ Future<void> saveLocalJsonFile(String name, String data) async {
   }
   final file = File(p.join(sub.path, name));
   await file.writeAsString(data);
+  try {
+    final bak = File(p.join(sub.path, '_backup_$name'));
+    await bak.writeAsString(data);
+  } catch (_) {}
   await mirrorLocalJsonAfterSave(name, data);
 }
 
@@ -29,9 +44,15 @@ Future<void> saveLocalJsonFile(String name, String data) async {
 Future<void> removeLocalJsonFile(String name) async {
   final dir = await getApplicationSupportDirectory();
   final file = File(p.join(dir.path, 'gggom_standalone', name));
+  final bak = File(p.join(dir.path, 'gggom_standalone', '_backup_$name'));
   try {
     if (await file.exists()) {
       await file.delete();
+    }
+  } catch (_) {}
+  try {
+    if (await bak.exists()) {
+      await bak.delete();
     }
   } catch (_) {}
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -9,7 +10,7 @@ import '../standalone/local_app_preferences.dart';
 import '../theme/app_colors.dart';
 import 'app_motion.dart';
 
-/// 별조각 광고 — [adVideoAssetPaths]를 순서대로 **한 번에 1편** 재생 후 「별조각 획득」 안내·별조각 지급,
+/// 별조각 광고 — [adVideoAssetPaths]를 순서대로 **한 번에 1편** 재생 후 「별조각 획득」 안내·별조각 지급(안내 문구는 3개 기준, 실제 개수는 [AppConfig.adRewardStarAmount]),
 /// [AppConfig.adRewardCooldownMinutes] 간격 제한. 진입: GNB·상점 배너.
 class AdRewardSheet extends StatelessWidget {
   const AdRewardSheet({
@@ -25,11 +26,10 @@ class AdRewardSheet extends StatelessWidget {
   final Future<void> Function() onBalanceRefresh;
   final GlobalKey<ScaffoldMessengerState>? messengerKey;
 
-  /// `assets/advert/` 의 MP4. 매 시청마다 다음 인덱스로 순환(한 회차에 1편만 재생).
+  /// `assets/advert/` 의 MP4 중 웹 광고에 노출할 목록(1분 미만 파일만 유지).
   /// 파일을 바꾸면 이 목록과 `pubspec.yaml`의 `assets/advert/` 항목을 맞춰 주세요.
   static const List<String> adVideoAssetPaths = <String>[
-    'assets/advert/gdk15s.mp4',
-    'assets/advert/wk15s.mp4',
+    'assets/advert/gdk0409.mp4',
   ];
 
   static Future<void> show(
@@ -89,6 +89,36 @@ class AdRewardSheet extends StatelessWidget {
 const String _kFallbackBetaAdVideoUrl =
     'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
 
+/// Flutter 웹: `Uri.base`가 `/index.html`처럼 파일로 끝나면 `assets/...` resolve가 깨질 수 있어
+/// 디렉터리까지 잘라 낸 뒤 [assetPath]를 붙인 절대 URL을 씁니다.
+Uri _webResolvedAssetUri(String assetPath) {
+  final b = Uri.base;
+  final noFrag = b.replace(fragment: '');
+  var path = noFrag.path;
+  if (path.isNotEmpty && !path.endsWith('/')) {
+    final idx = path.lastIndexOf('/');
+    path = idx < 0 ? '/' : path.substring(0, idx + 1);
+  }
+  if (path.isEmpty) {
+    path = '/';
+  }
+  return noFrag.replace(path: path).resolve(assetPath);
+}
+
+Uri? _assetOriginResolvedAssetUri(String assetPath) {
+  final origin = AppConfig.assetOrigin.trim();
+  if (origin.isEmpty) {
+    return null;
+  }
+  try {
+    final base = Uri.parse(origin);
+    final p = assetPath.startsWith('/') ? assetPath.substring(1) : assetPath;
+    return base.resolve('/$p');
+  } catch (_) {
+    return null;
+  }
+}
+
 /// 전체 화면 광고 영상 1편. 재생 완료 시 `true`, 초기화·재생 실패 시 `false`.
 class _AdRewardVideoDialog extends StatefulWidget {
   const _AdRewardVideoDialog({required this.assetPath});
@@ -102,6 +132,7 @@ class _AdRewardVideoDialog extends StatefulWidget {
 class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
   VideoPlayerController? _controller;
   var _ended = false;
+  bool _exiting = false;
 
   @override
   void initState() {
@@ -133,7 +164,38 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
   }
 
   Future<void> _init() async {
-    VideoPlayerController? c = await _tryAttach(
+    VideoPlayerController? c;
+
+    // 웹: 번들 MP4는 같은 출처 URL로 네트워크 로드하는 편이 안정적인 경우가 많음.
+    if (kIsWeb && widget.assetPath.startsWith('assets/')) {
+      final fromOrigin = _assetOriginResolvedAssetUri(widget.assetPath);
+      if (fromOrigin != null) {
+        debugPrint('AdReward web video assetOrigin URL: $fromOrigin');
+        c = await _tryAttach(
+          VideoPlayerController.networkUrl(
+            fromOrigin,
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          ),
+        );
+      }
+    }
+
+    if (kIsWeb && widget.assetPath.startsWith('assets/')) {
+      try {
+        final uri = _webResolvedAssetUri(widget.assetPath);
+        debugPrint('AdReward web video URL: $uri');
+        c = await _tryAttach(
+          VideoPlayerController.networkUrl(
+            uri,
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          ),
+        );
+      } catch (e, st) {
+        debugPrint('AdReward web URL try: $e\n$st');
+      }
+    }
+
+    c ??= await _tryAttach(
       VideoPlayerController.asset(
         widget.assetPath,
         videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
@@ -161,14 +223,39 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
       return;
     }
     setState(() {});
-    await c.play();
-    if (!mounted) {
-      return;
+
+    // 웹 자동재생 정책: 음소거 후 재생 → 곧 볼륨 복구(사용자가 이미 「광고 시청」으로 진입한 뒤).
+    Future<void> startPlayback() async {
+      final ctrl = _controller;
+      if (!mounted || ctrl == null) {
+        return;
+      }
+      try {
+        if (kIsWeb) {
+          await ctrl.setVolume(0);
+        }
+        await ctrl.play();
+        if (!mounted) {
+          return;
+        }
+        if (kIsWeb) {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          if (mounted && !ctrl.value.hasError && ctrl.value.isPlaying) {
+            await ctrl.setVolume(1.0);
+          }
+        }
+      } catch (e, st) {
+        debugPrint('AdReward play: $e\n$st');
+        if (mounted && !_ended) {
+          _ended = true;
+          Navigator.of(context).pop(false);
+        }
+      }
     }
-    if (c.value.hasError && !_ended) {
-      _ended = true;
-      Navigator.of(context).pop(false);
-    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(startPlayback());
+    });
   }
 
   void _onVideoUpdate() {
@@ -188,7 +275,26 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
     if (v.isCompleted) {
       _ended = true;
       Navigator.of(context).pop(true);
+      return;
     }
+    // 웹 등에서 isCompleted가 안 오르는 경우 대비(끝 구간 근처).
+    final d = v.duration;
+    if (d > Duration.zero) {
+      final pos = v.position;
+      if (pos >= d - const Duration(milliseconds: 350)) {
+        _ended = true;
+        Navigator.of(context).pop(true);
+      }
+    }
+  }
+
+  void _exitWithoutReward() {
+    if (_ended || _exiting || !mounted) {
+      return;
+    }
+    _exiting = true;
+    _ended = true;
+    Navigator.of(context).pop(false);
   }
 
   @override
@@ -207,25 +313,38 @@ class _AdRewardVideoDialogState extends State<_AdRewardVideoDialog> {
     return Material(
       color: Colors.black,
       child: SafeArea(
-        child: Center(
-          child: c == null || !c.value.isInitialized
-              ? const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white70),
-                    SizedBox(height: 16),
-                    Text(
-                      '광고를 불러오는 중…',
-                      style: TextStyle(color: Colors.white70),
+        child: Stack(
+          children: [
+            Center(
+              child: c == null || !c.value.isInitialized
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: Colors.white70),
+                        SizedBox(height: 16),
+                        Text(
+                          '광고를 불러오는 중…',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    )
+                  : AspectRatio(
+                      aspectRatio: c.value.aspectRatio == 0
+                          ? 16 / 9
+                          : c.value.aspectRatio,
+                      child: VideoPlayer(c),
                     ),
-                  ],
-                )
-              : AspectRatio(
-                  aspectRatio: c.value.aspectRatio == 0
-                      ? 16 / 9
-                      : c.value.aspectRatio,
-                  child: VideoPlayer(c),
-                ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: TextButton.icon(
+                onPressed: _exitWithoutReward,
+                icon: const Icon(Icons.close, color: Colors.white),
+                label: const Text('나가기', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -363,7 +482,7 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
           SnackBar(
             content: Text(
               '광고 영상을 재생하지 못했어요.\n'
-              '`assets/advert/`에 gdk15s.mp4·wk15s.mp4 등을 넣었는지 확인해 주세요. '
+              '`assets/advert/`에 gdk0409.mp4 등 MP4 파일이 있는지 확인해 주세요. '
               '웹 빌드에서 폴백 재생 시 인터넷이 필요할 수 있어요.',
             ),
           ),
@@ -409,7 +528,7 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
         builder: (dialogCtx) => AlertDialog(
           title: const Text('별조각 획득'),
           content: Text(
-            '광고 시청을 완료해 별조각 ${AppConfig.adRewardStarAmount}개를 드렸어요.\n\n'
+            '광고 시청을 완료해 별조각 3개를 드렸어요.\n\n'
             '현재 보유: ${profile.starFragments}개',
           ),
           actions: [
@@ -460,10 +579,10 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
         ),
         const SizedBox(height: 12),
         Text(
-          '「광고 시청」을 누르면 영상 1편이 재생돼요. 끝까지 보면 별조각 ${AppConfig.adRewardStarAmount}개를 드리며, '
+          '「광고 시청」을 누르면 영상 1편이 재생돼요. 끝까지 보면 별조각 3개를 드리며, '
           '확인 창에 「별조각 획득」으로 알려 드려요. '
           '같은 계정으로는 ${AppConfig.adRewardCooldownMinutes}분에 한 번 시청할 수 있고, '
-          '볼 때마다 gdk15s → wk15s 순으로 돌아가며 다른 영상이 나와요.',
+          '볼 때마다 등록된 순서대로 다음 영상이 나와요.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: AppColors.textPrimary,
             height: 1.35,
@@ -504,7 +623,7 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
               Text(
                 '• 별조각을 받은 직후부터 ${AppConfig.adRewardCooldownMinutes}분 동안은 같은 계정으로 광고를 다시 볼 수 없어요.\n'
                 '• 남은 대기 시간은 아래에 분·초(MM:SS)로 표시돼요.\n'
-                '• 광고 영상은 `assets/advert/`의 MP4를 써요 (예: gdk15s.mp4, wk15s.mp4).\n'
+                '• 광고 영상은 `assets/advert/`의 MP4를 써요 (예: gdk0409.mp4).\n'
                 '• 파일이 없거나 재생이 안 되면 짧은 데모 영상(웹에서는 인터넷 필요)으로 대체돼요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
@@ -547,7 +666,7 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
               const SizedBox(height: 6),
               Text(
                 '앱에 넣은 MP4를 ${AppConfig.adRewardCooldownMinutes}분 간격으로 재생한 뒤 '
-                '별조각 ${AppConfig.adRewardStarAmount}개를 지급해요.\n'
+                '별조각 3개를 지급해요.\n'
                 '상단 · 상점의 「별조각 광고」와 같은 메뉴예요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
@@ -579,7 +698,7 @@ class _AdRewardActionsState extends State<_AdRewardActions> {
                 ? '처리 중…'
                 : onCooldown
                 ? '다음 광고까지 $cdLabel'
-                : '광고 시청 (⭐ ${AppConfig.adRewardStarAmount}개)',
+                : '광고 시청 (⭐ 3개)',
           ),
         ),
         const SizedBox(height: 8),

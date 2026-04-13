@@ -10,12 +10,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import 'tarot_capture_download_stub.dart'
-    if (dart.library.html) 'tarot_capture_download_web.dart' as tarot_download;
-import 'tarot_share_non_web.dart' if (dart.library.html) 'tarot_share_non_web_stub.dart'
+    if (dart.library.html) 'tarot_capture_download_web.dart'
+    as tarot_download;
+import 'tarot_share_non_web.dart'
+    if (dart.library.html) 'tarot_share_non_web_stub.dart'
     as share_non_web;
 
 import '../config/app_config.dart';
 import '../data/card_themes.dart';
+import '../data/deck_card_catalog.dart';
 import '../data/mat_themes.dart';
 import '../data/tarot_cards.dart';
 import '../standalone/data_sources.dart';
@@ -32,7 +35,8 @@ const _totalSlots = 9;
 const _deckN = 22;
 
 /// 타로 보드 세로÷가로 비(값이 작을수록 같은 높이에서 보드가 가로로 더 넓어짐).
-const _slotBoardAspect = 1.22;
+const _slotBoardAspect = 1.16;
+
 /// 골드(아이보리) 링 — 작을수록 흰 슬롯이 패널에 더 꽉 참.
 const _slotGridPadLr = 0.026;
 const _slotGridPadTop = 0.022;
@@ -63,21 +67,28 @@ class TarotTab extends StatefulWidget {
   final String avatarEmojiOrUrl;
   final String equippedCardThemeId;
   final String equippedMatId;
+
   /// 가방 장착 ID — 타로 판 세션 복원 시 테마·매트와 함께 검증.
   final String equippedCardBackId;
+
   /// 장착한 `card_back` 상품 썸네일(또는 등록 이미지). 없으면 기본 보라 뒷면 그라데이션.
   final String? equippedCardBackImageSrc;
+
   /// 상점 `type: slot` 장착 ID.
   final String equippedSlotId;
+
   /// 빈 슬롯(미배치)에 깔 프레임 이미지. `null`이면 흰 칸+「슬롯」 문구.
   final String? emptySlotDecorationSrc;
+
   /// 가방에 있는 오라클 카드 번호(1~80). 뽑기는 이 목록에서만 랜덤.
   final List<int> ownedOracleCardNumbers;
+
   /// 보유한 한국전통 메이저 타로 카드 id (0~21). 테마 장착 시 덱은 이 카드만 섞음.
   final List<int> ownedKoreaMajorCardIds;
   final FeedDataSource? feedRepository;
   final VoidCallback onNeedLogin;
   final VoidCallback? onPostedToFeed;
+
   /// 홈「저장하기」에서 증가시키면 타로 세션을 즉시 디스크에 씁니다.
   final ValueNotifier<int>? workspaceFlushSignal;
 
@@ -145,7 +156,25 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     } else if (oldWidget.equippedSlotId != widget.equippedSlotId) {
       unawaited(_persistSession());
     } else if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId &&
-        !listEquals(oldWidget.ownedKoreaMajorCardIds, widget.ownedKoreaMajorCardIds)) {
+        !listEquals(
+          oldWidget.ownedKoreaMajorCardIds,
+          widget.ownedKoreaMajorCardIds,
+        )) {
+      setState(() {
+        _deck22 = _reshuffle();
+        for (var i = 0; i < _totalSlots; i++) {
+          _placed[i] = null;
+        }
+        _flipped.clear();
+        _used.clear();
+      });
+      unawaited(_persistSession());
+    } else if (widget.equippedCardThemeId ==
+            mixedMinorKoreaTraditionalMajorThemeId &&
+        !listEquals(
+          oldWidget.ownedKoreaMajorCardIds,
+          widget.ownedKoreaMajorCardIds,
+        )) {
       setState(() {
         _deck22 = _reshuffle();
         for (var i = 0; i < _totalSlots; i++) {
@@ -222,6 +251,8 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
       final rebuilt = restored.deckCardIds.map((id) => byId[id]!).toList();
       final koreaMajor =
           widget.equippedCardThemeId == koreaTraditionalMajorThemeId;
+      final mixedMinorKorea =
+          widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId;
       final allowedKorea = widget.ownedKoreaMajorCardIds.toSet();
       if (koreaMajor &&
           rebuilt.any(
@@ -239,9 +270,26 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
         unawaited(_persistSession());
         return;
       }
+      if (mixedMinorKorea &&
+          rebuilt.any(
+            (c) => !tarotCardAllowedInMixedMinorKoreaPool(c, allowedKorea),
+          )) {
+        if (!mounted) return;
+        setState(() {
+          _deck22 = _reshuffle();
+          for (var i = 0; i < _totalSlots; i++) {
+            _placed[i] = null;
+          }
+          _flipped.clear();
+          _used.clear();
+        });
+        unawaited(_persistSession());
+        return;
+      }
       final usedIdx = {
         for (var i = 0; i < tarotSessionSlotCount; i++)
-          if (restored.placedDeckIndices[i] != null) restored.placedDeckIndices[i]!,
+          if (restored.placedDeckIndices[i] != null)
+            restored.placedDeckIndices[i]!,
       };
       setState(() {
         _deck22 = rebuilt;
@@ -263,7 +311,14 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     List<TarotCard> source;
     if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
       final allowed = widget.ownedKoreaMajorCardIds.toSet();
-      source = tarotMajorArcanaOnly.where((c) => allowed.contains(c.id)).toList();
+      source = tarotMajorArcanaOnly
+          .where((c) => allowed.contains(c.id))
+          .toList();
+    } else if (widget.equippedCardThemeId ==
+        mixedMinorKoreaTraditionalMajorThemeId) {
+      source = buildMixedMinorAndKoreaTraditionalDrawPool(
+        ownedKoreaMajorIds: widget.ownedKoreaMajorCardIds.toSet(),
+      );
     } else {
       source = tarotDeck;
     }
@@ -293,16 +348,24 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     unawaited(_persistSession());
   }
 
+  String _themeIdForCardFront(TarotCard card) {
+    if (widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId) {
+      if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
+        return koreaTraditionalMajorThemeId;
+      }
+      return defaultThemeId;
+    }
+    return widget.equippedCardThemeId;
+  }
+
   String? _cardFrontImageSrc(TarotCard card) {
+    final themeId = _themeIdForCardFront(card);
     return getCardImageUrl(
-          themeId: widget.equippedCardThemeId,
+          themeId: themeId,
           cardId: card.id,
           assetOrigin: AppConfig.assetOrigin,
         ) ??
-        getBundledSiteCardAssetPath(
-          themeId: widget.equippedCardThemeId,
-          cardId: card.id,
-        );
+        getBundledSiteCardAssetPath(themeId: themeId, cardId: card.id);
   }
 
   Future<void> _onSlotTap(int slotIdx) async {
@@ -358,9 +421,9 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
           tarot_download.tryDownloadPngInBrowser(bytes, suggested);
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('이미지 저장에 실패했어요: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('이미지 저장에 실패했어요: $e')));
           }
           return;
         }
@@ -389,9 +452,9 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장·공유를 완료하지 못했어요: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('저장·공유를 완료하지 못했어요: $e')));
       }
     }
   }
@@ -440,9 +503,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
         WidgetsBinding.instance.scheduleFrame();
         await WidgetsBinding.instance.endOfFrame;
       }
-      await Future<void>.delayed(
-        Duration(milliseconds: kIsWeb ? 160 : 80),
-      );
+      await Future<void>.delayed(Duration(milliseconds: kIsWeb ? 160 : 80));
 
       var pixelRatio = 2.0;
       if (ctx.mounted) {
@@ -487,9 +548,6 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     if (feed == null || widget.userId == null) {
       return false;
     }
-    if (widget.userId == 'local-guest') {
-      return !AppConfig.supabaseEnabled;
-    }
     return true;
   }
 
@@ -506,9 +564,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     if (rows == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('캡처할 카드가 없어요. 먼저 슬롯에 카드를 놓아 주세요.'),
-          ),
+          const SnackBar(content: Text('캡처할 카드가 없어요. 먼저 슬롯에 카드를 놓아 주세요.')),
         );
       }
       return;
@@ -520,9 +576,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     }
     if (bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('캡처에 실패했어요. 카드를 놓은 뒤 잠시 후 다시 눌러 주세요.'),
-        ),
+        const SnackBar(content: Text('캡처에 실패했어요. 카드를 놓은 뒤 잠시 후 다시 눌러 주세요.')),
       );
       return;
     }
@@ -553,9 +607,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     if (clipboardOk) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '이미지를 클립보드에 복사했어요. 카톡·다른 앱 채팅에 붙여넣기 할 수 있어요.',
-          ),
+          content: Text('이미지를 클립보드에 복사했어요. 카톡·다른 앱 채팅에 붙여넣기 할 수 있어요.'),
           duration: Duration(seconds: 3),
         ),
       );
@@ -638,13 +690,8 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
               child: LayoutBuilder(
-                builder: (ctx, bc) => _slotTileInGrid(
-                  slot,
-                  mat,
-                  cardTheme,
-                  cardBackImageSrc,
-                  bc,
-                ),
+                builder: (ctx, bc) =>
+                    _slotTileInGrid(slot, mat, cardTheme, cardBackImageSrc, bc),
               ),
             ),
           );
@@ -660,11 +707,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFF0E4C8),
-            Color(0xFFE2D4A4),
-            Color(0xFFD2C085),
-          ],
+          colors: [Color(0xFFF0E4C8), Color(0xFFE2D4A4), Color(0xFFD2C085)],
         ),
         border: Border.all(
           color: const Color(0xFFC9A227).withValues(alpha: 0.75),
@@ -738,9 +781,14 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
                   child: LayoutBuilder(
                     builder: (ctx, c) {
                       const edge = 6.0;
-                      final availW = (c.maxWidth - edge * 2)
-                          .clamp(200.0, double.infinity);
-                      final availH = (c.maxHeight - 2).clamp(160.0, double.infinity);
+                      final availW = (c.maxWidth - edge * 2).clamp(
+                        200.0,
+                        double.infinity,
+                      );
+                      final availH = (c.maxHeight - 2).clamp(
+                        160.0,
+                        double.infinity,
+                      );
                       var bw = availW;
                       var bh = bw * _slotBoardAspect;
                       if (bh > availH) {
@@ -760,40 +808,38 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                  padding: const EdgeInsets.fromLTRB(10, 2, 10, 6),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      _ClayButton(
-                        label: '📸 스프레드 캡처 (놓인 줄까지)',
-                        fullWidth: true,
-                        onPressed: _captureSpread,
-                      ),
-                      const SizedBox(height: 10),
-                      _ClayButton(
-                        label: '🔮 오라클 카드 뽑기',
-                        purple: true,
-                        fullWidth: true,
-                        onPressed: () => showOracleOverlay(
-                          context,
-                          ownedOracleCardNumbers: widget.ownedOracleCardNumbers,
-                        ),
-                      ),
-                      if (filled > 0) ...[
-                        const SizedBox(height: 6),
-                        Center(
-                          child: TextButton(
-                            onPressed: _reset,
-                            child: Text(
-                              '다시 뽑기 🔄',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(color: AppColors.textSecondary),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ClayButton(
+                              label: '📸 스프레드 캡처',
+                              onPressed: _captureSpread,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _ClayButton(
+                              label: '🔮 오라클 카드 뽑기',
+                              purple: true,
+                              onPressed: () => showOracleOverlay(
+                                context,
+                                ownedOracleCardNumbers:
+                                    widget.ownedOracleCardNumbers,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _ClayButton(
+                              label: '다시 뽑기 🔄',
+                              onPressed: filled > 0 ? _reset : null,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -824,9 +870,10 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
 
   /// 하단 스프레드(팬 덱): 겹쳐 펼친 미사용 카드. 긴 부채꼴(넓은 호) + 가운데가 위로 오도록 겹침 순서.
   List<Widget> _buildFanDeck(double stackWidth) {
-    final visible = List<int>.generate(_deckN, (i) => i)
-        .where((i) => !_used.contains(i))
-        .toList();
+    final visible = List<int>.generate(
+      _deckN,
+      (i) => i,
+    ).where((i) => !_used.contains(i)).toList();
     final n = visible.length;
     const fanW = 40.0;
     const fanH = 60.0;
@@ -966,7 +1013,8 @@ class _DeckCardFace extends StatelessWidget {
         child: AdaptiveNetworkOrAssetImage(
           src: img,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _deckGradientFace(width, height, elevated: elevated),
+          errorBuilder: (_, _, _) =>
+              _deckGradientFace(width, height, elevated: elevated),
         ),
       );
     }
@@ -974,7 +1022,11 @@ class _DeckCardFace extends StatelessWidget {
   }
 }
 
-Widget _deckGradientFace(double width, double height, {required bool elevated}) {
+Widget _deckGradientFace(
+  double width,
+  double height, {
+  required bool elevated,
+}) {
   return Container(
     width: width,
     height: height,
@@ -994,7 +1046,10 @@ Widget _deckGradientFace(double width, double height, {required bool elevated}) 
       ],
     ),
     alignment: Alignment.center,
-    child: const Text('✦', style: TextStyle(fontSize: 10, color: Colors.black26)),
+    child: const Text(
+      '✦',
+      style: TextStyle(fontSize: 10, color: Colors.black26),
+    ),
   );
 }
 
@@ -1007,7 +1062,7 @@ class _SlotCell extends StatelessWidget {
     required this.card,
     required this.flipped,
     required this.themeId,
-    required     this.cardBackImageSrc,
+    required this.cardBackImageSrc,
     this.whitePlaceholder = false,
     this.emptySlotDecorationSrc,
     required this.onTap,
@@ -1022,8 +1077,10 @@ class _SlotCell extends StatelessWidget {
   final bool flipped;
   final String themeId;
   final String? cardBackImageSrc;
+
   /// 골드 보드 3×3: 빈 칸을 흰 카드 + 「슬롯」 문구로 표시.
   final bool whitePlaceholder;
+
   /// 장착한 카드 슬롯 프레임 PNG 등. 없으면 [whitePlaceholder]만 쓸 때와 동일하게 흰 칸.
   final String? emptySlotDecorationSrc;
   final VoidCallback onTap;
@@ -1034,14 +1091,11 @@ class _SlotCell extends StatelessWidget {
     final filled = deckIndex != null;
     final img = card != null
         ? (getCardImageUrl(
-              themeId: themeId,
-              cardId: card!.id,
-              assetOrigin: AppConfig.assetOrigin,
-            ) ??
-            getBundledSiteCardAssetPath(
-              themeId: themeId,
-              cardId: card!.id,
-            ))
+                themeId: themeId,
+                cardId: card!.id,
+                assetOrigin: AppConfig.assetOrigin,
+              ) ??
+              getBundledSiteCardAssetPath(themeId: themeId, cardId: card!.id))
         : null;
 
     return DragTarget<int>(
@@ -1075,7 +1129,8 @@ class _SlotCell extends StatelessWidget {
                       )
                     : Transform(
                         alignment: Alignment.center,
-                        transform: Matrix4.identity()..rotateY(3.141592653589793),
+                        transform: Matrix4.identity()
+                          ..rotateY(3.141592653589793),
                         child: _SlotFront(
                           width: width,
                           height: height,
@@ -1228,21 +1283,19 @@ Widget _slotBackGradientBody({
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(12),
       gradient: filled
-          ? const LinearGradient(
-              colors: [Color(0xFFC4B0E0), Color(0xFFA892C9)],
-            )
+          ? const LinearGradient(colors: [Color(0xFFC4B0E0), Color(0xFFA892C9)])
           : null,
       color: filled
           ? null
           : hover
-              ? const Color(0x4DB89CD4)
-              : Colors.white.withValues(alpha: 0.15),
+          ? const Color(0x4DB89CD4)
+          : Colors.white.withValues(alpha: 0.15),
       border: Border.all(
         color: filled
             ? const Color(0xFFB8A0D4)
             : hover
-                ? mat.slotBorderHighlight
-                : mat.slotBorder,
+            ? mat.slotBorderHighlight
+            : mat.slotBorder,
         width: 2.5,
       ),
       boxShadow: filled
@@ -1253,22 +1306,22 @@ Widget _slotBackGradientBody({
               ),
             ]
           : hover
-              ? mat.slotGlow
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+          ? mat.slotGlow
+          : [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
     ),
     alignment: Alignment.center,
     child: Text(
       filled
           ? '✦'
           : hover
-              ? '✦'
-              : '+',
+          ? '✦'
+          : '+',
       style: TextStyle(
         fontSize: height < 100 ? 16 : 22,
         color: Colors.black.withValues(alpha: filled ? 0.45 : 0.12),
@@ -1306,10 +1359,7 @@ class _SlotFront extends StatelessWidget {
         ),
         border: Border.all(color: AppColors.cardBorder, width: 2.5),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 14,
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 14),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -1343,10 +1393,10 @@ class _SlotFront extends StatelessWidget {
                       maxLines: 2,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontSize: 7,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.cardBorder,
-                          ),
+                        fontSize: 7,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.cardBorder,
+                      ),
                     ),
                   ),
               ],
@@ -1357,7 +1407,10 @@ class _SlotFront extends StatelessWidget {
               width: width,
               height: height,
               errorBuilder: (_, _, _) => Center(
-                child: Text(emoji, style: TextStyle(fontSize: bottomRow ? 24 : 32)),
+                child: Text(
+                  emoji,
+                  style: TextStyle(fontSize: bottomRow ? 24 : 32),
+                ),
               ),
             ),
     );
@@ -1369,13 +1422,11 @@ class _ClayButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.purple = false,
-    this.fullWidth = false,
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool purple;
-  final bool fullWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -1385,10 +1436,8 @@ class _ClayButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFF7C5BB8),
           foregroundColor: Colors.white,
-          minimumSize: fullWidth
-              ? const Size.fromHeight(48)
-              : const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          minimumSize: const Size(0, 40),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: const BorderSide(color: Color(0x66C9B8E0)),
@@ -1397,7 +1446,8 @@ class _ClayButton extends StatelessWidget {
         onPressed: onPressed,
         child: Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
       );
     } else {
@@ -1405,8 +1455,8 @@ class _ClayButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFB89CD4),
           foregroundColor: Colors.white,
-          minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(0, 40),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: const BorderSide(color: Color(0xFFC9B8E0)),
@@ -1415,12 +1465,10 @@ class _ClayButton extends StatelessWidget {
         onPressed: onPressed,
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
       );
-    }
-    if (fullWidth) {
-      return SizedBox(width: double.infinity, child: btn);
     }
     return btn;
   }

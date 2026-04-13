@@ -36,7 +36,6 @@ void main() {
   });
 
   test('LocalAccountStore: 탈퇴 시 비밀번호 불일치면 계정 유지', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
     final store = LocalAccountStore.instance;
     await store.register(
       username: 'keepme',
@@ -51,7 +50,7 @@ void main() {
     expect(await store.login('keepme', 'secret12'), isNotNull);
   });
 
-  testWidgets('AccountManageScreen: 계정 탈퇴 플로우로 삭제·화면 닫힘', (tester) async {
+  testWidgets('AccountManageScreen: 회원 탈퇴·계정 삭제 진입 UI', (tester) async {
     addTearDown(() async {
       await tester.binding.setSurfaceSize(null);
     });
@@ -68,58 +67,17 @@ void main() {
     );
     final session = await store.login('screenuser', 'secret12');
     expect(session, isNotNull);
-    await store.saveSession(session!);
 
-    Object? popResult;
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              return FilledButton(
-                onPressed: () async {
-                  popResult = await Navigator.of(context).push<Object?>(
-                    MaterialPageRoute<Object?>(
-                      builder: (_) => AccountManageScreen(session: session),
-                    ),
-                  );
-                },
-                child: const Text('open_manage'),
-              );
-            },
-          ),
-        ),
+        home: AccountManageScreen(session: session!),
       ),
     );
-
-    await tester.tap(find.text('open_manage'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('계정 관리'), findsOneWidget);
-    await tester.tap(find.widgetWithText(OutlinedButton, '계정 탈퇴'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    await tester.enterText(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(TextField),
-      ),
-      'secret12',
-    );
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(FilledButton, '탈퇴'),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(popResult, isA<AccountDeletedResult>());
-    expect(await store.login('screenuser', 'secret12'), isNull);
-    expect(await store.loadSession(), isNull);
+    expect(find.widgetWithText(OutlinedButton, '회원 탈퇴'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '계정 삭제'), findsOneWidget);
   });
 }

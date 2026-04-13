@@ -1,6 +1,6 @@
 // 개인 상점(유저 간 별조각 거래) — 진열·구매 결과.
 
-/// Supabase `peer_shop_listings.status` / 로컬 보드의 유효 진열.
+/// 개인 상점 진열 상태(로컬 보드의 유효 진열).
 abstract class PeerShopListingStatus {
   static const active = 'active';
   static const cancelled = 'cancelled';

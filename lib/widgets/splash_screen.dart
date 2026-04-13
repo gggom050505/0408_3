@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../config/opening_assets.dart';
 import '../config/gggom_offline_landing.dart';
 import '../theme/app_colors.dart';
+import 'adaptive_network_asset_image.dart';
 
 /// 오프닝: `assets/opening/` 이미지가 있으면 순서대로 표시 후 종료. 없으면 기본 splash 1프레임.
 class SplashScreen extends StatefulWidget {
@@ -214,7 +215,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Image.asset(
                           kGggomSiteSplashPngAsset,
                           fit: BoxFit.contain,
-                          semanticLabel: '사고뭉치 곰곰곰 타로카드',
+                          semanticLabel: '$kGggomSiteBrowserTitle 오프닝 이미지',
                         ),
                       ),
                       Positioned.fill(
@@ -310,10 +311,9 @@ class _OpeningImagePage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Center(
-              child: Image.asset(
-                assetPath,
+              child: AdaptiveNetworkOrAssetImage(
+                src: assetPath,
                 fit: BoxFit.contain,
-                semanticLabel: '오프닝',
               ),
             ),
             Positioned.fill(

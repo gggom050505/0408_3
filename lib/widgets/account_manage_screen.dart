@@ -18,11 +18,23 @@ class AccountManageScreen extends StatefulWidget {
 class _AccountManageScreenState extends State<AccountManageScreen> {
   late TextEditingController _nick;
   var _savingNick = false;
+  String? _identityAuditLine;
+
+  static const _ownerLoginKey = 'gggom050501';
+  static const _ownerNickname = '동글아저씨';
+
+  bool get _ownerIdMatched =>
+      widget.session.loginKey.trim().toLowerCase() == _ownerLoginKey;
+  bool get _ownerNicknameMatched => widget.session.displayName.trim() == _ownerNickname;
+  bool get _showOwnerAudienceStats => _ownerIdMatched && _ownerNicknameMatched;
 
   @override
   void initState() {
     super.initState();
     _nick = TextEditingController(text: widget.session.displayName);
+    if (_ownerIdMatched) {
+      _loadOwnerIdentityAudit();
+    }
   }
 
   @override
@@ -222,12 +234,46 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
     }
 
     final uid = r.removedUserId ?? widget.session.userId;
-    await wipeStandaloneArtifactsForAppUserId(uid);
+    final nav = Navigator.of(context, rootNavigator: true);
+    try {
+      await wipeStandaloneArtifactsForAppUserId(uid);
+    } catch (_) {
+      // 계정 삭제는 이미 완료됨. 기기 정리만 일부 실패한 경우에도 화면은 닫습니다.
+    }
+    nav.pop(const AccountDeletedResult());
+  }
 
-    if (!mounted) {
+  Future<void> _loadOwnerIdentityAudit() async {
+    final sameNick = await LocalAccountStore.instance.listAccountsByDisplayName(
+      _ownerNickname,
+    );
+    if (!mounted) return;
+    if (!_ownerNicknameMatched) {
+      setState(() {
+        _identityAuditLine = 'ID는 일치하지만 닉네임이 "$_ownerNickname" 과 다릅니다.';
+      });
       return;
     }
-    Navigator.of(context).pop(const AccountDeletedResult());
+    if (sameNick.isEmpty) {
+      setState(() {
+        _identityAuditLine = '동일 닉네임 계정을 찾지 못했어요.';
+      });
+      return;
+    }
+    final mine = sameNick.where((e) => e.loginKey == _ownerLoginKey).toList();
+    if (mine.isEmpty) {
+      setState(() {
+        _identityAuditLine = '닉네임은 같지만 ID가 다른 계정만 있어요.';
+      });
+      return;
+    }
+    final isEarliest = sameNick.first.loginKey == _ownerLoginKey;
+    final dupCount = sameNick.length - 1;
+    final base = isEarliest ? '본인 계정을 선가입 계정으로 확인했어요.' : '동일 닉네임의 선가입 계정이 따로 있어요.';
+    final dupNote = dupCount > 0 ? ' (동일 닉네임 추가 $dupCount개)' : ' (동일 닉네임 추가 없음)';
+    setState(() {
+      _identityAuditLine = '$base$dupNote';
+    });
   }
 
   @override
@@ -245,6 +291,48 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
             title: const Text('아이디'),
             subtitle: Text(widget.session.loginKey),
           ),
+          if (_ownerIdMatched) ...[
+            const SizedBox(height: 8),
+            Text(
+              _identityAuditLine ?? '계정 확인 중…',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: _showOwnerAudienceStats
+                    ? AppColors.textSecondary
+                    : Colors.red.shade700,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (_showOwnerAudienceStats) ...[
+            const Divider(height: 32),
+            Text(
+              '운영 통계',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '이 앱은 서버에 가입자 수를 올리지 않아요. '
+                      '운영 통계는 별도 도구가 필요합니다.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const Divider(height: 32),
           Text(
             '프로필',
@@ -348,7 +436,7 @@ class _AccountManageScreenState extends State<AccountManageScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            AppConfig.localIdAccountSeparateFromOAuthLine,
+            AppConfig.localIdAccountInfoLine,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
               height: 1.4,

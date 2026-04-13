@@ -3,9 +3,7 @@ import '../models/event_item.dart';
 import '../models/feed_post.dart';
 import '../models/peer_shop_models.dart';
 import '../models/shop_models.dart';
-import '../models/surprise_gift_models.dart';
-
-/// Supabase [FeedRepository] / [LocalFeedRepository] 공통 계약.
+/// 피드 데이터 소스 계약(로컬 구현).
 abstract class FeedDataSource {
   Future<List<FeedPost>> fetchPosts();
 
@@ -65,27 +63,15 @@ abstract class ShopDataSource {
     required String type,
   });
 
-  /// 출석 완료 시 별조각·미보유 오라클 카드 1장 지급(로컬/Supabase 공통 시도).
+  /// 출석 완료 시 별조각·미보유 오라클 카드 1장 지급.
   Future<AttendanceDailyRewardResult?> grantAttendanceDailyReward(
     String userId,
   );
 
-  /// 광고 시청 보상(베타 시뮬)·프로모션 등 — 별조각만 [amount] 만큼 가산. 실패 시 null.
+  /// 광고 시청 보상(베타 시뮬)·프로모션 등 — 별조각만 [amount] 만큼 가산(안내 문구는 기본 3개 기준). 실패 시 null.
   Future<UserProfileRow?> grantAdRewardStars(String userId, {int amount = 3});
 
-  /// [activeCatalog]는 보통 [fetchShopItems] 결과. 동기화 후 상점에 띄울 깜짝 선물이 있으면 반환.
-  Future<SurpriseGiftOffer?> syncSurpriseGift(
-    String userId,
-    List<ShopItemRow> activeCatalog,
-  );
-
-  /// [syncSurpriseGift]로 받은 오퍼만 수령 가능. 이미 보유 시 [ClaimSurpriseGiftResult.alreadyOwned]만 반환하고 중복 추가는 하지 않음.
-  Future<ClaimSurpriseGiftResult> claimSurpriseGift(
-    String userId,
-    SurpriseGiftOffer offer,
-  );
-
-  /// 첫 가입 세팅: 기본 카드 뒷면·슬롯 장착 + 오라클 7장·이모티콘 8개(계정별 시드 무작위, 이미 있으면 건너뜀).
+  /// 첫 가입 세팅: 기본 카드 뒷면·슬롯 장착 + 오라클·이모 지급·별조각(계정별 시드, 이미 있으면 건너뜀).
   Future<bool> completeFirstSetupWizard(String userId);
 }
 
@@ -113,7 +99,7 @@ abstract class EventDataSource {
   Future<List<EventItemRow>> fetchActiveEvents();
 }
 
-/// 유저 간 별조각 거래(개인 상점). 로컬 번들은 기기 공유 JSON, Supabase는 [docs/supabase_peer_shop_listings.sql].
+/// 유저 간 별조각 거래(개인 상점). 로컬 번들은 기기 공유 JSON.
 abstract class PeerShopDataSource {
   /// 활성 진열 전체(본인 진열 포함). 구매는 [purchaseListing]·UI에서 본인 행 제외.
   Future<List<PeerShopListing>> fetchMarketplace(String currentUserId);
@@ -141,6 +127,13 @@ abstract class PeerShopDataSource {
 
 abstract class AttendanceDataSource {
   Future<bool> checkToday(String userId);
+
+  /// 지정 월(로컬 기준 년/월)의 출석한 일(day) 목록.
+  Future<Set<int>> fetchCheckedInDaysOfMonth(
+    String userId, {
+    required int year,
+    required int month,
+  });
 
   Future<Map<String, dynamic>?> doCheckIn(String userId);
 }

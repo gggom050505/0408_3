@@ -68,8 +68,8 @@ class _EventTabState extends State<EventTab> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '출석·깜짝 선물·시세 등 혜택 안내와 함께, 타로 화면·별조각·오라클·채팅까지 '
-                  '앱을 더 즐기는 방법을 모아 두었어요. 아래 카드를 아래로 당겨 새로고침할 수 있어요.',
+                  '출석·오늘의 타로(데일리 5×2) 등 안내와, 타로 매트·별조각·오라클·'
+                  '채팅까지 앱을 즐기는 방법을 모아 두었어요. 아래 카드를 당겨 새로고침할 수 있어요.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                         height: 1.4,

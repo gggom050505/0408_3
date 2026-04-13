@@ -61,6 +61,7 @@ void main() {
     test('서로 다른 ⭐1 상품을 같은 UTC일에 연속 구매하면 두 번째는 false', () async {
       final repo = LocalShopRepository(userId);
       await repo.ensureUserEconomyReady();
+      await repo.grantAdRewardStars(userId, amount: 20);
 
       final full = await repo.loadFullCatalogForAdmin();
       final ownedIds = (await repo.fetchOwnedItems(userId)).map((e) => e.itemId).toSet();

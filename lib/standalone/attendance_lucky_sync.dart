@@ -16,7 +16,7 @@ class AttendanceLuckySyncResult {
   final DateTime? applyNextEligibleAfterUtc;
 }
 
-/// 매일 출석 시 상점 **유료·미보유** 품목 중 무작위 1개(깜짝 선물과 동일 타입군).
+/// 매일 출석 시 상점 **유료·미보유** 품목 중 무작위 1개.
 /// 별조각 +1은 [grantAttendanceDailyReward]에서 별도 지급.
 class AttendanceLuckySync {
   AttendanceLuckySync._();
@@ -33,7 +33,7 @@ class AttendanceLuckySync {
   static bool _isOwned(List<UserItemRow> owned, String itemId, String itemType) =>
       owned.any((e) => e.itemId == itemId && e.itemType == itemType);
 
-  /// [doNotGrantKeys]: [gggomShopOwnedKey](itemId, itemType) — 깜짝 선물 예약 품목 등 제외.
+  /// [doNotGrantKeys]: [gggomShopOwnedKey](itemId, itemType) — 후보에서 제외할 품목(선택).
   static AttendanceLuckySyncResult evaluate({
     required AttendanceLuckyState state,
     required List<ShopItemRow> catalog,

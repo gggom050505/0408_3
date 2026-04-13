@@ -57,7 +57,11 @@ class _PostCaptureSheetState extends State<PostCaptureSheet> {
       _submitError = null;
     });
     try {
-      final tagList = _selectedTagKeys.toList()..sort();
+      final tagList = <String>{
+        ..._selectedTagKeys,
+        kFeedTagTarotSpreadMatchKey,
+      }.toList()
+        ..sort();
       final post = await widget.feed.addPost(
         userId: widget.userId,
         username: widget.username,
@@ -174,7 +178,9 @@ class _PostCaptureSheetState extends State<PostCaptureSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                '피드와 같은 목록에서 골라 주세요. 여러 개 선택 가능해요.',
+                '「타로 탭 캡처」는 #타로스프레드가 자동으로 붙어요. '
+                '#오늘의타로는 오늘의 타로 전용이라 여기서는 고를 수 없어요. '
+                '아래는 부가 태그만 골라 주세요.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -185,6 +191,8 @@ class _PostCaptureSheetState extends State<PostCaptureSheet> {
                 runSpacing: 8,
                 children: [
                   for (final chip in kFeedPostSelectableTags)
+                    if (chip.matchKey != kFeedTagTodayTarotMatchKey &&
+                        chip.matchKey != kFeedTagTarotSpreadMatchKey)
                     FilterChip(
                       label: Text(chip.label),
                       selected: _selectedTagKeys.contains(chip.matchKey),

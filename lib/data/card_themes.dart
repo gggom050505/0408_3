@@ -1,30 +1,28 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../config/gggom_offline_landing.dart';
+import 'korea_traditional_major_assets.dart';
+import 'major_clay_assets.dart';
+import 'minor_clay_assets.dart';
+
+export 'korea_traditional_major_assets.dart';
 
 /// Next.js `cardThemes.ts`와 동일한 파일 규칙.
 /// [assetOrigin]이 비면 [kGggomBundledPublicRoot] 에셋을 씁니다.
 const String defaultThemeId = 'default';
+
 /// 웹 `cardThemes.ts` 및 원격 URL·번들 경로와 동일한 ID. 상점/가방 목록에는 넣지 않아도
 /// [getCardImageUrl]·[getBundledSiteCardAssetPath] 규칙은 유지합니다.
 const String koreanClayThemeId = 'korean-clay';
-/// 상점·가방 카드 덱 ID — 디스크 `assets/koreacard/majors(0).png` ~ `majors(21).png` 22장.
+
+/// `assets/major/` 클레이 메이저 22장 + id 82·83 확장 2장 (총 24일러).
+const String majorClayThemeId = 'major-clay';
+
+/// 상점·가방 카드 덱 ID — [koreaTraditionalMajorAssetPath] 22장.
 const String koreaTraditionalMajorThemeId = 'korea-traditional-major';
 
-const String kKoreaTraditionalMajorAssetDir = 'assets/koreacard';
-
-String _koreaTraditionalMajorPngFileName(int cardId) =>
-    'majors($cardId).png';
-
-/// 타로 메이저 [cardId] 0~21 → Flutter [Image.asset] 경로.
-String? koreaTraditionalMajorAssetPath(int cardId) {
-  if (cardId < 0 || cardId > 21) return null;
-  return '$kKoreaTraditionalMajorAssetDir/${_koreaTraditionalMajorPngFileName(cardId)}';
-}
-
-/// 상점·가방 목록 썸네일 (0번 카드 파일과 동일 규칙).
-const String kKoreaTraditionalMajorShopThumbnailAsset =
-    '$kKoreaTraditionalMajorAssetDir/majors(0).png';
+/// RW **마이너 전체** + **보유 한국전통 메이저 조각**만 합쳐 섞는 팬 덱. (`deck_card_catalog.dart` 참고)
+const String mixedMinorKoreaTraditionalMajorThemeId = 'mixed-minor-korea-major';
 
 const _majorFiles = <int, String>{
   0: '00_fool.png',
@@ -52,8 +50,20 @@ const _majorFiles = <int, String>{
 };
 
 const _fnRank = [
-  'ace', 'two', 'three', 'four', 'five', 'six', 'seven',
-  'eight', 'nine', 'ten', 'page', 'knight', 'queen', 'king',
+  'ace',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'page',
+  'knight',
+  'queen',
+  'king',
 ];
 
 const _specialFiles = <int, String>{
@@ -104,7 +114,7 @@ String? getCardImageUrl({
   required int cardId,
   required String assetOrigin,
 }) {
-  if (themeId == koreaTraditionalMajorThemeId) {
+  if (themeId == koreaTraditionalMajorThemeId || themeId == majorClayThemeId) {
     return null;
   }
   // 웹 정적 배포(Vercel 등)에는 프로덕션 사이트의 /cards/ 경로가 없을 수 있음.
@@ -135,6 +145,21 @@ String? getBundledSiteCardAssetPath({
   if (themeId == koreaTraditionalMajorThemeId) {
     return koreaTraditionalMajorAssetPath(cardId);
   }
+  if (themeId == majorClayThemeId) {
+    final maj = majorClayAssetPathForTarotCardId(cardId);
+    if (maj != null) {
+      return maj;
+    }
+    final mino = minorClayAssetPathForTarotCardId(cardId);
+    if (mino != null) {
+      return mino;
+    }
+    final filename = _fileForCardId(cardId);
+    if (filename == null) {
+      return null;
+    }
+    return '$kGggomBundledPublicRoot/cards/default/$filename';
+  }
   String? filename;
   String folder;
   if (themeId == koreanClayThemeId) {
@@ -152,7 +177,9 @@ String? getBundledSiteCardAssetPath({
 const Map<String, String> kCardThemeThumbnailPath = {
   defaultThemeId: '/cards/default/00_fool.png',
   koreanClayThemeId: '/cards/korean-clay/00_fool.png',
+  majorClayThemeId: kMajorClayShopThumbnailAsset,
   koreaTraditionalMajorThemeId: kKoreaTraditionalMajorShopThumbnailAsset,
+  mixedMinorKoreaTraditionalMajorThemeId: '/cards/default/22_ace_wands.png',
 };
 
 String? resolveGggomBundledSitePath(String path) {
@@ -163,6 +190,12 @@ String? resolveGggomBundledSitePath(String path) {
   if (normalized.startsWith('oracle_cards/')) {
     final rest = normalized.substring('oracle_cards/'.length);
     return 'assets/oracle/$rest';
+  }
+  if (normalized.startsWith('assets/major/') ||
+      normalized.startsWith('assets/cards/minor_number_clay/') ||
+      normalized.startsWith('assets/cards/minor_court_clay/') ||
+      normalized.startsWith('assets/koreacard/')) {
+    return normalized;
   }
   if (normalized.startsWith('cards/') || normalized.startsWith('card_backs/')) {
     return '$kGggomBundledPublicRoot/$normalized';
@@ -184,8 +217,13 @@ String normalizeFlutterBundledAssetKey(String path) {
       t.startsWith('data:image/')) {
     return t;
   }
-  final noLeadingSlashes = t.replaceFirst(RegExp(r'^/+'), '');
+  var noLeadingSlashes = t.replaceFirst(RegExp(r'^/+'), '');
   if (noLeadingSlashes.startsWith('assets/')) {
+    // 잘못 중첩된 키(`assets/assets/...`)를 단일 키로 정규화해
+    // Flutter web 요청 경로가 `assets/assets/assets/...`가 되는 문제를 막는다.
+    while (noLeadingSlashes.startsWith('assets/assets/')) {
+      noLeadingSlashes = noLeadingSlashes.substring('assets/'.length);
+    }
     return noLeadingSlashes;
   }
   return t;
@@ -202,6 +240,12 @@ String? resolvePublicAssetUrl(String path, String assetOrigin) {
   }
   final asBundled = normalizeFlutterBundledAssetKey(t);
   if (asBundled.startsWith('assets/')) {
+    final o = assetOrigin.replaceAll(RegExp(r'/$'), '');
+    if (o.isNotEmpty) {
+      // Flutter web 번들 에셋 실제 서빙 경로: /assets/<asset-key>
+      // asset-key 자체가 assets/... 이므로 최종 URL은 /assets/assets/... 형태가 됩니다.
+      return '$o/assets/$asBundled';
+    }
     return asBundled;
   }
   final o = assetOrigin.replaceAll(RegExp(r'/$'), '');

@@ -1,36 +1,21 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 
 import 'gggom_runtime_site_config.dart';
 import 'gggom_site_public_catalog.dart';
 
-/// 백엔드는 **Supabase** 단일 서버입니다. `www.gggom0505.kr` 과 동일한 프로젝트 URL·anon 키·에셋 호스트를 **기본**으로 씁니다.
-/// 스테이징/로컬은 `--dart-define=SUPABASE_URL=...` 등으로 덮어씁니다.
-/// `dart-define`이 비어 있으면 [GggomRuntimeSiteConfig] 원격 JSON → [GggomSitePublicCatalog] 순입니다.
+/// 에셋 오리진 등은 [GggomSitePublicCatalog]·[GggomRuntimeSiteConfig]·`dart-define` 순으로 읽습니다.
 ///
-/// 오프라인 전용 번들: `--dart-define=GGGOM_OFFLINE_BUNDLE=true`
+/// 이 앱 빌드는 **서버 DB 없이** 로컬 JSON·기기 저장만 사용합니다.
+/// 오프라인 전용: `--dart-define=GGGOM_OFFLINE_BUNDLE=true` → 런타임 설정 원격 로드를 생략합니다.
 class AppConfig {
   AppConfig._();
 
-  static bool supabaseEnabled = false;
-
-  static const _supabaseUrlEnv = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-  static const _supabaseAnonKeyEnv = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
   static const _assetOriginEnv = String.fromEnvironment(
     'ASSET_ORIGIN',
     defaultValue: '',
   );
-  static const _oauthRedirectEnv = String.fromEnvironment(
-    'OAUTH_REDIRECT_URL',
-    defaultValue: '',
-  );
 
-  /// `true` / `1` 이면 Supabase 초기화를 건너뜁니다 (로컬 에셋·시뮬 메뉴 중심 빌드).
+  /// `true` / `1` 이면 런타임 사이트 JSON 로드를 생략합니다 (로컬 에셋·시뮬 중심).
   static const _offlineBundleRaw = String.fromEnvironment(
     'GGGOM_OFFLINE_BUNDLE',
     defaultValue: 'false',
@@ -38,21 +23,63 @@ class AppConfig {
   static bool get useOfflineBundleOnly =>
       _offlineBundleRaw == 'true' || _offlineBundleRaw == '1';
 
-  /// [GggomSitePublicCatalog] 프로덕션 프로젝트. `SUPABASE_URL` → 원격 JSON → 카탈로그.
-  static String get supabaseUrl {
-    if (_supabaseUrlEnv.isNotEmpty) return _supabaseUrlEnv;
-    final r = GggomRuntimeSiteConfig.instance.supabaseUrl;
-    if (r != null && r.isNotEmpty) return r;
-    return GggomSitePublicCatalog.supabaseRestBase;
-  }
+  /// **웹만** — 스플래시 뒤 로그인 랜딩 없이 게스트 홈으로 진입(로컬 테스트용).
+  /// `flutter run -d chrome --dart-define=GGGOM_SKIP_LOGIN=true`
+  static const _skipLoginRaw = String.fromEnvironment(
+    'GGGOM_SKIP_LOGIN',
+    defaultValue: 'false',
+  );
+  static bool get skipLoginScreen =>
+      kIsWeb && (_skipLoginRaw == 'true' || _skipLoginRaw == '1');
 
-  /// 웹과 동일한 anon 키. `SUPABASE_ANON_KEY` → 원격 JSON → 카탈로그.
-  static String get supabaseAnonKey {
-    if (_supabaseAnonKeyEnv.isNotEmpty) return _supabaseAnonKeyEnv;
-    final r = GggomRuntimeSiteConfig.instance.supabaseAnonKey;
-    if (r != null && r.isNotEmpty) return r;
-    return GggomSitePublicCatalog.anonKey;
-  }
+  /// **웹 전용(디버그·프로파일)** — 브라우저에 로컬 ID 계정을 자동 생성·로그인하거나,
+  /// [devWebPrefillLoginId]로 로그인/가입 화면에 아이디를 미리 넣습니다.
+  ///
+  /// `flutter run -d chrome --dart-define=GGGOM_DEV_WEB_SEED_LOGIN=gggom050501 --dart-define=GGGOM_DEV_WEB_SEED_PASSWORD=******`
+  /// 비밀번호 6자 이상일 때만 첫 실행 자동 가입·로그인. **릴리스(`kReleaseMode`)에서는 전부 무시.**
+  static const _devWebSeedLogin = String.fromEnvironment(
+    'GGGOM_DEV_WEB_SEED_LOGIN',
+    defaultValue: '',
+  );
+  static const _devWebSeedPassword = String.fromEnvironment(
+    'GGGOM_DEV_WEB_SEED_PASSWORD',
+    defaultValue: '',
+  );
+
+  /// 시드할 로그인 아이디(앞뒤 공백 제외). [devWebSeedLocalAccountEnabled]·[devWebPrefillLoginId] 참고.
+  static String get devWebSeedLogin => _devWebSeedLogin.trim();
+
+  /// 디버그·프로파일 웹에서 `GGGOM_DEV_WEB_SEED_LOGIN`이 있으면 로그인/가입 화면 아이디 칸에 넣습니다.
+  static bool get devWebPrefillLoginId =>
+      kIsWeb && !kReleaseMode && devWebSeedLogin.isNotEmpty;
+
+  /// 디버그·프로파일 웹 + 시드 비밀번호 6자 이상일 때 자동 가입·세션 저장.
+  static bool get devWebSeedLocalAccountEnabled =>
+      kIsWeb &&
+      !kReleaseMode &&
+      devWebSeedLogin.isNotEmpty &&
+      _devWebSeedPassword.length >= 6;
+
+  static String get devWebSeedPassword => _devWebSeedPassword;
+
+  /// **디버그·프로파일 전용**(릴리스 무시). 로컬 상점 경제(`LocalShopRepository`)에만 적용.
+  static const _devGrantUserRequestPackRaw = String.fromEnvironment(
+    'GGGOM_DEV_GRANT_USER_REQUEST_PACK',
+    defaultValue: 'false',
+  );
+  static bool get devGrantUserRequestPack =>
+      !kReleaseMode &&
+      (_devGrantUserRequestPackRaw == 'true' ||
+          _devGrantUserRequestPackRaw == '1');
+
+  /// 디버그 전용 — 선물팩 지급 대상을 특정 계정 ID로 제한.
+  /// 비어 있으면 계정 제한 없이(로그인한 계정마다 1회) 적용합니다.
+  static const _devGrantUserRequestPackOnlyUserIdRaw = String.fromEnvironment(
+    'GGGOM_DEV_GRANT_USER_REQUEST_PACK_ONLY_USER_ID',
+    defaultValue: '',
+  );
+  static String get devGrantUserRequestPackOnlyUserId =>
+      _devGrantUserRequestPackOnlyUserIdRaw.trim();
 
   /// 카드·썸네일 등 `public/` 기준 URL. `ASSET_ORIGIN` → 원격 JSON → 카탈로그.
   static String get assetOrigin {
@@ -62,29 +89,7 @@ class AppConfig {
     return GggomSitePublicCatalog.siteOrigin;
   }
 
-  /// Supabase Dashboard → Authentication → Redirect URLs 에 동일 등록 필요.
-  /// 모바일/데스크톱: 앱 스킴 딥링크.
-  /// **웹:** 기본은 **지금 Flutter 웹 오리진**(`https://www…/` 등)으로 복귀합니다(가비아·Vercel 정적 호스팅 공통).
-  /// 사이트 도메인 콜백을 쓰려면 `--dart-define=OAUTH_REDIRECT_URL=https://…/auth/callback` 로 지정.
-  static String get oauthRedirectUrl {
-    if (_oauthRedirectEnv.isNotEmpty) return _oauthRedirectEnv;
-    if (!kIsWeb) return 'com.gggom.gggom_tarot://login-callback/';
-    final u = Uri.base;
-    if (u.scheme == 'http' || u.scheme == 'https') {
-      final o = u.origin;
-      return o.endsWith('/') ? o : '$o/';
-    }
-    final rt = GggomRuntimeSiteConfig.instance;
-    final origin = (rt.assetOrigin ?? GggomSitePublicCatalog.siteOrigin)
-        .replaceAll(RegExp(r'/$'), '');
-    final path =
-        rt.webAuthCallbackPath ?? GggomSitePublicCatalog.webAuthCallbackPath;
-    final p = path.startsWith('/') ? path : '/$path';
-    return '$origin$p';
-  }
-
-  /// `true` / `1` 이면 Supabase 연동 빌드에서도 「별조각·광고(베타)」를 켭니다.
-  /// 실제 광고 SDK 연동 전 — `--dart-define=AD_REWARD_TEST_MODE=true`
+  /// 별조각 광고(시뮬) — `--dart-define=AD_REWARD_TEST_MODE=true`
   static const _adRewardTestRaw = String.fromEnvironment(
     'AD_REWARD_TEST_MODE',
     defaultValue: 'false',
@@ -92,10 +97,7 @@ class AppConfig {
   static bool get adRewardTestMode =>
       _adRewardTestRaw == 'true' || _adRewardTestRaw == '1';
 
-  /// 별조각 광고(시뮬) 메뉴 표시.
-  ///
-  /// 기본은 항상 표시하고, 숨기고 싶을 때만
-  /// `--dart-define=SHOW_AD_REWARD_MENU=false` 를 사용합니다.
+  /// 별조각 광고 메뉴 표시. 숨기려면 `--dart-define=SHOW_AD_REWARD_MENU=false`
   static const _showAdRewardMenuRaw = String.fromEnvironment(
     'SHOW_AD_REWARD_MENU',
     defaultValue: 'true',
@@ -103,48 +105,69 @@ class AppConfig {
   static bool get showBetaStarAdRewardMenu =>
       !(_showAdRewardMenuRaw == 'false' || _showAdRewardMenuRaw == '0');
 
-  /// 광고 보상(시뮬) 지급 별조각 — `--dart-define=AD_REWARD_STARS=1` (기본 1)
+  /// 광고 1회 시청 완료 시 지급 별조각 수. `--dart-define=AD_REWARD_STARS=N` 으로 덮어쓸 수 있음.
   static const adRewardStarAmount = int.fromEnvironment(
     'AD_REWARD_STARS',
-    defaultValue: 1,
+    defaultValue: 3,
   );
 
-  /// 같은 유저 기준 광고 보상 재시청 최소 간격(분). UI·저장 로직과 맞출 것.
   static const adRewardCooldownMinutes = 10;
 
-  /// 광고·제휴 문의 — 로그인·GNB·상점·광고 시트 등 UI 공통.
   static const adInquiryContactLine = '광고 문의 gggom0505@gmail.com';
 
-  /// 불쾌·수치심 유발 이용 신고 안내 — 채팅·로그인 등.
   static const communityMisconductReportLine =
       '다른 사용자에게 불쾌감이나 수치심을 주는 사용자를 보시면 화면캡처해서 '
       'gggom0505@gmail.com 으로 보내주세요';
 
-  /// ID·구글 공통 보안 리마인더 — 로그인·GNB·계정 화면 등.
   static const accountSecurityReminderLine =
       '계정 보안은 본인이 지키세요. 해킹으로부터 보호해 드리지 못합니다.';
 
-  /// 구글(등) 연동 계정이 기기 ID 계정과 무관함을 짧게 안내.
-  static const oauthAccountSeparateFromLocalIdLine =
-      '구글 등으로 로그인한 이 계정은, ID·비밀번호로 가입한 기기 전용 계정과 '
-      '별도로 운영되며 별조각·가방 등 데이터가 이어지지 않아요.';
+  /// 기기에만 저장되는 ID·비밀번호 계정 안내.
+  static const localIdAccountInfoLine =
+      '이 계정은 이 기기에만 저장되는 ID·비밀번호 계정이에요. 다른 기기와 자동으로 동기화되지 않아요.';
 
-  /// 기기 ID 계정이 연동 로그인과 무관함을 짧게 안내.
-  static const localIdAccountSeparateFromOAuthLine =
-      '이 계정은 기기에만 저장되는 ID·비밀번호 계정이에요. '
-      '구글 등 연동 로그인 계정과는 별도이며 데이터가 이어지지 않아요.';
-
-  /// 웹 미리보기·스테이징용 접근 암호. 비어 있으면 게이트 없음(공개 빌드).
-  /// `flutter build web --dart-define=SITE_ACCESS_PIN=여기에암호`
-  /// **주의:** 최종 JS에 문자열이 포함되며, 세션 저장은 `sessionStorage`뿐입니다.
   static const _siteAccessPinEnv = String.fromEnvironment(
     'SITE_ACCESS_PIN',
     defaultValue: '',
   );
 
-  /// [kIsWeb] 이고 빌드 시 암호가 지정된 경우에만 [SiteAccessGate] 사용.
   static bool get siteAccessPinRequired =>
       kIsWeb && _siteAccessPinEnv.trim().isNotEmpty;
 
   static String get siteAccessPin => _siteAccessPinEnv.trim();
+
+  static const _authServerOriginEnv = String.fromEnvironment(
+    'AUTH_SERVER_ORIGIN',
+    defaultValue: '',
+  );
+
+  /// 웹 OAuth 시작 엔드포인트 베이스 URL (예: http://localhost:4000)
+  static String get authServerOrigin => _authServerOriginEnv.trim();
+
+  static bool get kakaoLoginEnabled => authServerOrigin.isNotEmpty;
+
+  static const _supabaseUrlEnv = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: '',
+  );
+  static const _supabaseAnonKeyEnv = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: '',
+  );
+
+  static String get supabaseUrl => _supabaseUrlEnv.trim();
+  static String get supabaseAnonKey => _supabaseAnonKeyEnv.trim();
+
+  static bool get supabaseEnabled =>
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  /// Google OAuth 버튼 표시 여부 (웹/윈도우/모바일 공통).
+  static bool get googleLoginEnabled => supabaseEnabled;
+
+  /// 네이티브(윈도우/안드로이드/iOS) OAuth 콜백 딥링크.
+  ///
+  /// Supabase 대시보드(Auth > URL Configuration > Redirect URLs)에도
+  /// `com.gggom.gggom_tarot://login-callback/` 를 등록해야 로그인 완료 후 앱으로 돌아옵니다.
+  static const supabaseNativeRedirectUri =
+      'com.gggom.gggom_tarot://login-callback/';
 }

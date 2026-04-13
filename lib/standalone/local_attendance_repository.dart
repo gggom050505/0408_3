@@ -53,6 +53,24 @@ class LocalAttendanceRepository implements AttendanceDataSource {
   }
 
   @override
+  Future<Set<int>> fetchCheckedInDaysOfMonth(
+    String userId, {
+    required int year,
+    required int month,
+  }) async {
+    await _ensureLoaded();
+    final iso = _checked[userId];
+    if (iso == null || iso.isEmpty) {
+      return <int>{};
+    }
+    final d = DateTime.tryParse(iso);
+    if (d == null || d.year != year || d.month != month) {
+      return <int>{};
+    }
+    return <int>{d.day};
+  }
+
+  @override
   Future<Map<String, dynamic>?> doCheckIn(String userId) async {
     await _ensureLoaded();
     final k = _todayKey();

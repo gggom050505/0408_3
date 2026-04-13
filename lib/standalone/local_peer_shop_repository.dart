@@ -22,7 +22,7 @@ class _LocalUserShopFile {
 }
 
 /// 같은 기기의 로컬 계정끼리 `local_peer_shop_listings_v1.json`으로 진열을 공유합니다.
-/// (웹·단일 기기 베타.) Supabase 모드는 [PeerShopRepository]를 씁니다.
+/// 웹·단일 기기 베타용 로컬 개인 상점.
 class LocalPeerShopRepository implements PeerShopDataSource {
   LocalPeerShopRepository._();
   static final LocalPeerShopRepository instance = LocalPeerShopRepository._();
@@ -120,14 +120,47 @@ class LocalPeerShopRepository implements PeerShopDataSource {
     );
   }
 
-  bool _isEquipped(UserProfileRow p, UserItemRow it) {
-    return switch (it.itemType) {
-      'card' => p.equippedCard == it.itemId,
-      'mat' => p.equippedMat == it.itemId,
-      'card_back' => p.equippedCardBack == it.itemId,
-      'slot' => p.equippedSlot == it.itemId,
-      _ => false,
-    };
+  List<String> _emoticonsOf(_LocalUserShopFile snap) {
+    final raw = snap.rawMap['emoticons'];
+    if (raw is! List) {
+      return <String>[];
+    }
+    final out = <String>[];
+    for (final e in raw) {
+      if (e is String && e.isNotEmpty) {
+        out.add(e);
+      }
+    }
+    return out;
+  }
+
+  bool _ownsItem(_LocalUserShopFile snap, String itemId, String itemType) {
+    if (itemType == 'emoticon') {
+      return _emoticonsOf(snap).contains(itemId);
+    }
+    return snap.owned.any((o) => o.itemId == itemId && o.itemType == itemType);
+  }
+
+  void _addOwnedItem(
+    _LocalUserShopFile snap, {
+    required String itemId,
+    required String itemType,
+  }) {
+    if (itemType == 'emoticon') {
+      final list = _emoticonsOf(snap);
+      if (!list.contains(itemId)) {
+        list.add(itemId);
+      }
+      snap.rawMap['emoticons'] = list;
+      return;
+    }
+    snap.owned.add(
+      UserItemRow(
+        itemId: itemId,
+        itemType: itemType,
+        purchasedAt: DateTime.now().toUtc().toIso8601String(),
+      ),
+    );
   }
 
   @override
@@ -165,15 +198,6 @@ class LocalPeerShopRepository implements PeerShopDataSource {
     }
     final snap = await _loadUserFile(sellerId);
     if (snap == null) {
-      return null;
-    }
-    if (!snap.owned.any((o) => o.itemId == itemId && o.itemType == itemType)) {
-      return null;
-    }
-    final row = snap.owned.firstWhere(
-      (o) => o.itemId == itemId && o.itemType == itemType,
-    );
-    if (_isEquipped(snap.profile, row)) {
       return null;
     }
     final board = await _loadBoard();
@@ -275,23 +299,9 @@ class LocalPeerShopRepository implements PeerShopDataSource {
     if (buyer.profile.starFragments < priceStars) {
       return PeerShopPurchaseOutcome.insufficientStars;
     }
-    if (buyer.owned.any((o) => o.itemId == itemId && o.itemType == itemType)) {
+    if (_ownsItem(buyer, itemId, itemType)) {
       return PeerShopPurchaseOutcome.alreadyOwns;
     }
-    if (!seller.owned.any(
-      (o) => o.itemId == itemId && o.itemType == itemType,
-    )) {
-      await cancelListing(listingId: listingId, sellerId: sellerId);
-      return PeerShopPurchaseOutcome.sellerNoLongerHasItem;
-    }
-
-    final sellerIdx = seller.owned.indexWhere(
-      (o) => o.itemId == itemId && o.itemType == itemType,
-    );
-    if (sellerIdx < 0) {
-      return PeerShopPurchaseOutcome.sellerNoLongerHasItem;
-    }
-    final moved = seller.owned.removeAt(sellerIdx);
     seller.profile = UserProfileRow(
       id: seller.profile.id,
       starFragments: seller.profile.starFragments + priceStars,
@@ -309,13 +319,7 @@ class LocalPeerShopRepository implements PeerShopDataSource {
       equippedCardBack: buyer.profile.equippedCardBack,
       equippedSlot: buyer.profile.equippedSlot,
     );
-    buyer.owned.add(
-      UserItemRow(
-        itemId: moved.itemId,
-        itemType: moved.itemType,
-        purchasedAt: DateTime.now().toUtc().toIso8601String(),
-      ),
-    );
+    _addOwnedItem(buyer, itemId: itemId, itemType: itemType);
 
     await _saveUserFile(seller);
     await _saveUserFile(buyer);

@@ -15,6 +15,43 @@ bool _looksLikeFileUri(String src) => src.startsWith('file://');
 bool _looksLikeDataImageUri(String src) =>
     src.startsWith('data:image/') && src.contains(',');
 
+String? _fallbackBundledAssetKeyFromNetworkUrl(String src) {
+  if (!looksLikeNetworkImageUrl(src)) {
+    return null;
+  }
+  Uri? uri;
+  try {
+    uri = Uri.parse(src);
+  } catch (_) {
+    return null;
+  }
+  final seg = uri.pathSegments;
+  if (seg.isEmpty) {
+    return null;
+  }
+  final assetsIdx = seg.indexOf('assets');
+  if (assetsIdx >= 0 && assetsIdx < seg.length - 1) {
+    final candidate = 'assets/${seg.sublist(assetsIdx + 1).join('/')}';
+    return normalizeFlutterBundledAssetKey(candidate);
+  }
+  final cardsIdx = seg.indexOf('cards');
+  if (cardsIdx >= 0 && cardsIdx < seg.length - 2) {
+    final group = seg[cardsIdx + 1];
+    final rest = seg.sublist(cardsIdx + 2).join('/');
+    if (group == 'minor_number_clay') {
+      return normalizeFlutterBundledAssetKey(
+        'assets/cards/minor_number_clay/$rest',
+      );
+    }
+    if (group == 'minor_court_clay') {
+      return normalizeFlutterBundledAssetKey(
+        'assets/cards/minor_court_clay/$rest',
+      );
+    }
+  }
+  return null;
+}
+
 /// `http(s)://` 는 네트워크, `data:image/...;base64,...` 는 메모리 디코딩,
 /// `file://`(비웹)는 파일, 그 외는 [Image.asset].
 class AdaptiveNetworkOrAssetImage extends StatelessWidget {
@@ -36,13 +73,28 @@ class AdaptiveNetworkOrAssetImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolvedSrc = normalizeFlutterBundledAssetKey(src);
+    final fallbackAsset = _fallbackBundledAssetKeyFromNetworkUrl(resolvedSrc);
     if (looksLikeNetworkImageUrl(resolvedSrc)) {
       return Image.network(
         resolvedSrc,
         fit: fit,
         width: width,
         height: height,
-        errorBuilder: errorBuilder,
+        errorBuilder: (context, error, stackTrace) {
+          if (fallbackAsset != null && fallbackAsset.isNotEmpty) {
+            return Image.asset(
+              fallbackAsset,
+              fit: fit,
+              width: width,
+              height: height,
+              errorBuilder: errorBuilder,
+            );
+          }
+          if (errorBuilder != null) {
+            return errorBuilder!(context, error, stackTrace);
+          }
+          return const SizedBox.shrink();
+        },
       );
     }
     if (_looksLikeDataImageUri(resolvedSrc)) {

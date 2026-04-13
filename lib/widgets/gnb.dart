@@ -4,7 +4,16 @@ import '../theme/app_colors.dart';
 import 'adaptive_network_asset_image.dart';
 import 'app_footer_notices.dart';
 
-enum MainTab { tarot, feed, chat, shop, bag, event }
+enum MainTab {
+  tarot,
+  todayTarot,
+  todayTarotFeed,
+  feed,
+  chat,
+  shop,
+  bag,
+  event,
+}
 
 class Gnb extends StatelessWidget {
   const Gnb({
@@ -27,16 +36,14 @@ class Gnb extends StatelessWidget {
     /// 메이킹 노트(번들 문서) — null이면 숨김
     this.onMakingNotes,
 
-    /// [shopAdminGateAllowsCurrentUser] 가 true일 때만 — 일반 모드와 구분
-    this.isShopAdminSession = false,
+    /// Supabase 일일 방문자 집계 라벨(예: `오늘 접속 12명`) — null이면 숨김
+    this.visitorCountLabel,
   });
 
   final MainTab active;
   final ValueChanged<MainTab> onTab;
   final String displayName;
 
-  /// 지정 구글 계정으로 로그인한 **관리자 모드** (상점 편집 등)
-  final bool isShopAdminSession;
   final String? avatarUrl;
   final VoidCallback onSignOut;
 
@@ -50,9 +57,14 @@ class Gnb extends StatelessWidget {
   final VoidCallback? onAccountSettings;
   final VoidCallback? onMakingNotes;
 
+  final String? visitorCountLabel;
+
+  /// 타로–게시물, 오늘의 타로–오늘의 게시 를 나란히 둡니다.
   static const _tabs = <(MainTab, String, String)>[
     (MainTab.tarot, '타로', '🃏'),
     (MainTab.feed, '게시물', '📝'),
+    (MainTab.todayTarot, '오늘의\n타로', '🌅'),
+    (MainTab.todayTarotFeed, '오늘의\n게시', '📿'),
     (MainTab.chat, '채팅', '💬'),
     (MainTab.shop, '상점', '🏪'),
     (MainTab.bag, '가방', '🎒'),
@@ -102,35 +114,6 @@ class Gnb extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                         ),
-                        if (isShopAdminSession) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFEA580C,
-                              ).withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(
-                                  0xFFEA580C,
-                                ).withValues(alpha: 0.45),
-                              ),
-                            ),
-                            child: Text(
-                              '관리자',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: const Color(0xFF9A3412),
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.2,
-                                  ),
-                            ),
-                          ),
-                        ],
                         if (avatarUrl != null) ...[
                           const SizedBox(width: 8),
                           CircleAvatar(
@@ -139,6 +122,36 @@ class Gnb extends StatelessWidget {
                                 looksLikeNetworkImageUrl(avatarUrl!)
                                 ? NetworkImage(avatarUrl!)
                                 : AssetImage(avatarUrl!),
+                          ),
+                        ],
+                        if (visitorCountLabel != null) ...[
+                          const SizedBox(width: 8),
+                          Tooltip(
+                            message:
+                                '한국 날짜 기준으로, 오늘 이 사이트에 들어온 기기·브라우저 수예요.',
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgCard.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.cardBorder.withValues(
+                                    alpha: 0.35,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                visitorCountLabel!,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textSecondary,
+                                    ),
+                              ),
+                            ),
                           ),
                         ],
                         if (onAccountSettings != null) ...[
@@ -168,7 +181,7 @@ class Gnb extends StatelessWidget {
                               Icons.smart_display_outlined,
                               size: 20,
                             ),
-                            tooltip: '별조각 광고',
+                            tooltip: '별조각 광고 (시청 완료 시 3개)',
                           ),
                           const SizedBox(width: 2),
                         ],
@@ -353,7 +366,7 @@ class Gnb extends StatelessWidget {
                               child: Text(
                                 t.$2,
                                 textAlign: TextAlign.center,
-                                maxLines: 1,
+                                maxLines: 2,
                               ),
                             ),
                           ),

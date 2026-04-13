@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "assetRoot": "C:/gggom0505_0403/assets/cards/minor_number_clay",
+  "publicPathPrefix": "/cards/minor_number_clay/",
+  "cards": [
+    {
+      "id": 22,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "ace",
+      "path": "assets/cards/minor_number_clay/wands/ace.png",
+      "publicPath": "/cards/minor_number_clay/wands/ace.png"
+    },
+    {
+      "id": 23,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "two",
+      "path": "assets/cards/minor_number_clay/wands/two.png",
+      "publicPath": "/cards/minor_number_clay/wands/two.png"
+    },
+    {
+      "id": 24,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "three",
+      "path": "assets/cards/minor_number_clay/wands/three.png",
+      "publicPath": "/cards/minor_number_clay/wands/three.png"
+    },
+    {
+      "id": 25,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "four",
+      "path": "assets/cards/minor_number_clay/wands/four.png",
+      "publicPath": "/cards/minor_number_clay/wands/four.png"
+    },
+    {
+      "id": 26,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "five",
+      "path": "assets/cards/minor_number_clay/wands/five.png",
+      "publicPath": "/cards/minor_number_clay/wands/five.png"
+    },
+    {
+      "id": 27,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "six",
+      "path": "assets/cards/minor_number_clay/wands/six.png",
+      "publicPath": "/cards/minor_number_clay/wands/six.png"
+    },
+    {
+      "id": 28,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "seven",
+      "path": "assets/cards/minor_number_clay/wands/seven.png",
+      "publicPath": "/cards/minor_number_clay/wands/seven.png"
+    },
+    {
+      "id": 29,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "eight",
+      "path": "assets/cards/minor_number_clay/wands/eight.png",
+      "publicPath": "/cards/minor_number_clay/wands/eight.png"
+    },
+    {
+      "id": 30,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "nine",
+      "path": "assets/cards/minor_number_clay/wands/nine.png",
+      "publicPath": "/cards/minor_number_clay/wands/nine.png"
+    },
+    {
+      "id": 31,
+      "kind": "number",
+      "suit": "wands",
+      "rank": "ten",
+      "path": "assets/cards/minor_number_clay/wands/ten.png",
+      "publicPath": "/cards/minor_number_clay/wands/ten.png"
+    },
+    {
+      "id": 36,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "ace",
+      "path": "assets/cards/minor_number_clay/cups/ace.png",
+      "publicPath": "/cards/minor_number_clay/cups/ace.png"
+    },
+    {
+      "id": 37,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "two",
+      "path": "assets/cards/minor_number_clay/cups/two.png",
+      "publicPath": "/cards/minor_number_clay/cups/two.png"
+    },
+    {
+      "id": 38,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "three",
+      "path": "assets/cards/minor_number_clay/cups/three.png",
+      "publicPath": "/cards/minor_number_clay/cups/three.png"
+    },
+    {
+      "id": 39,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "four",
+      "path": "assets/cards/minor_number_clay/cups/four.png",
+      "publicPath": "/cards/minor_number_clay/cups/four.png"
+    },
+    {
+      "id": 40,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "five",
+      "path": "assets/cards/minor_number_clay/cups/five.png",
+      "publicPath": "/cards/minor_number_clay/cups/five.png"
+    },
+    {
+      "id": 41,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "six",
+      "path": "assets/cards/minor_number_clay/cups/six.png",
+      "publicPath": "/cards/minor_number_clay/cups/six.png"
+    },
+    {
+      "id": 42,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "seven",
+      "path": "assets/cards/minor_number_clay/cups/seven.png",
+      "publicPath": "/cards/minor_number_clay/cups/seven.png"
+    },
+    {
+      "id": 43,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "eight",
+      "path": "assets/cards/minor_number_clay/cups/eight.png",
+      "publicPath": "/cards/minor_number_clay/cups/eight.png"
+    },
+    {
+      "id": 44,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "nine",
+      "path": "assets/cards/minor_number_clay/cups/nine.png",
+      "publicPath": "/cards/minor_number_clay/cups/nine.png"
+    },
+    {
+      "id": 45,
+      "kind": "number",
+      "suit": "cups",
+      "rank": "ten",
+      "path": "assets/cards/minor_number_clay/cups/ten.png",
+      "publicPath": "/cards/minor_number_clay/cups/ten.png"
+    },
+    {
+      "id": 50,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "ace",
+      "path": "assets/cards/minor_number_clay/swords/ace.png",
+      "publicPath": "/cards/minor_number_clay/swords/ace.png"
+    },
+    {
+      "id": 51,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "two",
+      "path": "assets/cards/minor_number_clay/swords/two.png",
+      "publicPath": "/cards/minor_number_clay/swords/two.png"
+    },
+    {
+      "id": 52,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "three",
+      "path": "assets/cards/minor_number_clay/swords/three.png",
+      "publicPath": "/cards/minor_number_clay/swords/three.png"
+    },
+    {
+      "id": 53,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "four",
+      "path": "assets/cards/minor_number_clay/swords/four.png",
+      "publicPath": "/cards/minor_number_clay/swords/four.png"
+    },
+    {
+      "id": 54,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "five",
+      "path": "assets/cards/minor_number_clay/swords/five.png",
+      "publicPath": "/cards/minor_number_clay/swords/five.png"
+    },
+    {
+      "id": 55,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "six",
+      "path": "assets/cards/minor_number_clay/swords/six.png",
+      "publicPath": "/cards/minor_number_clay/swords/six.png"
+    },
+    {
+      "id": 56,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "seven",
+      "path": "assets/cards/minor_number_clay/swords/seven.png",
+      "publicPath": "/cards/minor_number_clay/swords/seven.png"
+    },
+    {
+      "id": 57,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "eight",
+      "path": "assets/cards/minor_number_clay/swords/eight.png",
+      "publicPath": "/cards/minor_number_clay/swords/eight.png"
+    },
+    {
+      "id": 58,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "nine",
+      "path": "assets/cards/minor_number_clay/swords/nine.png",
+      "publicPath": "/cards/minor_number_clay/swords/nine.png"
+    },
+    {
+      "id": 59,
+      "kind": "number",
+      "suit": "swords",
+      "rank": "ten",
+      "path": "assets/cards/minor_number_clay/swords/ten.png",
+      "publicPath": "/cards/minor_number_clay/swords/ten.png"
+    },
+    {
+      "id": 64,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "ace",
+      "path": "assets/cards/minor_number_clay/pentacles/ace.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/ace.png"
+    },
+    {
+      "id": 65,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "two",
+      "path": "assets/cards/minor_number_clay/pentacles/two.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/two.png"
+    },
+    {
+      "id": 66,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "three",
+      "path": "assets/cards/minor_number_clay/pentacles/three.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/three.png"
+    },
+    {
+      "id": 67,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "four",
+      "path": "assets/cards/minor_number_clay/pentacles/four.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/four.png"
+    },
+    {
+      "id": 68,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "five",
+      "path": "assets/cards/minor_number_clay/pentacles/five.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/five.png"
+    },
+    {
+      "id": 69,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "six",
+      "path": "assets/cards/minor_number_clay/pentacles/six.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/six.png"
+    },
+    {
+      "id": 70,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "seven",
+      "path": "assets/cards/minor_number_clay/pentacles/seven.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/seven.png"
+    },
+    {
+      "id": 71,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "eight",
+      "path": "assets/cards/minor_number_clay/pentacles/eight.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/eight.png"
+    },
+    {
+      "id": 72,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "nine",
+      "path": "assets/cards/minor_number_clay/pentacles/nine.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/nine.png"
+    },
+    {
+      "id": 73,
+      "kind": "number",
+      "suit": "pentacles",
+      "rank": "ten",
+      "path": "assets/cards/minor_number_clay/pentacles/ten.png",
+      "publicPath": "/cards/minor_number_clay/pentacles/ten.png"
+    }
+  ]
+}
