@@ -137,7 +137,7 @@ String? getCardImageUrl({
   return '$base/cards/$folder/$filename';
 }
 
-/// `www.gggom0505.kr` 에서 복제한 로컬 카드 PNG ([kGggomBundledPublicRoot]).
+/// `gggom0505.kr` 에서 복제한 로컬 카드 PNG ([kGggomBundledPublicRoot]).
 String? getBundledSiteCardAssetPath({
   required String themeId,
   required int cardId,

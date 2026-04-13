@@ -18,7 +18,7 @@ const manifestPath = join(root, "lib", "config", "emoticon_offline_manifest.g.da
 
 /** `/emoticon/...` 같이 상대 경로면 이 오리진에 붙여 다운로드 */
 const SITE_ORIGIN = (
-  process.env.EMOTICON_SITE_ORIGIN || "https://www.gggom0505.kr"
+  process.env.EMOTICON_SITE_ORIGIN || "https://gggom0505.kr"
 ).replace(/\/$/, "");
 
 function resolveImageFetchUrl(imageUrl) {

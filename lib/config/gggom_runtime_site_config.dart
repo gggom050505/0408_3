@@ -17,7 +17,7 @@ import 'gggom_site_public_catalog.dart';
 /// 기본 예시(가비아 정적만):
 /// ```json
 /// {
-///   "asset_origin": "https://www.gggom0505.kr",
+///   "asset_origin": "https://gggom0505.kr",
 ///   "web_auth_callback_path": "/auth/callback"
 /// }
 /// ```

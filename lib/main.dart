@@ -38,7 +38,7 @@ import 'widgets/site_access_gate.dart';
 // | 결과 모달·공유·복사   | `widgets/result_modal.dart` |
 // | 메이킹 노트(앱 내)   | `widgets/making_notes_screen.dart` — GNB 도서 아이콘, 에셋 `docs/MAKING_NOTES.md` |
 //
-// 기본: `www.gggom0505.kr` 가비아 정적 호스팅·에셋 (`lib/config/gggom_site_public_catalog.dart`).
+// 기본: `gggom0505.kr`(apex) 가비아 정적 호스팅·에셋 (`lib/config/gggom_site_public_catalog.dart`).
 // 재배포 없이 에셋 오리진 변경: 사이트 `app/flutter_runtime_config.json` ([GggomRuntimeSiteConfig]).
 // 가비아 업로드: `web/app/flutter_runtime_config.json` 이 `build/web/app/` 로 포함됨. 없으면 번들 폴백.
 // 선택(로컬 등): `--dart-define=ASSET_ORIGIN=http://localhost:3000`
