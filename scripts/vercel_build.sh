@@ -12,7 +12,12 @@ export PATH="$PATH:$ROOT/.flutter/bin"
 
 flutter config --no-analytics
 flutter pub get
-flutter build web --release
+
+# Vercel env vars -> Flutter compile-time defines.
+# Empty values are allowed; app-side flags decide enabled features.
+flutter build web --release \
+  --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
+  --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 
 mkdir -p build/web/oracle_cards
 if [[ -d assets/oracle ]]; then
