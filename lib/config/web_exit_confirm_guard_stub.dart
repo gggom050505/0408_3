@@ -2,4 +2,4 @@ void installWebExitConfirmGuard() {}
 
 void uninstallWebExitConfirmGuard() {}
 
-void allowSingleNavigationWithoutConfirm() {}
+void allowSingleNavigationWithoutConfirm([Duration? duration]) {}

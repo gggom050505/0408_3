@@ -234,13 +234,27 @@ class _AppRootState extends State<AppRoot> with WidgetsBindingObserver {
     if (!AppConfig.googleLoginEnabled) {
       return;
     }
-    allowSingleNavigationWithoutConfirm();
-    final redirectTo =
-        kIsWeb ? Uri.base.origin : AppConfig.supabaseNativeRedirectUri;
-    await Supabase.instance.client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: redirectTo,
-    );
+    try {
+      // OAuth 리다이렉트 전 브라우저 이탈 확인 가드를 충분히 길게 우회한다.
+      allowSingleNavigationWithoutConfirm(const Duration(seconds: 30));
+      final redirectTo = kIsWeb
+          ? Uri.base.replace(path: '/', query: '', fragment: '').toString()
+          : AppConfig.supabaseNativeRedirectUri;
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirectTo,
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('구글 로그인 실패: ${e.message}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('구글 로그인 실패: $e')),
+      );
+    }
   }
 
   String _displayNameFromSupabase() {

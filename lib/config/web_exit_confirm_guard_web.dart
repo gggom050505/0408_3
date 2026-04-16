@@ -24,10 +24,10 @@ void uninstallWebExitConfirmGuard() {
   _beforeUnloadSub = null;
 }
 
-void allowSingleNavigationWithoutConfirm() {
+void allowSingleNavigationWithoutConfirm([Duration? duration]) {
   _temporarilyAllowLeaving = true;
-  // OAuth 이동 직전 1회만 우회하고, 곧바로 원복한다.
-  Timer(const Duration(seconds: 3), () {
+  // OAuth 이동 시작 시 네트워크 지연으로 3초를 넘는 경우가 있어 충분히 여유를 둔다.
+  Timer(duration ?? const Duration(seconds: 3), () {
     _temporarilyAllowLeaving = false;
   });
 }
