@@ -400,6 +400,18 @@ class _AutoScrollableTabRailState extends State<_AutoScrollableTabRail> {
     _hoverTimer = null;
   }
 
+  void _scrollByStep(int direction) {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final step = (pos.viewportDimension * 0.55).clamp(120.0, 260.0);
+    final target = (pos.pixels + direction * step).clamp(0.0, pos.maxScrollExtent);
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -466,7 +478,6 @@ class _AutoScrollableTabRailState extends State<_AutoScrollableTabRail> {
               onEnter: (_) => _startHoverAutoScroll(-1),
               onExit: (_) => _stopHoverAutoScroll(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerRight,
@@ -478,7 +489,14 @@ class _AutoScrollableTabRailState extends State<_AutoScrollableTabRail> {
                   ),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Icon(Icons.chevron_left, size: 16, color: AppColors.textLight),
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  constraints: const BoxConstraints(minWidth: 30, minHeight: 28),
+                  tooltip: '왼쪽 메뉴 보기',
+                  onPressed: () => _scrollByStep(-1),
+                  icon: const Icon(Icons.chevron_left, size: 16, color: AppColors.textLight),
+                ),
               ),
             ),
           ),
@@ -489,7 +507,6 @@ class _AutoScrollableTabRailState extends State<_AutoScrollableTabRail> {
               onEnter: (_) => _startHoverAutoScroll(1),
               onExit: (_) => _stopHoverAutoScroll(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
@@ -501,20 +518,23 @@ class _AutoScrollableTabRailState extends State<_AutoScrollableTabRail> {
                   ),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      '...',
-                      style: TextStyle(
-                        color: AppColors.textLight,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                      ),
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    minimumSize: const Size(32, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: () => _scrollByStep(1),
+                  icon: const Text(
+                    '...',
+                    style: TextStyle(
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
                     ),
-                    SizedBox(width: 2),
-                    Icon(Icons.chevron_right, size: 16, color: AppColors.textLight),
-                  ],
+                  ),
+                  label: const Icon(Icons.chevron_right, size: 16, color: AppColors.textLight),
                 ),
               ),
             ),
