@@ -55,6 +55,7 @@ class _OwnedVisual {
     required this.name,
     this.thumbnailUrl,
     this.matThemeId,
+    this.owned = true,
   });
 
   final String id;
@@ -63,6 +64,7 @@ class _OwnedVisual {
 
   /// 타로 매트 행이면 [matThemes] 그라데이션 미리보기에 사용합니다.
   final String? matThemeId;
+  final bool owned;
 }
 
 class BagTab extends StatelessWidget {
@@ -185,17 +187,19 @@ class BagTab extends StatelessWidget {
   }
 
   List<_OwnedVisual> _mergeKoreaMajorPieces() {
+    final ownedIds = ownedItems
+        .where((e) => e.itemType == 'korea_major_card')
+        .map((e) => e.itemId)
+        .toSet();
     final db = <_OwnedVisual>[];
-    for (final item in ownedItems.where(
-      (e) => e.itemType == 'korea_major_card',
-    )) {
-      final si = _shop(item.itemId);
-      final idx = koreaMajorCardIndexFromShopItemId(item.itemId);
-      final path = idx != null ? koreaTraditionalMajorAssetPath(idx) : null;
+    for (var i = 0; i < 22; i++) {
+      final itemId = koreaMajorCardShopItemId(i);
+      final si = _shop(itemId);
+      final path = koreaTraditionalMajorAssetPath(i);
       db.add(
         _OwnedVisual(
-          id: item.itemId,
-          name: si?.name ?? item.itemId,
+          id: itemId,
+          name: si?.name ?? '한국전통 · ${i + 1}번',
           thumbnailUrl: si?.thumbnailUrl != null
               ? resolveShopItemThumbnailSrc(
                   si!.thumbnailUrl,
@@ -204,10 +208,20 @@ class BagTab extends StatelessWidget {
               : (path != null
                     ? resolvePublicAssetUrl(path, AppConfig.assetOrigin)
                     : null),
+          owned: ownedIds.contains(itemId),
         ),
       );
     }
-    db.sort((a, b) => a.id.compareTo(b.id));
+    db.sort((a, b) {
+      final ai = koreaMajorCardIndexFromShopItemId(a.id);
+      final bi = koreaMajorCardIndexFromShopItemId(b.id);
+      if (ai != null && bi != null) {
+        return ai.compareTo(bi);
+      }
+      if (ai != null) return -1;
+      if (bi != null) return 1;
+      return a.id.compareTo(b.id);
+    });
     return db;
   }
 
@@ -935,6 +949,7 @@ class BagTab extends StatelessWidget {
     BuildContext context,
     List<_OwnedVisual> koreaPieces,
   ) {
+    final koreaDeckEquipped = profile?.equippedCard == koreaTraditionalMajorThemeId;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: GridView.builder(
@@ -949,8 +964,9 @@ class BagTab extends StatelessWidget {
         itemCount: koreaPieces.length,
         itemBuilder: (context, i) {
           final c = koreaPieces[i];
-          final koreaUnique = _isUniqueOwned(c.id, 'korea_major_card');
+          final koreaUnique = c.owned && _isUniqueOwned(c.id, 'korea_major_card');
           final src = _koreaMajorBagPreviewSrc(c);
+          final ownedLabel = c.owned ? '보유' : '미보유';
           return AppearAnimation(
             delay: Duration(milliseconds: 24 * i.clamp(0, 12)),
             duration: const Duration(milliseconds: 340),
@@ -968,6 +984,9 @@ class BagTab extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
                 onTap: () {
+                    if (!c.owned) {
+                      return;
+                    }
                   if (src == null || src.isEmpty) {
                     return;
                   }
@@ -989,11 +1008,14 @@ class BagTab extends StatelessWidget {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: src != null
-                                ? AdaptiveNetworkOrAssetImage(
-                                    src: src,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) => _fallbackDeck(
-                                      'korea_major_card',
+                                ? Opacity(
+                                    opacity: c.owned ? 1 : 0.4,
+                                    child: AdaptiveNetworkOrAssetImage(
+                                      src: src,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => _fallbackDeck(
+                                        'korea_major_card',
+                                      ),
                                     ),
                                   )
                                 : _fallbackDeck('korea_major_card'),
@@ -1015,11 +1037,47 @@ class BagTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '탭하여 확대',
+                        c.owned ? '탭하여 확대' : '미보유',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textSecondary,
+                              color: c.owned
+                                  ? AppColors.textSecondary
+                                  : const Color(0xFFB45309),
+                              fontWeight: c.owned ? null : FontWeight.w700,
                             ),
                       ),
+                      const SizedBox(height: 6),
+                      if (c.owned)
+                        FilledButton(
+                          onPressed: koreaDeckEquipped
+                              ? null
+                              : () => _equip(
+                                    context,
+                                    koreaTraditionalMajorThemeId,
+                                    'card',
+                                    successMessage: '한국전통 메이저 덱을 선택했어요',
+                                  ),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 30),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: AppColors.accentPurple,
+                          ),
+                          child: Text(
+                            koreaDeckEquipped ? '적용 중' : '선택',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        )
+                      else
+                        OutlinedButton(
+                          onPressed: null,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 30),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: Text(
+                            ownedLabel,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
                     ],
                   ),
                 ),
