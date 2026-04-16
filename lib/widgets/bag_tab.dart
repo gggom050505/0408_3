@@ -504,6 +504,16 @@ class BagTab extends StatelessWidget {
                 ),
               ),
             ),
+          if (koreaPieces.isNotEmpty) ...[
+            stagger(
+              _sectionTitle(
+                context,
+                '🇰🇷 한국전통 메이저 · ${koreaPieces.length} / 22',
+                uniqueAccent: true,
+              ),
+            ),
+            _koreaPieceGrid(context, koreaPieces),
+          ],
           stagger(_sectionTitle(context, '🃏 카드 덱')),
           _equipTypeGrid(context, cards, 'card'),
           if (cards.any((c) => c.id == koreaTraditionalMajorThemeId))
@@ -537,16 +547,6 @@ class BagTab extends StatelessWidget {
             )
           else
             _oracleThumbnailGrid(context, oracles),
-          if (koreaPieces.isNotEmpty) ...[
-            stagger(
-              _sectionTitle(
-                context,
-                '🇰🇷 한국전통 메이저 · ${koreaPieces.length} / 22',
-                uniqueAccent: true,
-              ),
-            ),
-            _koreaPieceGrid(context, koreaPieces),
-          ],
           if (emoticons.isNotEmpty) ...[
             stagger(
               _sectionTitle(
