@@ -213,7 +213,8 @@ class LoginScreen extends StatelessWidget {
                       index: 3,
                       child: Text(
                         '위에서 로그인하면 별조각·가방·상점 이용 기록을 안전하게 이어 갈 수 있어요.\n'
-                        '브라우저나 기기를 바꿔도 같은 계정으로 복구하기 쉬워요.',
+                        '브라우저나 기기를 바꿔도 같은 계정으로 복구하기 쉬워요.\n'
+                        '또한 상단 메뉴의 간지 달력 탭에서 음력·간지 날짜를 바로 확인할 수 있어요.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,

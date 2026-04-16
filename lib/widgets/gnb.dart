@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -314,99 +316,10 @@ class Gnb extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.centerRight,
-                children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: _tabs.map((t) {
-                        final sel = active == t.$1;
-                        return GestureDetector(
-                          onTap: () => onTab(t.$1),
-                          behavior: HitTestBehavior.opaque,
-                          child: AnimatedScale(
-                            scale: sel ? 1.05 : 1,
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeOutBack,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 260),
-                              curve: Curves.easeOutCubic,
-                              margin: const EdgeInsets.symmetric(horizontal: 2),
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                              decoration: BoxDecoration(
-                                gradient: sel ? AppColors.gnbTabSelectedGradient : null,
-                                borderRadius: BorderRadius.circular(999),
-                                boxShadow: sel
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors.accentLilac.withValues(alpha: 0.45),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 220),
-                                style: Theme.of(context).textTheme.labelLarge!.copyWith(
-                                      color: sel ? AppColors.textPrimary : AppColors.textLight,
-                                      fontWeight: FontWeight.bold,
-                                      shadows: sel
-                                          ? null
-                                          : const [
-                                              Shadow(color: Color(0x66000000), offset: Offset(0, 1)),
-                                            ],
-                                    ),
-                                child: Text(
-                                  t.$2,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  IgnorePointer(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            AppColors.accentPurple.withValues(alpha: 0),
-                            AppColors.accentPurple.withValues(alpha: 0.48),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text(
-                            '...',
-                            style: TextStyle(
-                              color: AppColors.textLight,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          SizedBox(width: 2),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 14,
-                            color: AppColors.textLight,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              child: _AutoScrollableTabRail(
+                active: active,
+                onTab: onTab,
+                tabs: _tabs,
               ),
             ),
           ),
@@ -418,6 +331,195 @@ class Gnb extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AutoScrollableTabRail extends StatefulWidget {
+  const _AutoScrollableTabRail({
+    required this.active,
+    required this.onTab,
+    required this.tabs,
+  });
+
+  final MainTab active;
+  final ValueChanged<MainTab> onTab;
+  final List<(MainTab, String, String)> tabs;
+
+  @override
+  State<_AutoScrollableTabRail> createState() => _AutoScrollableTabRailState();
+}
+
+class _AutoScrollableTabRailState extends State<_AutoScrollableTabRail> {
+  final ScrollController _scrollController = ScrollController();
+  Timer? _hoverTimer;
+  bool _canScrollLeft = false;
+  bool _canScrollRight = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_refreshScrollHints);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshScrollHints());
+  }
+
+  @override
+  void dispose() {
+    _hoverTimer?.cancel();
+    _scrollController.removeListener(_refreshScrollHints);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _refreshScrollHints() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final nextLeft = pos.pixels > 0.5;
+    final nextRight = pos.pixels < pos.maxScrollExtent - 0.5;
+    if (nextLeft == _canScrollLeft && nextRight == _canScrollRight) return;
+    if (!mounted) return;
+    setState(() {
+      _canScrollLeft = nextLeft;
+      _canScrollRight = nextRight;
+    });
+  }
+
+  void _startHoverAutoScroll(int direction) {
+    _hoverTimer?.cancel();
+    _hoverTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_scrollController.hasClients) return;
+      final pos = _scrollController.position;
+      final target = (pos.pixels + (direction * 10)).clamp(0.0, pos.maxScrollExtent);
+      if ((target - pos.pixels).abs() < 0.1) return;
+      _scrollController.jumpTo(target);
+    });
+  }
+
+  void _stopHoverAutoScroll() {
+    _hoverTimer?.cancel();
+    _hoverTimer = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: widget.tabs.map((t) {
+              final sel = widget.active == t.$1;
+              return GestureDetector(
+                onTap: () => widget.onTab(t.$1),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedScale(
+                  scale: sel ? 1.05 : 1,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutBack,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      gradient: sel ? AppColors.gnbTabSelectedGradient : null,
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: sel
+                          ? [
+                              BoxShadow(
+                                color: AppColors.accentLilac.withValues(alpha: 0.45),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 220),
+                      style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                            color: sel ? AppColors.textPrimary : AppColors.textLight,
+                            fontWeight: FontWeight.bold,
+                            shadows: sel
+                                ? null
+                                : const [
+                                    Shadow(color: Color(0x66000000), offset: Offset(0, 1)),
+                                  ],
+                          ),
+                      child: Text(
+                        t.$2,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        if (_canScrollLeft)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: MouseRegion(
+              onEnter: (_) => _startHoverAutoScroll(-1),
+              onExit: (_) => _stopHoverAutoScroll(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [
+                      AppColors.accentPurple.withValues(alpha: 0),
+                      AppColors.accentPurple.withValues(alpha: 0.52),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(Icons.chevron_left, size: 16, color: AppColors.textLight),
+              ),
+            ),
+          ),
+        if (_canScrollRight)
+          Align(
+            alignment: Alignment.centerRight,
+            child: MouseRegion(
+              onEnter: (_) => _startHoverAutoScroll(1),
+              onExit: (_) => _stopHoverAutoScroll(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      AppColors.accentPurple.withValues(alpha: 0),
+                      AppColors.accentPurple.withValues(alpha: 0.52),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      '...',
+                      style: TextStyle(
+                        color: AppColors.textLight,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(Icons.chevron_right, size: 16, color: AppColors.textLight),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
