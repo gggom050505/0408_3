@@ -101,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   var _firstSetupWizardPushStarted = false;
   var _todayTarotPromptInFlight = false;
 
-  /// Supabase 연동 시 GNB «오늘 접속 N명» — [AppConfig.supabaseEnabled] 가 false면 미사용.
+  /// GNB «오늘 접속 N명» — Supabase 우선, 미설정/오류 시 로컬 카운트로 폴백.
   var _todayVisitorCountLoaded = false;
   int? _todayVisitorCount;
   Timer? _backupTimer;
@@ -249,9 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     unawaited(_restoreMainTab());
     _bootstrap();
     _startPeriodicBackup();
-    if (AppConfig.supabaseEnabled) {
-      unawaited(_refreshTodayVisitorCount());
-    }
+    unawaited(_refreshTodayVisitorCount());
   }
 
   @override
@@ -348,9 +346,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _refreshTodayVisitorCount() async {
-    if (!AppConfig.supabaseEnabled) {
-      return;
-    }
     final n = await DailyVisitorCounter.instance.registerAndFetchTodayCount();
     if (!mounted) {
       return;
@@ -818,13 +813,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     ownedKoreaMajorCardIds.sort();
 
-    final visitorCountLabel = AppConfig.supabaseEnabled
-        ? (!_todayVisitorCountLoaded
-              ? '오늘 접속 · …'
-              : (_todayVisitorCount != null
-                    ? '오늘 접속 $_todayVisitorCount명'
-                    : '오늘 접속 · —'))
-        : null;
+    final visitorCountLabel = !_todayVisitorCountLoaded
+        ? '오늘 접속 · …'
+        : (_todayVisitorCount != null
+              ? '오늘 접속 $_todayVisitorCount명'
+              : '오늘 접속 · —');
 
     return ScaffoldMessenger(
       key: _scaffoldMessengerKey,
