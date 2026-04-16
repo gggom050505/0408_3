@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 
 import 'app_config.dart';
 
@@ -24,51 +25,7 @@ String _joinUrl(String origin, String path) {
   return '$o$p';
 }
 
-List<String> _openingNameCandidates(int index) {
-  return [
-    'open_$index.png',
-    'open($index).png',
-    'open$index.png',
-    'Opening_$index.png',
-    'opening_$index.png',
-  ];
-}
-
-Future<List<String>> _loadOnlineOpeningImageUrls() async {
-  final origin = AppConfig.assetOrigin.trim();
-  if (origin.isEmpty) {
-    return const [];
-  }
-  const rootCandidates = [
-    '/assets/assets/opening/',
-    '/assets/opening/',
-  ];
-  final out = <String>[];
-  for (var i = 1; i <= 3; i++) {
-    var found = false;
-    for (final root in rootCandidates) {
-      for (final name in _openingNameCandidates(i)) {
-        final url = _joinUrl(origin, '$root$name');
-        if (await _urlExists(url)) {
-          out.add(url);
-          found = true;
-          break;
-        }
-      }
-      if (found) {
-        break;
-      }
-    }
-  }
-  return out;
-}
-
-/// 오프닝 이미지는 온라인 URL을 우선 사용하고, 없으면 번들 `assets/opening/`를 씁니다.
-Future<List<String>> loadOpeningImageAssetPaths() async {
-  final online = await _loadOnlineOpeningImageUrls();
-  if (online.isNotEmpty) {
-    return online;
-  }
+Future<List<String>> _loadBundledOpeningAssetPaths() async {
   try {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
     final out = manifest
@@ -103,4 +60,43 @@ Future<List<String>> loadOpeningImageAssetPaths() async {
       return const [];
     }
   }
+}
+
+Future<List<String>> _loadOnlineOpeningImageUrls(List<String> localPaths) async {
+  final origin = AppConfig.assetOrigin.trim();
+  if (origin.isEmpty || localPaths.isEmpty) {
+    return const [];
+  }
+  const rootCandidates = <String>[
+    '/assets/assets/opening', // flutter web 기본 배포 경로
+    '/assets/opening', // CDN/커스텀 동기화 경로
+  ];
+  final resolved = <String>[];
+  for (final local in localPaths) {
+    final filename = p.basename(local);
+    var foundUrl = '';
+    for (final root in rootCandidates) {
+      final url = _joinUrl(origin, '$root/$filename');
+      if (await _urlExists(url)) {
+        foundUrl = url;
+        break;
+      }
+    }
+    if (foundUrl.isEmpty) {
+      // 하나라도 온라인 경로가 없으면 전체를 번들 에셋으로 폴백한다.
+      return const [];
+    }
+    resolved.add(foundUrl);
+  }
+  return resolved;
+}
+
+/// 오프닝 이미지는 온라인 URL을 우선 사용하고, 없으면 번들 `assets/opening/`를 씁니다.
+Future<List<String>> loadOpeningImageAssetPaths() async {
+  final localPaths = await _loadBundledOpeningAssetPaths();
+  final online = await _loadOnlineOpeningImageUrls(localPaths);
+  if (online.isNotEmpty) {
+    return online;
+  }
+  return localPaths;
 }
