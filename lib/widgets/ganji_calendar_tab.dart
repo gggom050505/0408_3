@@ -41,6 +41,19 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
 
   int _year = 2026;
   int _month = 1;
+  int _selectedLunarDay = 1;
+  bool _showSolarAlways = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final todayLunar = Solar.fromDate(DateTime.now()).getLunar();
+    if (todayLunar.getYear() >= _minYear && todayLunar.getYear() <= _maxYear) {
+      _year = todayLunar.getYear();
+      _month = todayLunar.getMonth();
+      _selectedLunarDay = todayLunar.getDay();
+    }
+  }
 
   List<int> _monthOptionsForYear(int year) {
     return LunarYear.fromYear(year).getMonthsInYear().map((m) => m.getMonth()).toList();
@@ -49,6 +62,29 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   String _monthLabel(int month) {
     final prefix = month < 0 ? '윤' : '';
     return '$prefix${month.abs()}월';
+  }
+
+  void _moveMonth(int delta) {
+    final current = LunarMonth.fromYm(_year, _month);
+    if (current == null) return;
+    final next = current.next(delta);
+    final nextYear = next.getYear();
+    if (nextYear < _minYear || nextYear > _maxYear) return;
+    setState(() {
+      _year = nextYear;
+      _month = next.getMonth();
+      _selectedLunarDay = 1;
+    });
+  }
+
+  void _jumpToTodayLunar() {
+    final todayLunar = Solar.fromDate(DateTime.now()).getLunar();
+    final y = todayLunar.getYear().clamp(_minYear, _maxYear);
+    setState(() {
+      _year = y;
+      _month = todayLunar.getMonth();
+      _selectedLunarDay = todayLunar.getDay();
+    });
   }
 
   Color _fiveElementColor(String element) {
@@ -147,6 +183,11 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     );
   }
 
+  String _yearGanjiKo(Lunar lunar) => _ganjiKo(lunar.getYearInGanZhi());
+  String _monthGanjiKo(Lunar lunar) => _ganjiKo(lunar.getMonthInGanZhi());
+
+  String _weekdayName(DateTime d) => _weekdays[d.weekday % 7];
+
   @override
   Widget build(BuildContext context) {
     final monthOptions = _monthOptionsForYear(_year);
@@ -155,13 +196,23 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     }
     final monthObj = LunarMonth.fromYm(_year, _month);
     final dayCount = monthObj?.getDayCount() ?? 29;
+    if (_selectedLunarDay > dayCount) _selectedLunarDay = dayCount;
     final cells = List.generate(dayCount, (i) {
       final lunar = Lunar.fromYmd(_year, _month, i + 1);
       final solar = lunar.getSolar();
       final solarDate = DateTime(solar.getYear(), solar.getMonth(), solar.getDay());
-      return (lunarDay: i + 1, solar: solarDate, ganji: _ganjiKo(lunar.getDayInGanZhi()));
+      final today = DateTime.now();
+      final isToday = today.year == solarDate.year && today.month == solarDate.month && today.day == solarDate.day;
+      return (
+        lunarDay: i + 1,
+        solar: solarDate,
+        ganji: _ganjiKo(lunar.getDayInGanZhi()),
+        lunar: lunar,
+        isToday: isToday,
+      );
     });
     final firstWeekday = cells.isEmpty ? 0 : cells.first.solar.weekday % 7;
+    final selected = cells[_selectedLunarDay - 1];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
@@ -170,6 +221,12 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
         children: [
           Row(
             children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _moveMonth(-1),
+                icon: const Icon(Icons.chevron_left),
+                tooltip: '이전 달',
+              ),
               DropdownButton<int>(
                 value: _year,
                 items: List.generate(
@@ -182,6 +239,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                     _year = v;
                     final options = _monthOptionsForYear(_year);
                     if (!options.contains(_month)) _month = options.first;
+                    _selectedLunarDay = 1;
                   });
                 },
               ),
@@ -193,21 +251,81 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                     .toList(),
                 onChanged: (v) {
                   if (v == null) return;
-                  setState(() => _month = v);
+                  setState(() {
+                    _month = v;
+                    _selectedLunarDay = 1;
+                  });
                 },
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _moveMonth(1),
+                icon: const Icon(Icons.chevron_right),
+                tooltip: '다음 달',
+              ),
+              const Spacer(),
+              OutlinedButton(
+                onPressed: _jumpToTodayLunar,
+                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                child: const Text('오늘'),
               ),
             ],
           ),
-          Text(
-            '한국천문연구원 표준 음력 기준 · 윤달 지원',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w600),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '한국천문연구원 표준 음력 기준 · 윤달 지원',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('양력 항상 표시', style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+              Switch(
+                value: _showSolarAlways,
+                onChanged: (v) => setState(() => _showSolarAlways = v),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '선택: 음력 ${_monthLabel(_month)} ${selected.lunarDay}일 (${_weekdayName(selected.solar)})  ·  양력 ${selected.solar.month}/${selected.solar.day}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                _ganjiBadge(selected.ganji),
+                const SizedBox(width: 8),
+                Text('년 ${_yearGanjiKo(selected.lunar)} · 월 ${_monthGanjiKo(selected.lunar)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
           Row(
             children: _weekdays
-                .map((w) => Expanded(
+                .asMap()
+                .entries
+                .map((entry) => Expanded(
                       child: Center(
-                        child: Text(w, style: const TextStyle(fontWeight: FontWeight.w800)),
+                        child: Text(
+                          entry.value,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: entry.key == 0
+                                ? const Color(0xFFD62D20)
+                                : (entry.key == 6 ? const Color(0xFF1D4ED8) : null),
+                          ),
+                        ),
                       ),
                     ))
                 .toList(),
@@ -232,25 +350,56 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                   );
                 }
                 final item = cells[index - firstWeekday];
+                final isSelected = item.lunarDay == _selectedLunarDay;
+                final isWeekend = item.solar.weekday % 7 == 0 || item.solar.weekday % 7 == 6;
                 return DecoratedBox(
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(
+                      color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    color: item.isToday ? const Color(0x22F2C300) : null,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${item.lunarDay}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 2),
-                        _ganjiBadge(item.ganji),
-                        const Spacer(),
-                        Text(
-                          '${item.solar.month}/${item.solar.day}',
-                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                        ),
-                      ],
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => setState(() => _selectedLunarDay = item.lunarDay),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                '${item.lunarDay}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isWeekend ? const Color(0xFFD62D20) : null,
+                                ),
+                              ),
+                              if (item.isToday) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF2C300),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text('오늘', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          _ganjiBadge(item.ganji),
+                          const Spacer(),
+                          Text(
+                            _showSolarAlways || item.lunarDay % 5 == 0 ? '${item.solar.month}/${item.solar.day}' : '',
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
