@@ -28,10 +28,10 @@ import 'adaptive_network_asset_image.dart';
 import 'app_motion.dart';
 import 'oracle_collection_screen.dart';
 
-/// 한국전통 메이저 **덱** 선택 시 가방에 표시하는 안내(타로는 보유한 장만 섞음).
+/// 한국전통 메이저 **덱** 선택 시 가방에 표시하는 안내.
 const String _koreaTraditionalDeckEquipHint =
-    '이 덱을 선택하면 타로 화면에는 가방에서 모은 「한국전통 메이저」장만 섞여 나와요. '
-    '22장을 다 모을 필요 없고, 아래 🇰🇷 한국전통 메이저 목록에 보유한 카드만 사용됩니다.';
+    '이 덱을 선택하면 타로 화면은 「마이너 60장 + 한국전통 메이저 22장」으로 구성돼요. '
+    '마이너는 클레이 일러, 메이저는 한국전통 일러로 섞여 나옵니다.';
 
 const String _mixedMinorKoreaDeckEquipHint =
     'RW 마이너 56장은 모두 들어가고, 한국전통 메이저는 가방에서 모은 장만 섞입니다. '

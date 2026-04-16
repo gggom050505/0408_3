@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show immutable;
 
+import 'minor_clay_assets.dart';
 import 'tarot_cards.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -185,6 +186,35 @@ List<TarotCard> buildMixedMinorAndKoreaTraditionalDrawPool({
     DeckCardFamily.standardMinorArcana,
     DeckCardFamily.koreaTraditionalMajor,
   }, ownedKoreaMajorIds: ownedKoreaMajorIds);
+}
+
+/// `korea-traditional-major` 덱용 원천: 클레이 마이너 60장 + 한국전통 메이저 22장(전체).
+List<TarotCard> buildMinorClayAndKoreaTraditionalFullDrawPool() {
+  final byId = {for (final c in tarotDeck) c.id: c};
+  final out = <TarotCard>[];
+  final used = <int>{};
+
+  void addById(int id) {
+    final card = byId[id];
+    if (card == null || used.contains(id)) return;
+    used.add(id);
+    out.add(card);
+  }
+
+  for (final id in [...kMinorClayTarotCardIds]..sort()) {
+    addById(id);
+  }
+  for (var id = 0; id <= 21; id++) {
+    addById(id);
+  }
+  return out;
+}
+
+/// `korea-traditional-major` 덱 세션 복원 시 허용 카드인지(마이너60 + 한국전통 메이저22).
+bool tarotCardAllowedInKoreaTraditionalMajorFullPool(TarotCard c) {
+  final isMinorClay = kMinorClayTarotCardIds.contains(c.id);
+  final isKoreaMajor = c.id >= 0 && c.id <= 21 && c.arcana == 'major';
+  return isMinorClay || isKoreaMajor;
 }
 
 /// 혼합 덱 세션 복원 시 덱에 들어있어도 되는 카드인지.

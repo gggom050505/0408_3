@@ -83,7 +83,7 @@ class TarotTab extends StatefulWidget {
   /// 가방에 있는 오라클 카드 번호(1~80). 뽑기는 이 목록에서만 랜덤.
   final List<int> ownedOracleCardNumbers;
 
-  /// 보유한 한국전통 메이저 타로 카드 id (0~21). 테마 장착 시 덱은 이 카드만 섞음.
+  /// 보유한 한국전통 메이저 타로 카드 id (0~21). 일부 혼합 덱에서 사용.
   final List<int> ownedKoreaMajorCardIds;
   final FeedDataSource? feedRepository;
   final VoidCallback onNeedLogin;
@@ -256,7 +256,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
       final allowedKorea = widget.ownedKoreaMajorCardIds.toSet();
       if (koreaMajor &&
           rebuilt.any(
-            (c) => c.id < 0 || c.id > 21 || !allowedKorea.contains(c.id),
+            (c) => !tarotCardAllowedInKoreaTraditionalMajorFullPool(c),
           )) {
         if (!mounted) return;
         setState(() {
@@ -310,10 +310,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   List<TarotCard> _reshuffle() {
     List<TarotCard> source;
     if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
-      final allowed = widget.ownedKoreaMajorCardIds.toSet();
-      source = tarotMajorArcanaOnly
-          .where((c) => allowed.contains(c.id))
-          .toList();
+      source = buildMinorClayAndKoreaTraditionalFullDrawPool();
     } else if (widget.equippedCardThemeId ==
         mixedMinorKoreaTraditionalMajorThemeId) {
       source = buildMixedMinorAndKoreaTraditionalDrawPool(
@@ -349,6 +346,13 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   }
 
   String _themeIdForCardFront(TarotCard card) {
+    if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
+      // 한국전통 덱 선택 시: 메이저는 한국전통, 마이너60은 클레이(major-clay 리소스)로 표시.
+      if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
+        return koreaTraditionalMajorThemeId;
+      }
+      return majorClayThemeId;
+    }
     if (widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId) {
       if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
         return koreaTraditionalMajorThemeId;
