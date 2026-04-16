@@ -70,11 +70,11 @@ class Gnb extends StatelessWidget {
   /// 타로–게시물, 오늘의 타로–오늘의 게시 를 나란히 둡니다.
   static const _tabs = <(MainTab, String, String)>[
     (MainTab.tarot, '타로', '🃏'),
-    (MainTab.ganjiCalendar, '간지\n달력', '🗓️'),
     (MainTab.feed, '게시물', '📝'),
     (MainTab.todayTarot, '오늘의\n타로', '🌅'),
     (MainTab.todayTarotFeed, '오늘의\n게시', '📿'),
     (MainTab.chat, '채팅', '💬'),
+    (MainTab.ganjiCalendar, '간지\n달력', '🗓️'),
     (MainTab.shop, '상점', '🏪'),
     (MainTab.bag, '가방', '🎒'),
     (MainTab.event, '이벤트', '🎁'),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lunar/lunar.dart';
+import 'dart:math' as math;
 
 class GanjiCalendarTab extends StatefulWidget {
   const GanjiCalendarTab({super.key});
@@ -11,6 +12,8 @@ class GanjiCalendarTab extends StatefulWidget {
 class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   static const _minYear = 2026;
   static const _maxYear = 2035;
+  static const _solarMinYear = 2020;
+  static const _solarMaxYear = 2040;
   static const _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
   static const _stemKo = {
     '甲': '갑',
@@ -42,19 +45,39 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   int _year = 2026;
   int _month = 1;
   int _selectedLunarDay = 1;
+  int _solarYear = 2026;
+  int _solarMonth = 1;
+  int _solarDay = 1;
   bool _showSolarAlways = false;
   final TextEditingController _solarDateController = TextEditingController();
+
+  void _syncToTodayAsDefault() {
+    final now = DateTime.now();
+    final todayLunar = Solar.fromDate(now).getLunar();
+    final inRange = todayLunar.getYear() >= _minYear && todayLunar.getYear() <= _maxYear;
+
+    _solarYear = now.year;
+    _solarMonth = now.month;
+    _solarDay = now.day;
+    _solarDateController.text = _formatYmd(now);
+
+    if (inRange) {
+      _year = todayLunar.getYear();
+      _month = todayLunar.getMonth();
+      _selectedLunarDay = todayLunar.getDay();
+      return;
+    }
+
+    final fallbackLunar = Solar.fromDate(DateTime(_minYear, 1, 1)).getLunar();
+    _year = fallbackLunar.getYear();
+    _month = fallbackLunar.getMonth();
+    _selectedLunarDay = fallbackLunar.getDay();
+  }
 
   @override
   void initState() {
     super.initState();
-    final todayLunar = Solar.fromDate(DateTime.now()).getLunar();
-    if (todayLunar.getYear() >= _minYear && todayLunar.getYear() <= _maxYear) {
-      _year = todayLunar.getYear();
-      _month = todayLunar.getMonth();
-      _selectedLunarDay = todayLunar.getDay();
-    }
-    _solarDateController.text = _formatYmd(DateTime.now());
+    _syncToTodayAsDefault();
   }
 
   @override
@@ -76,6 +99,10 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     final mm = d.month.toString().padLeft(2, '0');
     final dd = d.day.toString().padLeft(2, '0');
     return '${d.year}-$mm-$dd';
+  }
+
+  int _daysInMonth(int year, int month) {
+    return DateTime(year, month + 1, 0).day;
   }
 
   void _moveMonth(int delta) {
@@ -133,7 +160,16 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
       _year = lunar.getYear();
       _month = lunar.getMonth();
       _selectedLunarDay = lunar.getDay();
+      _solarYear = dt.year;
+      _solarMonth = dt.month;
+      _solarDay = dt.day;
     });
+  }
+
+  void _jumpToSolarSelection() {
+    final dt = DateTime(_solarYear, _solarMonth, _solarDay);
+    _solarDateController.text = _formatYmd(dt);
+    _jumpToSolarInput();
   }
 
   Future<void> _pickSolarDate() async {
@@ -149,8 +185,13 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
       locale: const Locale('ko'),
     );
     if (picked == null) return;
-    _solarDateController.text = _formatYmd(picked);
-    _jumpToSolarInput();
+    setState(() {
+      _solarYear = picked.year;
+      _solarMonth = picked.month;
+      _solarDay = picked.day;
+      _solarDateController.text = _formatYmd(picked);
+    });
+    _jumpToSolarSelection();
   }
 
   Color _fiveElementColor(String element) {
@@ -340,21 +381,52 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
           const SizedBox(height: 6),
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _solarDateController,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                    labelText: '양력 날짜로 이동',
-                    hintText: 'YYYY-MM-DD',
-                  ),
-                  onSubmitted: (_) => _jumpToSolarInput(),
+              DropdownButton<int>(
+                value: _solarYear,
+                items: List.generate(
+                  _solarMaxYear - _solarMinYear + 1,
+                  (i) => DropdownMenuItem(value: _solarMinYear + i, child: Text('${_solarMinYear + i}년')),
                 ),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() {
+                    _solarYear = v;
+                    final maxDay = _daysInMonth(_solarYear, _solarMonth);
+                    if (_solarDay > maxDay) _solarDay = maxDay;
+                  });
+                },
+              ),
+              const SizedBox(width: 6),
+              DropdownButton<int>(
+                value: _solarMonth,
+                items: List.generate(
+                  12,
+                  (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}월')),
+                ),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() {
+                    _solarMonth = v;
+                    final maxDay = _daysInMonth(_solarYear, _solarMonth);
+                    if (_solarDay > maxDay) _solarDay = maxDay;
+                  });
+                },
+              ),
+              const SizedBox(width: 6),
+              DropdownButton<int>(
+                value: _solarDay,
+                items: List.generate(
+                  _daysInMonth(_solarYear, _solarMonth),
+                  (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}일')),
+                ),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _solarDay = v);
+                },
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed: _jumpToSolarInput,
+                onPressed: _jumpToSolarSelection,
                 child: const Text('이동'),
               ),
               const SizedBox(width: 6),
@@ -399,9 +471,19 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-                _ganjiBadge(selected.ganji),
                 const SizedBox(width: 8),
-                Text('년 ${_yearGanjiKo(selected.lunar)} · 월 ${_monthGanjiKo(selected.lunar)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                Wrap(
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text('년', style: TextStyle(fontWeight: FontWeight.w700)),
+                    _ganjiBadge(_yearGanjiKo(selected.lunar)),
+                    const Text('월', style: TextStyle(fontWeight: FontWeight.w700)),
+                    _ganjiBadge(_monthGanjiKo(selected.lunar)),
+                    const Text('일진', style: TextStyle(fontWeight: FontWeight.w700)),
+                    _ganjiBadge(selected.ganji),
+                  ],
+                ),
               ],
             ),
           ),
@@ -426,73 +508,101 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: GridView.builder(
-              itemCount: firstWeekday + cells.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 6,
-                childAspectRatio: 0.95,
-              ),
-              itemBuilder: (context, index) {
-                if (index < firstWeekday) {
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  );
-                }
-                final item = cells[index - firstWeekday];
-                final isSelected = item.lunarDay == _selectedLunarDay;
-                final isWeekend = item.solar.weekday % 7 == 0 || item.solar.weekday % 7 == 6;
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    color: item.isToday ? const Color(0x22F2C300) : null,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => setState(() => _selectedLunarDay = item.lunarDay),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '${item.lunarDay}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isWeekend ? const Color(0xFFD62D20) : null,
-                                ),
-                              ),
-                              if (item.isToday) ...[
-                                const SizedBox(width: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final total = firstWeekday + cells.length;
+                final rows = (total / 7).ceil().clamp(1, 6);
+                const spacing = 6.0;
+                final minGridWidth = 560.0;
+                final gridWidth = math.max(c.maxWidth, minGridWidth);
+                final cellWidth = (gridWidth - spacing * 6) / 7;
+                final cellHeight = math.max(cellWidth * 1.02, 102.0);
+                final gridHeight = rows * cellHeight + (rows - 1) * spacing;
+
+                return Scrollbar(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: gridWidth,
+                      child: SingleChildScrollView(
+                        child: SizedBox(
+                          height: gridHeight,
+                          child: GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: firstWeekday + cells.length,
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 7,
+                              mainAxisSpacing: spacing,
+                              crossAxisSpacing: spacing,
+                              childAspectRatio: cellWidth / cellHeight,
+                            ),
+                            itemBuilder: (context, index) {
+                              if (index < firstWeekday) {
+                                return DecoratedBox(
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF2C300),
-                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Text('오늘', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                                );
+                              }
+                              final item = cells[index - firstWeekday];
+                              final isSelected = item.lunarDay == _selectedLunarDay;
+                              final isWeekend = item.solar.weekday % 7 == 0 || item.solar.weekday % 7 == 6;
+                              return DecoratedBox(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                  color: item.isToday ? const Color(0x22F2C300) : null,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ],
-                            ],
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => setState(() => _selectedLunarDay = item.lunarDay),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(6),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              '${item.lunarDay}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isWeekend ? const Color(0xFFD62D20) : null,
+                                              ),
+                                            ),
+                                            if (item.isToday) ...[
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF2C300),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: const Text('오늘', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        _ganjiBadge(item.ganji),
+                                        const Spacer(),
+                                        Text(
+                                          _showSolarAlways || item.lunarDay % 5 == 0 ? '${item.solar.month}/${item.solar.day}' : '',
+                                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                          const SizedBox(height: 2),
-                          _ganjiBadge(item.ganji),
-                          const Spacer(),
-                          Text(
-                            _showSolarAlways || item.lunarDay % 5 == 0 ? '${item.solar.month}/${item.solar.day}' : '',
-                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),

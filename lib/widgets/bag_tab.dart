@@ -34,7 +34,7 @@ const String _koreaTraditionalDeckEquipHint =
     '한국전통 메이저카드 22장 모두 수집시 카드덱에 적용됨.';
 
 const String _mixedMinorKoreaDeckEquipHint =
-    'RW 마이너 56장은 모두 들어가고, 한국전통 메이저는 가방에서 모은 장만 섞입니다. '
+    '마이너카드 60장은 모두 들어가고, 한국전통 메이저는 가방에서 모은 장만 섞입니다. '
     '앞면 그림: 마이너=기본 덱, 메이저=한국전통.';
 
 String? _koreaMajorBagPreviewSrc(_OwnedVisual c) {
