@@ -314,59 +314,99 @@ class Gnb extends StatelessWidget {
                   ),
                 ],
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: _tabs.map((t) {
-                    final sel = active == t.$1;
-                    return GestureDetector(
-                      onTap: () => onTab(t.$1),
-                      behavior: HitTestBehavior.opaque,
-                      child: AnimatedScale(
-                        scale: sel ? 1.05 : 1,
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeOutBack,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOutCubic,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          decoration: BoxDecoration(
-                            gradient: sel ? AppColors.gnbTabSelectedGradient : null,
-                            borderRadius: BorderRadius.circular(999),
-                            boxShadow: sel
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.accentLilac.withValues(alpha: 0.45),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 3),
+              child: Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: _tabs.map((t) {
+                        final sel = active == t.$1;
+                        return GestureDetector(
+                          onTap: () => onTab(t.$1),
+                          behavior: HitTestBehavior.opaque,
+                          child: AnimatedScale(
+                            scale: sel ? 1.05 : 1,
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutBack,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeOutCubic,
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                              decoration: BoxDecoration(
+                                gradient: sel ? AppColors.gnbTabSelectedGradient : null,
+                                borderRadius: BorderRadius.circular(999),
+                                boxShadow: sel
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.accentLilac.withValues(alpha: 0.45),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 220),
+                                style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                                      color: sel ? AppColors.textPrimary : AppColors.textLight,
+                                      fontWeight: FontWeight.bold,
+                                      shadows: sel
+                                          ? null
+                                          : const [
+                                              Shadow(color: Color(0x66000000), offset: Offset(0, 1)),
+                                            ],
                                     ),
-                                  ]
-                                : null,
-                          ),
-                          child: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 220),
-                            style: Theme.of(context).textTheme.labelLarge!.copyWith(
-                                  color: sel ? AppColors.textPrimary : AppColors.textLight,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: sel
-                                      ? null
-                                      : const [
-                                          Shadow(color: Color(0x66000000), offset: Offset(0, 1)),
-                                        ],
+                                child: Text(
+                                  t.$2,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
                                 ),
-                            child: Text(
-                              t.$2,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
+                              ),
                             ),
                           ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            AppColors.accentPurple.withValues(alpha: 0),
+                            AppColors.accentPurple.withValues(alpha: 0.48),
+                          ],
                         ),
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                    );
-                  }).toList(),
-                ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            '...',
+                            style: TextStyle(
+                              color: AppColors.textLight,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 14,
+                            color: AppColors.textLight,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

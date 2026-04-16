@@ -43,6 +43,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   int _month = 1;
   int _selectedLunarDay = 1;
   bool _showSolarAlways = false;
+  final TextEditingController _solarDateController = TextEditingController();
 
   @override
   void initState() {
@@ -53,6 +54,13 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
       _month = todayLunar.getMonth();
       _selectedLunarDay = todayLunar.getDay();
     }
+    _solarDateController.text = _formatYmd(DateTime.now());
+  }
+
+  @override
+  void dispose() {
+    _solarDateController.dispose();
+    super.dispose();
   }
 
   List<int> _monthOptionsForYear(int year) {
@@ -62,6 +70,12 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   String _monthLabel(int month) {
     final prefix = month < 0 ? '윤' : '';
     return '$prefix${month.abs()}월';
+  }
+
+  String _formatYmd(DateTime d) {
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '${d.year}-$mm-$dd';
   }
 
   void _moveMonth(int delta) {
@@ -84,7 +98,59 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
       _year = y;
       _month = todayLunar.getMonth();
       _selectedLunarDay = todayLunar.getDay();
+      _solarDateController.text = _formatYmd(DateTime.now());
     });
+  }
+
+  void _jumpToSolarInput() {
+    final raw = _solarDateController.text.trim();
+    final m = RegExp(r'^(\d{4})-(\d{1,2})-(\d{1,2})$').firstMatch(raw);
+    if (m == null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('양력 날짜 형식은 YYYY-MM-DD 로 입력해 주세요.')),
+      );
+      return;
+    }
+    final y = int.tryParse(m.group(1)!);
+    final mo = int.tryParse(m.group(2)!);
+    final d = int.tryParse(m.group(3)!);
+    if (y == null || mo == null || d == null) return;
+    final dt = DateTime(y, mo, d);
+    if (dt.year != y || dt.month != mo || dt.day != d) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('유효한 날짜를 입력해 주세요.')),
+      );
+      return;
+    }
+    final lunar = Solar.fromDate(dt).getLunar();
+    if (lunar.getYear() < _minYear || lunar.getYear() > _maxYear) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('지원 연도는 $_minYear~$_maxYear 입니다.')),
+      );
+      return;
+    }
+    setState(() {
+      _year = lunar.getYear();
+      _month = lunar.getMonth();
+      _selectedLunarDay = lunar.getDay();
+    });
+  }
+
+  Future<void> _pickSolarDate() async {
+    final now = DateTime.now();
+    final parsed = DateTime.tryParse(_solarDateController.text.trim());
+    final initial = parsed ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime(2040, 12, 31),
+      helpText: '양력 날짜 선택',
+      locale: const Locale('ko'),
+    );
+    if (picked == null) return;
+    _solarDateController.text = _formatYmd(picked);
+    _jumpToSolarInput();
   }
 
   Color _fiveElementColor(String element) {
@@ -268,6 +334,34 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                 onPressed: _jumpToTodayLunar,
                 style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
                 child: const Text('오늘'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _solarDateController,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    labelText: '양력 날짜로 이동',
+                    hintText: 'YYYY-MM-DD',
+                  ),
+                  onSubmitted: (_) => _jumpToSolarInput(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _jumpToSolarInput,
+                child: const Text('이동'),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip: '날짜 선택',
+                onPressed: _pickSolarDate,
+                icon: const Icon(Icons.calendar_month),
               ),
             ],
           ),
