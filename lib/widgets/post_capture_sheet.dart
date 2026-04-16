@@ -178,8 +178,8 @@ class _PostCaptureSheetState extends State<PostCaptureSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                '「타로 탭 캡처」는 #타로스프레드가 자동으로 붙어요. '
-                '#오늘의타로는 오늘의 타로 전용이라 여기서는 고를 수 없어요. '
+                '「타로 탭 캡처」 태그는 자동으로 붙어요. '
+                '오늘의 타로 전용 태그는 여기서 고를 수 없어요. '
                 '아래는 부가 태그만 골라 주세요.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,

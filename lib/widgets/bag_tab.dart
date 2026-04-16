@@ -30,8 +30,8 @@ import 'oracle_collection_screen.dart';
 
 /// 한국전통 메이저 **덱** 선택 시 가방에 표시하는 안내.
 const String _koreaTraditionalDeckEquipHint =
-    '이 덱을 선택하면 타로 화면은 「마이너카드 60장 + 한국전통 메이저카드 22장」으로 구성돼요. '
-    '한국전통 메이저카드 22장 모두 수집시 카드덱에 적용됨.';
+    '이 덱을 선택하면 타로 화면은 「마이너카드 60장 + 메이저카드(번호 매칭)」으로 구성돼요. '
+    '한국전통 메이저 보유 번호는 우선 적용되고, 없는 번호는 기본 메이저로 자동 보완됩니다.';
 
 const String _mixedMinorKoreaDeckEquipHint =
     '마이너카드 60장은 모두 들어가고, 한국전통 메이저는 가방에서 모은 장만 섞입니다. '

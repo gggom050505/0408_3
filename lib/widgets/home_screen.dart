@@ -974,7 +974,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     fixedTagFilterKey:
                                         kFeedTagTodayTarotMatchKey,
                                     listHeaderTitle:
-                                        '#오늘의타로 로 올린 글만 보여요 · 아래에서 정렬 변경 가능',
+                                        '오늘 타로로 올린 글만 보여요 · 아래에서 정렬 변경 가능',
                                   ),
                           MainTab.ganjiCalendar => const GanjiCalendarTab(
                             key: ValueKey('ganji-calendar-tab'),
@@ -997,7 +997,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     fixedTagFilterKey:
                                         kFeedTagTarotSpreadMatchKey,
                                     listHeaderTitle:
-                                        '타로 탭에서 캡처해 올린 글만 보여요 (#타로스프레드) · 정렬 변경 가능',
+                                        '타로 탭에서 캡처해 올린 글만 보여요 · 정렬 변경 가능',
                                   ),
                           MainTab.chat => StandaloneChatTab(
                             key: const ValueKey('chat-standalone'),

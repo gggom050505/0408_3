@@ -90,6 +90,11 @@ bool _feedPostMatchesTagFilter(FeedPost post, String? filterKey) {
   return false;
 }
 
+bool _isHiddenSystemTag(String raw) {
+  final n = _normalizeFeedTag(raw);
+  return n == kFeedTagTarotSpreadMatchKey || n == kFeedTagTodayTarotMatchKey;
+}
+
 class FeedTab extends StatefulWidget {
   const FeedTab({
     super.key,
@@ -135,9 +140,8 @@ class _FeedTabState extends State<FeedTab> {
     super.initState();
     if (widget.fixedTagFilterKey != null) {
       _selectedTagKey = widget.fixedTagFilterKey;
-      _sort = widget.fixedTagFilterKey == kFeedTagTodayTarotMatchKey
-          ? FeedSortMode.tarotScore
-          : FeedSortMode.newest;
+      // 고정 태그 탭(예: 오늘의 게시) 기본 정렬은 항상 최신순으로 시작한다.
+      _sort = FeedSortMode.newest;
     } else {
       unawaited(_restoreFeedSort());
     }
@@ -670,6 +674,7 @@ class _PostTileState extends State<_PostTile> {
   @override
   Widget build(BuildContext context) {
     final p = widget.post;
+    final visibleTags = p.tags.where((t) => !_isHiddenSystemTag(t)).toList();
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Colors.white.withValues(alpha: 0.45),
@@ -747,11 +752,11 @@ class _PostTileState extends State<_PostTile> {
               )
             else if (p.content.trim().isNotEmpty)
               Text(p.content, style: Theme.of(context).textTheme.bodyMedium),
-            if (p.tags.isNotEmpty && !_editingPost) ...[
+            if (p.tags.isNotEmpty && !_editingPost && visibleTags.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
-                children: p.tags
+                children: visibleTags
                     .map(
                       (t) => Chip(
                         label: Text(t, style: const TextStyle(fontSize: 11)),

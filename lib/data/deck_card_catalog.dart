@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show immutable;
 
+import 'card_themes.dart';
 import 'minor_clay_assets.dart';
 import 'tarot_cards.dart';
 
@@ -224,4 +225,23 @@ bool tarotCardAllowedInMixedMinorKoreaPool(
 ) {
   return isStandardMinorArcanaTarotCard(c) ||
       _isKoreaEligibleMajor(c, ownedKoreaMajorIds);
+}
+
+/// 한국전통 메이저 덱 선택 시 카드 앞면 테마를 결정한다.
+///
+/// - 메이저(0~21) 중 보유한 한국전통 조각 번호는 `korea-traditional-major` 우선 적용
+/// - 그 외 메이저/마이너는 `major-clay`로 보완
+String resolveFrontThemeForKoreaTraditionalDeckCard(
+  TarotCard card,
+  Set<int> ownedKoreaMajorIds,
+) {
+  final canUseKoreaMajor =
+      card.arcana == 'major' &&
+      card.id >= 0 &&
+      card.id <= 21 &&
+      ownedKoreaMajorIds.contains(card.id);
+  if (canUseKoreaMajor) {
+    return koreaTraditionalMajorThemeId;
+  }
+  return majorClayThemeId;
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:lunar/lunar.dart';
-import 'dart:math' as math;
 
 class GanjiCalendarTab extends StatefulWidget {
   const GanjiCalendarTab({super.key});
@@ -513,95 +512,94 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                 final total = firstWeekday + cells.length;
                 final rows = (total / 7).ceil().clamp(1, 6);
                 const spacing = 6.0;
-                final minGridWidth = 560.0;
-                final gridWidth = math.max(c.maxWidth, minGridWidth);
+                final gridWidth = c.maxWidth;
                 final cellWidth = (gridWidth - spacing * 6) / 7;
-                final cellHeight = math.max(cellWidth * 1.02, 102.0);
+                final preferredHeight = cellWidth * 1.02;
+                final cellHeight = preferredHeight > 102.0
+                    ? preferredHeight
+                    : 102.0;
                 final gridHeight = rows * cellHeight + (rows - 1) * spacing;
 
                 return Scrollbar(
                   thumbVisibility: true,
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
                     child: SizedBox(
                       width: gridWidth,
-                      child: SingleChildScrollView(
-                        child: SizedBox(
-                          height: gridHeight,
-                          child: GridView.builder(
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: firstWeekday + cells.length,
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 7,
-                              mainAxisSpacing: spacing,
-                              crossAxisSpacing: spacing,
-                              childAspectRatio: cellWidth / cellHeight,
-                            ),
-                            itemBuilder: (context, index) {
-                              if (index < firstWeekday) {
-                                return DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                );
-                              }
-                              final item = cells[index - firstWeekday];
-                              final isSelected = item.lunarDay == _selectedLunarDay;
-                              final isWeekend = item.solar.weekday % 7 == 0 || item.solar.weekday % 7 == 6;
+                      child: SizedBox(
+                        height: gridHeight,
+                        child: GridView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: firstWeekday + cells.length,
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 7,
+                            mainAxisSpacing: spacing,
+                            crossAxisSpacing: spacing,
+                            childAspectRatio: cellWidth / cellHeight,
+                          ),
+                          itemBuilder: (context, index) {
+                            if (index < firstWeekday) {
                               return DecoratedBox(
                                 decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
-                                    width: isSelected ? 2 : 1,
-                                  ),
-                                  color: item.isToday ? const Color(0x22F2C300) : null,
+                                  border: Border.all(color: Colors.grey.shade300),
                                   borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(8),
-                                  onTap: () => setState(() => _selectedLunarDay = item.lunarDay),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              '${item.lunarDay}',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: isWeekend ? const Color(0xFFD62D20) : null,
-                                              ),
-                                            ),
-                                            if (item.isToday) ...[
-                                              const SizedBox(width: 4),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFF2C300),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                                child: const Text('오늘', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-                                        _ganjiBadge(item.ganji),
-                                        const Spacer(),
-                                        Text(
-                                          _showSolarAlways || item.lunarDay % 5 == 0 ? '${item.solar.month}/${item.solar.day}' : '',
-                                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 ),
                               );
-                            },
-                          ),
+                            }
+                            final item = cells[index - firstWeekday];
+                            final isSelected = item.lunarDay == _selectedLunarDay;
+                            final isWeekend = item.solar.weekday % 7 == 0 || item.solar.weekday % 7 == 6;
+                            return DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                                color: item.isToday ? const Color(0x22F2C300) : null,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => setState(() => _selectedLunarDay = item.lunarDay),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${item.lunarDay}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isWeekend ? const Color(0xFFD62D20) : null,
+                                            ),
+                                          ),
+                                          if (item.isToday) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF2C300),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text('오늘', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      _ganjiBadge(item.ganji),
+                                      const Spacer(),
+                                      Text(
+                                        _showSolarAlways || item.lunarDay % 5 == 0 ? '${item.solar.month}/${item.solar.day}' : '',
+                                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),

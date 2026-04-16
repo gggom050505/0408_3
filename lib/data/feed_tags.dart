@@ -14,8 +14,8 @@ const String kFeedTagTarotSpreadMatchKey = '타로스프레드';
 
 const kFeedTagChips = <FeedTagChip>[
   FeedTagChip(matchKey: null, label: '전체'),
-  FeedTagChip(matchKey: kFeedTagTodayTarotMatchKey, label: '#오늘의타로'),
-  FeedTagChip(matchKey: kFeedTagTarotSpreadMatchKey, label: '#타로스프레드'),
+  FeedTagChip(matchKey: kFeedTagTodayTarotMatchKey, label: '#오늘'),
+  FeedTagChip(matchKey: kFeedTagTarotSpreadMatchKey, label: '#타로'),
   FeedTagChip(matchKey: '연애운', label: '#연애운'),
   FeedTagChip(matchKey: '직장운', label: '#직장운'),
   FeedTagChip(matchKey: '시험운', label: '#시험운'),

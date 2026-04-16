@@ -187,6 +187,7 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
 
   /// 길게 눌러 드래그 중인 풀 인덱스 — 같은 카드가 탭으로 중복 배치되지 않게 함.
   int? _draggingPoolIndex;
+  bool _showCardDescriptionOnFlip = true;
 
   List<TodayTarotDeckEntry> get _pickedInSlotOrder {
     return [
@@ -394,9 +395,7 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
       png = await _captureGridPng();
     } catch (_) {}
     final lines = <String>[
-      '🌅 오늘의 타로',
-      '키워드: 「$_keyword」',
-      '합계 $_totalScore점 (10장 · 5×2 스프레드)',
+      '키워드 「$_keyword」 · 합계 $_totalScore점',
     ];
     try {
       await feed.addPost(
@@ -461,14 +460,23 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     }
     if (!_slotFlipped[slotIndex]) {
       setState(() => _slotFlipped[slotIndex] = true);
+      if (!_showCardDescriptionOnFlip) {
+        _advanceToResultsAfterCompletion();
+        return;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _showBigCard(context, entry);
         }
       });
     } else {
+      if (!_showCardDescriptionOnFlip) {
+        _advanceToResultsAfterCompletion();
+        return;
+      }
       _showBigCard(context, entry);
     }
+    _advanceToResultsAfterCompletion();
   }
 
   TarotCard? _tarotMetaFor(TodayTarotDeckEntry entry) {
@@ -761,7 +769,8 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                               const SizedBox(height: 12),
                               Text(
                                 '상단 «다시 뽑기»로 기록을 지우면 같은 날에도 처음부터 다시 할 수 있어요.\n\n'
-                                '올린 글은 «오늘의 게시» 탭(#오늘의타로)에서 ♥와 정렬로 다시 찾아볼 수 있어요.',
+                                '올린 글은 «오늘의 게시» 탭(#오늘의타로)에서 ♥와 정렬로 다시 찾아볼 수 있어요.\n\n'
+                                '키워드에 집중해서 높은 점수의 카드를 뽑아보세요. 다른 분들의 카드를 보고 좋아요로 투표해 주세요.',
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   color: AppColors.textSecondary,
                                   height: 1.45,
@@ -1099,6 +1108,25 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                           color: AppColors.textSecondary,
                           height: 1.35,
                         ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '카드 설명 보기',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Switch(
+                            value: _showCardDescriptionOnFlip,
+                            onChanged: (v) {
+                              setState(() => _showCardDescriptionOnFlip = v);
+                            },
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ],
                       ),
                     ],
                   ),

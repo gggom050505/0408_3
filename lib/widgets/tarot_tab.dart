@@ -104,6 +104,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   final List<int?> _placed = List.filled(_totalSlots, null);
   final Set<int> _flipped = {};
   final Set<int> _used = {};
+  bool _showCardDescriptionOnFlip = true;
 
   ValueNotifier<int>? _flushListenTarget;
 
@@ -347,11 +348,11 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
 
   String _themeIdForCardFront(TarotCard card) {
     if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
-      // 한국전통 덱 선택 시: 메이저는 한국전통, 마이너60은 클레이(major-clay 리소스)로 표시.
-      if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
-        return koreaTraditionalMajorThemeId;
-      }
-      return majorClayThemeId;
+      // 카드 번호 매칭: 한국전통 보유 메이저 우선, 미보유 번호는 기본 메이저(클레이)로 보완.
+      return resolveFrontThemeForKoreaTraditionalDeckCard(
+        card,
+        widget.ownedKoreaMajorCardIds.toSet(),
+      );
     }
     if (widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId) {
       if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
@@ -379,6 +380,9 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     final img = _cardFrontImageSrc(card);
 
     if (_flipped.contains(slotIdx)) {
+      if (!_showCardDescriptionOnFlip) {
+        return;
+      }
       await showResultModal(
         context,
         cardName: card.nameKo,
@@ -391,6 +395,9 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
 
     setState(() => _flipped.add(slotIdx));
     unawaited(_persistSession());
+    if (!_showCardDescriptionOnFlip) {
+      return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     await showResultModal(
@@ -815,6 +822,24 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
                   padding: const EdgeInsets.fromLTRB(10, 2, 10, 6),
                   child: Column(
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '카드 설명 보기',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                          Switch(
+                            value: _showCardDescriptionOnFlip,
+                            onChanged: (v) {
+                              setState(() => _showCardDescriptionOnFlip = v);
+                            },
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ],
+                      ),
                       Row(
                         children: [
                           Expanded(

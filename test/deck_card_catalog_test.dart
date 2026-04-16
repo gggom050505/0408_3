@@ -40,4 +40,24 @@ void main() {
     expect(kCatalogStandardMajorArcanaCount == 24, isFalse);
     expect(kCatalogStandardMinorArcanaCount == 50, isFalse);
   });
+
+  test('한국전통 덱 앞면: 보유한 메이저 번호만 한국전통 우선 적용', () {
+    final owned = {0, 7, 21};
+    final majorOwned = tarotDeck.firstWhere((c) => c.id == 7);
+    final majorMissing = tarotDeck.firstWhere((c) => c.id == 3);
+    final minor = tarotDeck.firstWhere((c) => c.arcana == 'minor');
+
+    expect(
+      resolveFrontThemeForKoreaTraditionalDeckCard(majorOwned, owned),
+      'korea-traditional-major',
+    );
+    expect(
+      resolveFrontThemeForKoreaTraditionalDeckCard(majorMissing, owned),
+      'major-clay',
+    );
+    expect(
+      resolveFrontThemeForKoreaTraditionalDeckCard(minor, owned),
+      'major-clay',
+    );
+  });
 }
