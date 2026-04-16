@@ -47,6 +47,7 @@ dependencies:
   video_player: ^2.11.1
   web: ^1.1.0
   supabase_flutter: ^2.10.3
+  lunar: ^1.7.8
 
 dev_dependencies:
   flutter_test:

@@ -8,6 +8,7 @@ enum MainTab {
   tarot,
   todayTarot,
   todayTarotFeed,
+  ganjiCalendar,
   feed,
   chat,
   shop,
@@ -67,6 +68,7 @@ class Gnb extends StatelessWidget {
   /// 타로–게시물, 오늘의 타로–오늘의 게시 를 나란히 둡니다.
   static const _tabs = <(MainTab, String, String)>[
     (MainTab.tarot, '타로', '🃏'),
+    (MainTab.ganjiCalendar, '간지\n달력', '🗓️'),
     (MainTab.feed, '게시물', '📝'),
     (MainTab.todayTarot, '오늘의\n타로', '🌅'),
     (MainTab.todayTarotFeed, '오늘의\n게시', '📿'),
@@ -312,11 +314,12 @@ class Gnb extends StatelessWidget {
                   ),
                 ],
               ),
-              child: LayoutBuilder(
-                builder: (context, tabConstraints) {
-                  // 가로가 매우 좁거나(웹 좁은 창·큰 글자) 6칸 균등 분할 시 라벨이 잘리는 경우 방지
-                  final scrollTabs = tabConstraints.maxWidth < 300;
-                  Widget tabButton((MainTab, String, String) t, bool sel) {
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _tabs.map((t) {
+                    final sel = active == t.$1;
                     return GestureDetector(
                       onTap: () => onTab(t.$1),
                       behavior: HitTestBehavior.opaque,
@@ -327,21 +330,15 @@ class Gnb extends StatelessWidget {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 260),
                           curve: Curves.easeOutCubic,
-                          padding: EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: scrollTabs ? 10 : 0,
-                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                           decoration: BoxDecoration(
-                            gradient: sel
-                                ? AppColors.gnbTabSelectedGradient
-                                : null,
+                            gradient: sel ? AppColors.gnbTabSelectedGradient : null,
                             borderRadius: BorderRadius.circular(999),
                             boxShadow: sel
                                 ? [
                                     BoxShadow(
-                                      color: AppColors.accentLilac.withValues(
-                                        alpha: 0.45,
-                                      ),
+                                      color: AppColors.accentLilac.withValues(alpha: 0.45),
                                       blurRadius: 12,
                                       offset: const Offset(0, 3),
                                     ),
@@ -350,54 +347,26 @@ class Gnb extends StatelessWidget {
                           ),
                           child: AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 220),
-                            style: Theme.of(context).textTheme.labelLarge!
-                                .copyWith(
-                                  color: sel
-                                      ? AppColors.textPrimary
-                                      : AppColors.textLight,
+                            style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                                  color: sel ? AppColors.textPrimary : AppColors.textLight,
                                   fontWeight: FontWeight.bold,
                                   shadows: sel
                                       ? null
                                       : const [
-                                          Shadow(
-                                            color: Color(0x66000000),
-                                            offset: Offset(0, 1),
-                                          ),
+                                          Shadow(color: Color(0x66000000), offset: Offset(0, 1)),
                                         ],
                                 ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.center,
-                              child: Text(
-                                t.$2,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                              ),
+                            child: Text(
+                              t.$2,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
                             ),
                           ),
                         ),
                       ),
                     );
-                  }
-
-                  if (scrollTabs) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: _tabs
-                            .map((t) => tabButton(t, active == t.$1))
-                            .toList(),
-                      ),
-                    );
-                  }
-                  return Row(
-                    children: _tabs.map((t) {
-                      final sel = active == t.$1;
-                      return Expanded(child: tabButton(t, sel));
-                    }).toList(),
-                  );
-                },
+                  }).toList(),
+                ),
               ),
             ),
           ),

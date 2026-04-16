@@ -32,6 +32,7 @@ import 'bag_tab.dart';
 import 'event_tab.dart';
 import 'feed_tab.dart';
 import 'first_setup_wizard_screen.dart';
+import 'ganji_calendar_tab.dart';
 import 'gnb.dart';
 import 'app_motion.dart';
 import 'making_notes_screen.dart';
@@ -975,6 +976,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     listHeaderTitle:
                                         '#오늘의타로 로 올린 글만 보여요 · 아래에서 정렬 변경 가능',
                                   ),
+                          MainTab.ganjiCalendar => const GanjiCalendarTab(
+                            key: ValueKey('ganji-calendar-tab'),
+                          ),
                           MainTab.feed =>
                             _feed == null
                                 ? const SimpleTabPage(
