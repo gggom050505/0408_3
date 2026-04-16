@@ -368,17 +368,24 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
   }
 
   Future<Uint8List?> _captureGridPng() async {
-    final ctx = _gridExportKey.currentContext;
-    if (ctx == null) {
-      return null;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      WidgetsBinding.instance.scheduleFrame();
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      final renderObject = _gridExportKey.currentContext?.findRenderObject();
+      final boundary = renderObject as RenderRepaintBoundary?;
+      if (boundary == null || !boundary.hasSize) {
+        continue;
+      }
+      final image = await boundary.toImage(pixelRatio: 2.5);
+      final bd = await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = bd?.buffer.asUint8List();
+      if (bytes != null && bytes.isNotEmpty) {
+        return bytes;
+      }
     }
-    final boundary = ctx.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null || !boundary.hasSize) {
-      return null;
-    }
-    final image = await boundary.toImage(pixelRatio: 2.5);
-    final bd = await image.toByteData(format: ui.ImageByteFormat.png);
-    return bd?.buffer.asUint8List();
+    return null;
   }
 
   Future<void> _postToFeed() async {
@@ -394,6 +401,17 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     try {
       png = await _captureGridPng();
     } catch (_) {}
+    if (png == null || png.isEmpty) {
+      if (mounted) {
+        setState(() => _postingInFlight = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('카드 5x2 캡처에 실패했어요. 잠시 후 다시 게시해 주세요.'),
+          ),
+        );
+      }
+      return;
+    }
     final lines = <String>[
       '키워드 「$_keyword」 · 합계 $_totalScore점',
     ];
@@ -404,7 +422,7 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
         avatar: widget.avatarEmojiOrUrl,
         content: lines.join('\n'),
         tags: const [kFeedTagTodayTarotMatchKey],
-        imagePngBytes: png?.toList(),
+        imagePngBytes: png.toList(),
       );
       if (!mounted) {
         return;
