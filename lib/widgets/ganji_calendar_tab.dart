@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lunar/lunar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GanjiCalendarTab extends StatefulWidget {
   const GanjiCalendarTab({super.key});
@@ -14,6 +15,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   static const _solarMinYear = 2020;
   static const _solarMaxYear = 2040;
   static const _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  static const _showSolarAlwaysPrefsKey = 'ganji_show_solar_always_v1';
   static const _stemKo = {
     '甲': '갑',
     '乙': '을',
@@ -77,6 +79,19 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   void initState() {
     super.initState();
     _syncToTodayAsDefault();
+    _restoreShowSolarAlways();
+  }
+
+  Future<void> _restoreShowSolarAlways() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool(_showSolarAlwaysPrefsKey);
+    if (!mounted || saved == null) return;
+    setState(() => _showSolarAlways = saved);
+  }
+
+  Future<void> _persistShowSolarAlways(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showSolarAlwaysPrefsKey, value);
   }
 
   @override
@@ -448,7 +463,11 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
               Text('양력 항상 표시', style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
               Switch(
                 value: _showSolarAlways,
-                onChanged: (v) => setState(() => _showSolarAlways = v),
+                onChanged: (v) {
+                  setState(() => _showSolarAlways = v);
+                  // 토글 직후 즉시 저장해 탭 이동/재실행에도 유지한다.
+                  _persistShowSolarAlways(v);
+                },
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ],
