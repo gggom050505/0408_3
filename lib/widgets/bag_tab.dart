@@ -169,9 +169,6 @@ class BagTab extends StatelessWidget {
       if (p == null || p.equippedCard != e.id) {
         return '';
       }
-      if (e.id == koreaTraditionalMajorThemeId) {
-        return ' (선택)';
-      }
       return ' (장착)';
     }
 
@@ -1062,7 +1059,7 @@ class BagTab extends StatelessWidget {
                             backgroundColor: AppColors.accentPurple,
                           ),
                           child: Text(
-                            koreaDeckEquipped ? '적용 중' : '선택',
+                            koreaDeckEquipped ? '장착' : '선택',
                             style: const TextStyle(fontSize: 11),
                           ),
                         )
