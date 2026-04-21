@@ -40,6 +40,48 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     '戌': '술',
     '亥': '해',
   };
+  static const Map<String, String> _solarTermKorean = {
+    '立春': '입춘',
+    '雨水': '우수',
+    '惊蛰': '경칩',
+    '春分': '춘분',
+    '清明': '청명',
+    '谷雨': '곡우',
+    '立夏': '입하',
+    '小满': '소만',
+    '芒种': '망종',
+    '夏至': '하지',
+    '小暑': '소서',
+    '大暑': '대서',
+    '立秋': '입추',
+    '处暑': '처서',
+    '白露': '백로',
+    '秋分': '추분',
+    '寒露': '한로',
+    '霜降': '상강',
+    '立冬': '입동',
+    '小雪': '소설',
+    '大雪': '대설',
+    '冬至': '동지',
+    '小寒': '소한',
+    '大寒': '대한',
+  };
+  static const Map<String, String> _festivalKorean = {
+    '春节': '설날',
+    '元宵节': '정월대보름',
+    '龙头节': '용두절',
+    '上巳节': '삼짇날',
+    '寒食节': '한식',
+    '端午节': '단오',
+    '七夕节': '칠석',
+    '中元节': '백중',
+    '中秋节': '추석',
+    '重阳节': '중양절',
+    '寒衣节': '한옷날',
+    '下元节': '하원절',
+    '腊八节': '납일',
+    '除夕': '섣달그믐',
+  };
 
   int _year = 2026;
   int _month = 1;
@@ -260,6 +302,40 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     return '${_stemKo[hanja[0]] ?? hanja[0]}${_branchKo[hanja[1]] ?? hanja[1]}';
   }
 
+  String _toKoreanSolarTerm(String term) => _solarTermKorean[term] ?? term;
+  String _toKoreanFestival(String label) => _festivalKorean[label] ?? label;
+
+  int _specialLabelPriority(String label) {
+    // 절기 > 명절/기타로 우선 노출
+    if (_solarTermKorean.containsValue(label)) return 0;
+    return 1;
+  }
+
+  List<String> _specialDayLabels(Lunar lunar) {
+    final labels = <String>[];
+    final jieQi = lunar.getJieQi().trim();
+    if (jieQi.isNotEmpty) {
+      labels.add(_toKoreanSolarTerm(jieQi));
+    }
+    final festivals = <String>[
+      ...lunar.getFestivals(),
+      ...lunar.getOtherFestivals(),
+    ];
+    for (final festival in festivals) {
+      final cleaned = festival.trim();
+      if (cleaned.isNotEmpty) {
+        labels.add(_toKoreanFestival(cleaned));
+      }
+    }
+    final unique = labels.toSet().toList();
+    unique.sort((a, b) {
+      final p = _specialLabelPriority(a).compareTo(_specialLabelPriority(b));
+      if (p != 0) return p;
+      return a.compareTo(b);
+    });
+    return unique;
+  }
+
   Widget _ganjiBadge(String ganji) {
     final gan = ganji.isNotEmpty ? ganji[0] : '';
     final ji = ganji.length >= 2 ? ganji[1] : '';
@@ -320,6 +396,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     final selected = cells[_selectedLunarDay - 1];
     final fixedMonthLunar = Lunar.fromYmd(_year, _month, 1);
     final fixedMonthGanji = _monthGanjiKo(fixedMonthLunar);
+    final selectedSpecials = _specialDayLabels(selected.lunar);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
@@ -454,7 +531,8 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
               children: [
                 Expanded(
                   child: Text(
-                    '선택: 음력 ${_monthLabel(_month)} ${selected.lunarDay}일 (${_weekdayName(selected.solar)})  ·  양력 ${selected.solar.month}/${selected.solar.day}',
+                    '선택: 음력 ${_monthLabel(_month)} ${selected.lunarDay}일 (${_weekdayName(selected.solar)})  ·  양력 ${selected.solar.month}/${selected.solar.day}'
+                    '${selectedSpecials.isNotEmpty ? '  ·  ${selectedSpecials.join(' · ')}' : ''}',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -463,8 +541,10 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                   spacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text('${_yearGanjiKo(selected.lunar)}년', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text('$fixedMonthGanji월', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const Text('년', style: TextStyle(fontWeight: FontWeight.w700)),
+                    _ganjiBadge(_yearGanjiKo(selected.lunar)),
+                    const Text('월', style: TextStyle(fontWeight: FontWeight.w700)),
+                    _ganjiBadge(fixedMonthGanji),
                     const Text('일진', style: TextStyle(fontWeight: FontWeight.w700)),
                     _ganjiBadge(selected.ganji),
                   ],
@@ -534,6 +614,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                             final item = cells[index - firstWeekday];
                             final isSelected = item.lunarDay == _selectedLunarDay;
                             final isWeekend = item.solar.weekday % 7 == 0 || item.solar.weekday % 7 == 6;
+                            final specials = _specialDayLabels(item.lunar);
                             return DecoratedBox(
                               decoration: BoxDecoration(
                                 border: Border.all(
@@ -580,6 +661,19 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                                         '${item.solar.month}/${item.solar.day}',
                                         style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                                       ),
+                                      if (specials.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          specials.first,
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFFB45309),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
