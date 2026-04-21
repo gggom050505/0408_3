@@ -17,7 +17,7 @@ class LunarCalendarApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: '음력 간지 달력',
+      title: '음력 달력',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.indigo,
@@ -673,7 +673,7 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
     final yearGanji = _yearGanjiKorean(lunar);
     final monthGanji = _monthGanjiKorean(lunar);
     final dayGanji = _dayGanjiForLunar(lunar);
-    final fontSize = isVeryNarrow ? 13.0 : 15.0;
+    final fontSize = isVeryNarrow ? 14.0 : 16.0;
     final titleStyle = TextStyle(
       fontSize: isVeryNarrow ? 11 : 12,
       color: Colors.grey.shade700,
@@ -685,16 +685,15 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('$label ', style: titleStyle),
-          _buildGanjiBadge(
-            ganji,
-            fontSize: fontSize,
-            radius: isVeryNarrow ? 6 : 8,
-            padding: EdgeInsets.symmetric(
-              horizontal: isVeryNarrow ? 4 : 6,
-              vertical: isVeryNarrow ? 2 : 3,
+          Text(
+            '$ganji$unit',
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+              height: 1.1,
             ),
           ),
-          Text(unit, style: titleStyle),
         ],
       );
     }
@@ -970,8 +969,9 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
   }
 
   int _specialLabelPriority(String label) {
-    if (label == '음력 초하루') return 0;
-    if (_solarTermKorean.containsValue(label)) return 1;
+    // 절기(입춘/입동 등)를 최우선으로 보여 사용자 인지가 쉽도록 정렬합니다.
+    if (_solarTermKorean.containsValue(label)) return 0;
+    if (label == '음력 초하루') return 1;
     return 2;
   }
 
@@ -1018,7 +1018,15 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
     final sorted = _specialDayLabels(dayCell);
     if (sorted.isEmpty) return const <String>[];
     if (compact) {
-      return <String>[_shortSpecialLabel(sorted.first)];
+      // 칸이 좁을 때도 절기는 항상 보이게 우선 선택합니다.
+      String? solarTerm;
+      for (final label in sorted) {
+        if (_solarTermKorean.containsValue(label)) {
+          solarTerm = label;
+          break;
+        }
+      }
+      return <String>[_shortSpecialLabel(solarTerm ?? sorted.first)];
     }
     return sorted.take(2).map(_shortSpecialLabel).toList();
   }
@@ -1896,7 +1904,7 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
               children: [
                 Expanded(
                   child: Text(
-                    isCompactWidth ? '음력 간지 달력' : '음력 간지 달력 (오방색)',
+                    isCompactWidth ? '음력 달력' : '음력 달력 (간지·오방색)',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -2086,7 +2094,10 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
                             final solarDay = dayCell.solarDate;
                             final ganji = _ganji(solarDay);
                             final lunarForCell = _showThreePillarsInCell ? Solar.fromDate(solarDay).getLunar() : null;
-                            final monthGanji = lunarForCell == null ? '' : _monthGanjiKorean(lunarForCell);
+                            // 월주는 표시 중인 음력 월(_year/_month) 기준으로 고정합니다.
+                            // (사용자 기대: 같은 음력 월 내에서 월주가 일자별로 바뀌지 않음)
+                            final fixedMonthLunar = Lunar.fromYmd(_year, _month, 1);
+                            final monthGanji = lunarForCell == null ? '' : _monthGanjiKorean(fixedMonthLunar);
                             final yearGanji = lunarForCell == null ? '' : _yearGanjiKorean(lunarForCell);
                             final selected = _selectedDate != null && _dateKey(_selectedDate!) == _dateKey(solarDay);
                             final specialLabels = _displaySpecialLabels(
@@ -2109,12 +2120,30 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      '${dayCell.lunarDay}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: isVeryNarrow ? 12 : 14,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '${dayCell.lunarDay}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: isVeryNarrow ? 12 : 14,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            '${solarDay.month}/${solarDay.day}',
+                                            textAlign: TextAlign.right,
+                                            style: TextStyle(
+                                              fontSize: isVeryNarrow ? 9 : 11,
+                                              color: Colors.grey.shade600,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     SizedBox(height: isVeryNarrow ? 1 : 2),
                                     _buildGanjiBadge(
@@ -2201,16 +2230,6 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
-                                    const Spacer(),
-                                    Text(
-                                      '${solarDay.month}/${solarDay.day}',
-                                      style: TextStyle(
-                                        fontSize: isVeryNarrow ? 9 : 11,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
                                   ],
                                 ),
                               ),
