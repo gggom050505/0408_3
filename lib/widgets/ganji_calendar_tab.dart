@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:lunar/lunar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class GanjiCalendarTab extends StatefulWidget {
   const GanjiCalendarTab({super.key});
@@ -15,7 +14,6 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   static const _solarMinYear = 2020;
   static const _solarMaxYear = 2040;
   static const _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-  static const _showSolarAlwaysPrefsKey = 'ganji_show_solar_always_v1';
   static const _stemKo = {
     '甲': '갑',
     '乙': '을',
@@ -49,7 +47,6 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   int _solarYear = 2026;
   int _solarMonth = 1;
   int _solarDay = 1;
-  bool _showSolarAlways = false;
   final TextEditingController _solarDateController = TextEditingController();
 
   void _syncToTodayAsDefault() {
@@ -79,19 +76,6 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   void initState() {
     super.initState();
     _syncToTodayAsDefault();
-    _restoreShowSolarAlways();
-  }
-
-  Future<void> _restoreShowSolarAlways() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getBool(_showSolarAlwaysPrefsKey);
-    if (!mounted || saved == null) return;
-    setState(() => _showSolarAlways = saved);
-  }
-
-  Future<void> _persistShowSolarAlways(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_showSolarAlwaysPrefsKey, value);
   }
 
   @override
@@ -334,6 +318,8 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     });
     final firstWeekday = cells.isEmpty ? 0 : cells.first.solar.weekday % 7;
     final selected = cells[_selectedLunarDay - 1];
+    final fixedMonthLunar = Lunar.fromYmd(_year, _month, 1);
+    final fixedMonthGanji = _monthGanjiKo(fixedMonthLunar);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
@@ -451,26 +437,9 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
               ),
             ],
           ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '한국천문연구원 표준 음력 기준 · 윤달 지원',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text('양력 항상 표시', style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
-              Switch(
-                value: _showSolarAlways,
-                onChanged: (v) {
-                  setState(() => _showSolarAlways = v);
-                  // 토글 직후 즉시 저장해 탭 이동/재실행에도 유지한다.
-                  _persistShowSolarAlways(v);
-                },
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ],
+          Text(
+            '한국천문연구원 표준 음력 기준 · 윤달 지원 · 양력 날짜 상시 표시',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w600),
           ),
           Container(
             width: double.infinity,
@@ -494,10 +463,8 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                   spacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Text('년', style: TextStyle(fontWeight: FontWeight.w700)),
-                    _ganjiBadge(_yearGanjiKo(selected.lunar)),
-                    const Text('월', style: TextStyle(fontWeight: FontWeight.w700)),
-                    _ganjiBadge(_monthGanjiKo(selected.lunar)),
+                    Text('${_yearGanjiKo(selected.lunar)}년', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text('$fixedMonthGanji월', style: const TextStyle(fontWeight: FontWeight.w700)),
                     const Text('일진', style: TextStyle(fontWeight: FontWeight.w700)),
                     _ganjiBadge(selected.ganji),
                   ],
@@ -610,7 +577,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                                       _ganjiBadge(item.ganji),
                                       const Spacer(),
                                       Text(
-                                        _showSolarAlways || item.lunarDay % 5 == 0 ? '${item.solar.month}/${item.solar.day}' : '',
+                                        '${item.solar.month}/${item.solar.day}',
                                         style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                                       ),
                                     ],
