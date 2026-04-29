@@ -229,18 +229,12 @@ bool tarotCardAllowedInMixedMinorKoreaPool(
 
 /// 한국전통 메이저 덱 선택 시 카드 앞면 테마를 결정한다.
 ///
-/// - 메이저(0~21) 중 보유한 한국전통 조각 번호는 `korea-traditional-major` 우선 적용
-/// - 그 외 메이저/마이너는 `major-clay`로 보완
-String resolveFrontThemeForKoreaTraditionalDeckCard(
-  TarotCard card,
-  Set<int> ownedKoreaMajorIds,
-) {
-  final canUseKoreaMajor =
-      card.arcana == 'major' &&
+/// 메이저 0~21은 번들 한국전통 일러 전체를 쓴다(조각 보유 여부와 무관).
+/// 마이너는 클레이 마이너 일러(`major-clay`).
+String resolveFrontThemeForKoreaTraditionalDeckCard(TarotCard card) {
+  if (card.arcana == 'major' &&
       card.id >= 0 &&
-      card.id <= 21 &&
-      ownedKoreaMajorIds.contains(card.id);
-  if (canUseKoreaMajor) {
+      card.id <= 21) {
     return koreaTraditionalMajorThemeId;
   }
   return majorClayThemeId;

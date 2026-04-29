@@ -41,22 +41,16 @@ void main() {
     expect(kCatalogStandardMinorArcanaCount == 50, isFalse);
   });
 
-  test('한국전통 덱 앞면: 보유한 메이저 번호만 한국전통 우선 적용', () {
-    final owned = {0, 7, 21};
-    final majorOwned = tarotDeck.firstWhere((c) => c.id == 7);
-    final majorMissing = tarotDeck.firstWhere((c) => c.id == 3);
+  test('한국전통 덱 앞면: 메이저 0~21 전원 한국전통, 마이너는 클레이', () {
+    final majorAny = tarotDeck.firstWhere((c) => c.id == 3);
     final minor = tarotDeck.firstWhere((c) => c.arcana == 'minor');
 
     expect(
-      resolveFrontThemeForKoreaTraditionalDeckCard(majorOwned, owned),
+      resolveFrontThemeForKoreaTraditionalDeckCard(majorAny),
       'korea-traditional-major',
     );
     expect(
-      resolveFrontThemeForKoreaTraditionalDeckCard(majorMissing, owned),
-      'major-clay',
-    );
-    expect(
-      resolveFrontThemeForKoreaTraditionalDeckCard(minor, owned),
+      resolveFrontThemeForKoreaTraditionalDeckCard(minor),
       'major-clay',
     );
   });

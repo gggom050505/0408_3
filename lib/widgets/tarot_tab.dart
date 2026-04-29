@@ -364,10 +364,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   String _themeIdForCardFront(TarotCard card) {
     if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
       // 카드 번호 매칭: 한국전통 보유 메이저 우선, 미보유 번호는 기본 메이저(클레이)로 보완.
-      return resolveFrontThemeForKoreaTraditionalDeckCard(
-        card,
-        widget.ownedKoreaMajorCardIds.toSet(),
-      );
+      return resolveFrontThemeForKoreaTraditionalDeckCard(card);
     }
     if (widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId) {
       if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
