@@ -108,6 +108,48 @@ void main() {
 
       expect(find.text('카드 뽑으러 가기'), findsOneWidget);
     });
+
+    testWidgets('10칸 배치 후 한 번에 뒤집기 버튼 노출', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TodayTarotScreen(
+            userId: 'flip-all-user',
+            displayName: '테스터',
+            avatarEmojiOrUrl: '🔮',
+            feed: null,
+            skipDailyCompletionLock: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('카드 뽑으러 가기'));
+      await tester.pumpAndSettle();
+
+      // 하단 팬 덱 중심을 여러 번 탭해 슬롯을 채웁니다.
+      final rootRect = tester.getRect(find.byType(TodayTarotScreen));
+      final centerX = rootRect.center.dx;
+      final tapY = rootRect.bottom - 72;
+      final offsets = <double>[0, -24, 24, -36, 36, -12, 12, -48, 48, 0, -18, 18];
+
+      for (final dx in offsets) {
+        if (find.text('한 번에 뒤집기').evaluate().isNotEmpty) break;
+        await tester.tapAt(Offset(centerX + dx, tapY));
+        await tester.pump(const Duration(milliseconds: 180));
+      }
+      await tester.pumpAndSettle();
+
+      expect(find.text('한 번에 뒤집기'), findsOneWidget);
+    });
   });
 
   group('오늘의 타로(완료 차단 UI)', () {

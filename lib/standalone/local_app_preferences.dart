@@ -116,15 +116,21 @@ class LocalAppPreferences {
     final id = (userId ?? 'guest').trim();
     return 'tarot_show_card_desc_on_flip_${id.isEmpty ? 'guest' : id}';
   }
+  static const _tarotShowCardDescriptionOnFlipGlobalKey =
+      'tarot_show_card_desc_on_flip_global';
 
   /// 타로·오늘의 타로 공통 — 카드 뒤집을 때 설명 다이얼로그를 띄울지. 기본 `true`.
   static Future<bool> getShowCardDescriptionOnFlip(String? userId) async {
     final m = await _load();
-    final v = m[_tarotShowCardDescriptionOnFlipKey(userId)];
-    if (v == null) {
-      return true;
+    final userScoped = m[_tarotShowCardDescriptionOnFlipKey(userId)];
+    if (userScoped is bool) {
+      return userScoped;
     }
-    return v == true;
+    final global = m[_tarotShowCardDescriptionOnFlipGlobalKey];
+    if (global is bool) {
+      return global;
+    }
+    return true;
   }
 
   static Future<void> setShowCardDescriptionOnFlip(
@@ -133,6 +139,8 @@ class LocalAppPreferences {
   ) async {
     final m = await _load();
     m[_tarotShowCardDescriptionOnFlipKey(userId)] = value;
+    // 로그인 전(guest) ↔ 로그인 후(userId) 전환에도 최근 선택값을 유지.
+    m[_tarotShowCardDescriptionOnFlipGlobalKey] = value;
     await _save(m);
   }
 
