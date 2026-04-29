@@ -22,6 +22,7 @@ import '../data/deck_card_catalog.dart';
 import '../data/mat_themes.dart';
 import '../data/tarot_cards.dart';
 import '../standalone/data_sources.dart';
+import '../standalone/local_app_preferences.dart';
 import '../standalone/local_json_store.dart';
 import '../standalone/tarot_session_restore.dart';
 import '../theme/app_colors.dart';
@@ -127,7 +128,18 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     _deck22 = _reshuffle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_tryRestoreSession());
+      unawaited(_loadShowCardDescriptionOnFlipPref());
     });
+  }
+
+  Future<void> _loadShowCardDescriptionOnFlipPref() async {
+    final v = await LocalAppPreferences.getShowCardDescriptionOnFlip(
+      widget.userId,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _showCardDescriptionOnFlip = v);
   }
 
   @override
@@ -141,6 +153,9 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(TarotTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      unawaited(_loadShowCardDescriptionOnFlipPref());
+    }
     if (oldWidget.workspaceFlushSignal != widget.workspaceFlushSignal) {
       _bindWorkspaceFlushSignal();
     }
@@ -834,6 +849,12 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
                             value: _showCardDescriptionOnFlip,
                             onChanged: (v) {
                               setState(() => _showCardDescriptionOnFlip = v);
+                              unawaited(
+                                LocalAppPreferences.setShowCardDescriptionOnFlip(
+                                  widget.userId,
+                                  v,
+                                ),
+                              );
                             },
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,

@@ -23,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen>
   var _completed = false;
   var _loaded = false;
   List<String> _openingPaths = [];
+  var _carouselIndex = 0;
   PageController? _pageController;
   Timer? _carouselTimer;
 
@@ -143,7 +144,10 @@ class _SplashScreenState extends State<SplashScreen>
               children: [
                 PageView.builder(
                   controller: _pageController,
-                  onPageChanged: (_) => _armCarouselStep(),
+                  onPageChanged: (i) {
+                    setState(() => _carouselIndex = i);
+                    _armCarouselStep();
+                  },
                   itemCount: _openingPaths.length,
                   itemBuilder: (context, index) {
                     return _OpeningImagePage(
@@ -160,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (i) {
+                      children: List.generate(_openingPaths.length, (i) {
                         return TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0.4, end: 1),
                           duration: const Duration(milliseconds: 1000),
@@ -173,7 +177,9 @@ class _SplashScreenState extends State<SplashScreen>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppColors.accentPurple.withValues(
-                                  alpha: 0.4 + (i == 0 ? 0.5 : 0) * (v % 1),
+                                  alpha: 0.4 +
+                                      (i == _carouselIndex ? 0.5 : 0) *
+                                          (v % 1),
                                 ),
                               ),
                             );
@@ -262,7 +268,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(3, (i) {
+                    children: List.generate(1, (i) {
                       return TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.4, end: 1),
                         duration: const Duration(milliseconds: 1000),

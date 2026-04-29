@@ -269,6 +269,19 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
         (_) => unawaited(_loadCompletionGate()),
       );
     }
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_loadShowCardDescriptionOnFlipPref()),
+    );
+  }
+
+  Future<void> _loadShowCardDescriptionOnFlipPref() async {
+    final v = await LocalAppPreferences.getShowCardDescriptionOnFlip(
+      widget.userId,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _showCardDescriptionOnFlip = v);
   }
 
   Future<void> _loadCompletionGate() async {
@@ -317,6 +330,11 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
         return;
       }
       setState(() => _phase = _TodayPhase.results);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_precacheAllResultGridImages(context));
+        }
+      });
     });
   }
 
@@ -367,13 +385,49 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     return visible;
   }
 
-  /// [Offstage] RepaintBoundary 전용. 웹은 픽셀 비율을 낮춰 용량·실패를 줄입니다.
-  Future<Uint8List?> _captureGridPng() async {
-    final pr = kIsWeb ? 1.0 : 2.0;
-    for (var attempt = 0; attempt < 5; attempt++) {
+  /// 웹에서 네트워크 카드가 늦게 그려지면 [toImage] 시 아랫줄이 비어 보임 → 미리 디코딩.
+  Future<void> _precacheAllResultGridImages(BuildContext context) async {
+    if (!mounted) {
+      return;
+    }
+    final futures = <Future<void>>[];
+    for (var i = 0; i < _pickCount; i++) {
+      final e = _slotEntries[i];
+      if (e == null) {
+        continue;
+      }
+      final display = _todayTarotDisplaySrc(e.assetPath);
+      final path = normalizeFlutterBundledAssetKey(display);
+      if (path.isEmpty) {
+        continue;
+      }
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        futures.add(precacheImage(NetworkImage(path), context));
+      } else if (path.startsWith('assets/')) {
+        futures.add(precacheImage(AssetImage(path), context));
+      }
+    }
+    try {
+      await Future.wait(futures);
+    } catch (_) {}
+    if (mounted) {
       WidgetsBinding.instance.scheduleFrame();
       await WidgetsBinding.instance.endOfFrame;
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  /// [Offstage] RepaintBoundary 전용. 웹은 픽셀 비율을 낮춰 용량·실패를 줄입니다.
+  Future<Uint8List?> _captureGridPng(BuildContext context) async {
+    await _precacheAllResultGridImages(context);
+    await Future<void>.delayed(Duration(milliseconds: kIsWeb ? 220 : 90));
+
+    final pr = kIsWeb ? 1.0 : 2.0;
+    final attempts = kIsWeb ? 8 : 5;
+    final frameDelayMs = kIsWeb ? 160 : 100;
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      WidgetsBinding.instance.scheduleFrame();
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(Duration(milliseconds: frameDelayMs));
       final ro = _gridExportKey.currentContext?.findRenderObject();
       final boundary = ro as RenderRepaintBoundary?;
       if (boundary == null || !boundary.hasSize) {
@@ -409,7 +463,7 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     final baseContent = '키워드 「$_keyword」 · 합계 $_totalScore점';
     List<int>? pngBytes;
     try {
-      final png = await _captureGridPng();
+      final png = await _captureGridPng(context);
       if (png != null && png.isNotEmpty) {
         pngBytes = png.toList();
       }
@@ -523,6 +577,25 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
       }
       _showBigCard(context, entry);
     }
+    _advanceToResultsAfterCompletion();
+  }
+
+  /// 10칸이 모두 찼을 때 남은 뒷면을 한 번에 앞면으로 뒤집습니다.
+  /// «카드 설명 보기»가 켜져 있어도 다이얼로그는 띄우지 않으며, 이후 슬롯을 눌러 크게 볼 수 있어요.
+  void _flipAllSlots() {
+    if (_phase != _TodayPhase.picking) {
+      return;
+    }
+    if (!_slotsFull || _allFlipped) {
+      return;
+    }
+    setState(() {
+      for (var i = 0; i < _pickCount; i++) {
+        if (_slotEntries[i] != null) {
+          _slotFlipped[i] = true;
+        }
+      }
+    });
     _advanceToResultsAfterCompletion();
   }
 
@@ -1203,6 +1276,12 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                             value: _showCardDescriptionOnFlip,
                             onChanged: (v) {
                               setState(() => _showCardDescriptionOnFlip = v);
+                              unawaited(
+                                LocalAppPreferences.setShowCardDescriptionOnFlip(
+                                  widget.userId,
+                                  v,
+                                ),
+                              );
                             },
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
@@ -1216,6 +1295,18 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: _buildSlotGrid(),
                 ),
+                if (_slotsFull && !_allFlipped)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+                    child: OutlinedButton.icon(
+                      onPressed: _flipAllSlots,
+                      icon: const Icon(Icons.layers_outlined, size: 20),
+                      label: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Text('한 번에 뒤집기'),
+                      ),
+                    ),
+                  ),
                 if (_allFlipped)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),

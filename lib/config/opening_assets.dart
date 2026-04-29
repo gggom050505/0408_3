@@ -8,6 +8,13 @@ import 'app_config.dart';
 
 const String kOpeningAssetDirPrefix = 'assets/opening/';
 
+/// 오프닝 정적 이미지(표시 순서). 파일명에 `()`가 있어 매니페스트만으로 순서가 흔들릴 수 있어 명시합니다.
+const List<String> kOpeningBundledPreferredOrder = [
+  'assets/opening/open(1).png',
+  'assets/opening/open(2).png',
+  'assets/opening/open(3).png',
+];
+
 Future<bool> _urlExists(String url) async {
   try {
     final res = await http.get(Uri.parse(url)).timeout(
@@ -25,7 +32,7 @@ String _joinUrl(String origin, String path) {
   return '$o$p';
 }
 
-Future<List<String>> _loadBundledOpeningAssetPaths() async {
+Future<List<String>> _discoverOpeningPathsFromManifest() async {
   try {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
     final out = manifest
@@ -62,6 +69,23 @@ Future<List<String>> _loadBundledOpeningAssetPaths() async {
   }
 }
 
+/// [kOpeningBundledPreferredOrder] 에 있고 매니페스트에 실제로 포함된 경로만 순서대로 반환.
+/// 비어 있으면 매니페스트 자동 목록(정렬)로 폴백.
+Future<List<String>> _loadBundledOpeningAssetPaths() async {
+  final discovered = await _discoverOpeningPathsFromManifest();
+  final set = discovered.toSet();
+  final ordered = <String>[];
+  for (final p in kOpeningBundledPreferredOrder) {
+    if (set.contains(p)) {
+      ordered.add(p);
+    }
+  }
+  if (ordered.isNotEmpty) {
+    return ordered;
+  }
+  return discovered;
+}
+
 Future<List<String>> _loadOnlineOpeningImageUrls(List<String> localPaths) async {
   final origin = AppConfig.assetOrigin.trim();
   if (origin.isEmpty || localPaths.isEmpty) {
@@ -74,9 +98,10 @@ Future<List<String>> _loadOnlineOpeningImageUrls(List<String> localPaths) async 
   final resolved = <String>[];
   for (final local in localPaths) {
     final filename = p.basename(local);
+    final encodedName = Uri.encodeComponent(filename);
     var foundUrl = '';
     for (final root in rootCandidates) {
-      final url = _joinUrl(origin, '$root/$filename');
+      final url = _joinUrl(origin, '$root/$encodedName');
       if (await _urlExists(url)) {
         foundUrl = url;
         break;

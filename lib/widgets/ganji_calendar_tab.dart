@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lunar/lunar.dart';
 
+import '../data/five_elements_guide.dart';
+import '../data/ganji_sixty_day_patterns.dart';
+
 class GanjiCalendarTab extends StatefulWidget {
   const GanjiCalendarTab({super.key});
 
@@ -367,6 +370,268 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
   String _yearGanjiKo(Lunar lunar) => _ganjiKo(lunar.getYearInGanZhi());
   String _monthGanjiKo(Lunar lunar) => _ganjiKo(lunar.getMonthInGanZhi());
 
+  void _openGanjiDaySheet({
+    required int lunarDay,
+    required DateTime solar,
+    required String dayGanjiKo,
+    required Lunar lunar,
+  }) {
+    final dayPat = lookupGanjiDayPatternKo(dayGanjiKo);
+    final yearKo = _yearGanjiKo(lunar);
+    final monthKo = _monthGanjiKo(lunar);
+    final yearPat = lookupGanjiDayPatternKo(yearKo);
+    final monthPat = lookupGanjiDayPatternKo(monthKo);
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final bottomInset = MediaQuery.viewInsetsOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '음력 ${_monthLabel(_month)} $lunarDay일 · '
+                    '양력 ${solar.year}-${solar.month.toString().padLeft(2, '0')}-${solar.day.toString().padLeft(2, '0')} '
+                    '(${_weekdayName(solar)})',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    '일진(그날의 간)',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _ganjiBadge(dayGanjiKo),
+                      if (dayPat != null)
+                        Text(
+                          '#${dayPat.orderIndex}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (dayPat != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      dayPat.themeShort,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      dayPat.patternNote,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        height: 1.45,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.88,
+                        ),
+                      ),
+                    ),
+                    if (dayPat.notableYearEvent != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '역사적 명칭 예: ${dayPat.notableYearEvent}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                          fontStyle: FontStyle.italic,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '이 일진에 대한 자세한 패턴 문구는 준비 중이에요.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  const SizedBox(height: 18),
+                  Text(
+                    '연간 · 월간 (참고)',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 36,
+                        child: Text(
+                          '연',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      _ganjiBadge(yearKo),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          yearPat?.patternNote ??
+                              '같은 두 글자 간지의 기운을 연 단위로 보는 참고입니다.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (yearPat?.notableYearEvent != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '연호·사건명 예: ${yearPat!.notableYearEvent}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(
+                        width: 36,
+                        child: Text(
+                          '월',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      _ganjiBadge(monthKo),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          monthPat?.themeShort ??
+                              '이 음력 달의 월간을 요약한 참고입니다.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    kGanjiDisclaimerShortKo,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFiveElementsBanner(ThemeData theme) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.28)),
+      ),
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          leading: Icon(
+            Icons.auto_awesome_motion,
+            color: theme.colorScheme.primary,
+            size: 22,
+          ),
+          title: Text(
+            '오행(목·화·토·금·수) 안내',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          subtitle: Text(
+            '성질·특성·기운의 기질 — 탭하여 펼치기',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          children: [
+            Text(
+              kFiveElementsOneLinerKo,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            ...kFiveElementsSectionsOrdered.map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${e.symbolHan}  ${e.nameKo}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      e.natureKo,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      e.traitsKo,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        height: 1.42,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              kGanjiDisclaimerShortKo,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+                height: 1.38,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _weekdayName(DateTime d) => _weekdays[d.weekday % 7];
 
   @override
@@ -398,6 +663,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
     final fixedMonthGanji = _monthGanjiKo(fixedMonthLunar);
     final selectedSpecials = _specialDayLabels(selected.lunar);
 
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
       child: Column(
@@ -518,6 +784,7 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
             '한국천문연구원 표준 음력 기준 · 윤달 지원 · 양력 날짜 상시 표시',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w600),
           ),
+          _buildFiveElementsBanner(theme),
           Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 8),
@@ -626,7 +893,15 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
                               ),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(8),
-                                onTap: () => setState(() => _selectedLunarDay = item.lunarDay),
+                                onTap: () {
+                                  setState(() => _selectedLunarDay = item.lunarDay);
+                                  _openGanjiDaySheet(
+                                    lunarDay: item.lunarDay,
+                                    solar: item.solar,
+                                    dayGanjiKo: item.ganji,
+                                    lunar: item.lunar,
+                                  );
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.all(6),
                                   child: Column(

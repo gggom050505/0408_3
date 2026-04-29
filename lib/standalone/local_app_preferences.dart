@@ -112,6 +112,30 @@ class LocalAppPreferences {
   static String _tarotEquipDefaultsV1Key(String userId) =>
       'tarot_equip_defaults_v1_done_${userId.trim()}';
 
+  static String _tarotShowCardDescriptionOnFlipKey(String? userId) {
+    final id = (userId ?? 'guest').trim();
+    return 'tarot_show_card_desc_on_flip_${id.isEmpty ? 'guest' : id}';
+  }
+
+  /// 타로·오늘의 타로 공통 — 카드 뒤집을 때 설명 다이얼로그를 띄울지. 기본 `true`.
+  static Future<bool> getShowCardDescriptionOnFlip(String? userId) async {
+    final m = await _load();
+    final v = m[_tarotShowCardDescriptionOnFlipKey(userId)];
+    if (v == null) {
+      return true;
+    }
+    return v == true;
+  }
+
+  static Future<void> setShowCardDescriptionOnFlip(
+    String? userId,
+    bool value,
+  ) async {
+    final m = await _load();
+    m[_tarotShowCardDescriptionOnFlipKey(userId)] = value;
+    await _save(m);
+  }
+
   static String _todayTarotDismissedYmdKey(String userId) =>
       'today_tarot_dismissed_ymd_${userId.trim()}';
 
@@ -204,6 +228,7 @@ class LocalAppPreferences {
     m.remove(_todayTarotDismissedYmdKey(userId));
     m.remove(_todayTarotDoneYmdKey(userId));
     m.remove(_feedPostEventGiftKoreaYmdKey(userId));
+    m.remove(_tarotShowCardDescriptionOnFlipKey(userId));
     await _save(m);
   }
 }
