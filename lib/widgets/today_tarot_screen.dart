@@ -367,88 +367,30 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     return visible;
   }
 
-  /// 피드 JSON·웹 SharedPreferences 한도를 넘기지 않도록 긴 변 기준 축소.
-  Future<Uint8List> _shrinkPngIfLarge(
-    Uint8List png, {
-    double maxLongSide = 920,
-  }) async {
-    // 작은 파일은 디코드 생략.
-    if (png.length < 280000) {
-      return png;
-    }
-    ui.Codec? codec;
-    ui.Image? src;
-    ui.Image? scaled;
-    ui.Picture? picture;
-    try {
-      codec = await ui.instantiateImageCodec(png);
-      final frame = await codec.getNextFrame();
-      src = frame.image;
-      final w = src.width.toDouble();
-      final h = src.height.toDouble();
-      final scale = math.min(1.0, maxLongSide / math.max(w, h));
-      if (scale >= 0.999) {
-        return png;
-      }
-      final nw = math.max(1, (w * scale).round());
-      final nh = math.max(1, (h * scale).round());
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      canvas.drawImageRect(
-        src,
-        ui.Rect.fromLTWH(0, 0, w, h),
-        ui.Rect.fromLTWH(0, 0, nw.toDouble(), nh.toDouble()),
-        ui.Paint(),
-      );
-      picture = recorder.endRecording();
-      scaled = await picture.toImage(nw, nh);
-      final bd = await scaled.toByteData(format: ui.ImageByteFormat.png);
-      final out = bd?.buffer.asUint8List();
-      if (out != null && out.isNotEmpty) {
-        return out;
-      }
-    } catch (e, st) {
-      debugPrint('TodayTarot _shrinkPngIfLarge: $e\n$st');
-    } finally {
-      scaled?.dispose();
-      src?.dispose();
-      picture?.dispose();
-    }
-    return png;
-  }
-
-  /// 캡처는 [ListView] 밖 [Offstage] 그리드([_gridExportKey])만 사용 — 스크롤 위치와 무관.
+  /// [Offstage] RepaintBoundary 전용. 웹은 픽셀 비율을 낮춰 용량·실패를 줄입니다.
   Future<Uint8List?> _captureGridPng() async {
-    final pixelRatios = kIsWeb
-        ? <double>[1.25, 1.0, 1.75]
-        : <double>[2.5, 2.0, 1.5, 1.0];
-
-    for (final pr in pixelRatios) {
-      for (var attempt = 0; attempt < 2; attempt++) {
-        WidgetsBinding.instance.scheduleFrame();
-        await WidgetsBinding.instance.endOfFrame;
-        await Future<void>.delayed(
-          Duration(milliseconds: kIsWeb ? 160 : 80),
-        );
-
-        final renderObject = _gridExportKey.currentContext?.findRenderObject();
-        final boundary = renderObject as RenderRepaintBoundary?;
-        if (boundary == null || !boundary.hasSize) {
-          continue;
+    final pr = kIsWeb ? 1.0 : 2.0;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      WidgetsBinding.instance.scheduleFrame();
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final ro = _gridExportKey.currentContext?.findRenderObject();
+      final boundary = ro as RenderRepaintBoundary?;
+      if (boundary == null || !boundary.hasSize) {
+        continue;
+      }
+      ui.Image? raster;
+      try {
+        raster = await boundary.toImage(pixelRatio: pr);
+        final bd = await raster.toByteData(format: ui.ImageByteFormat.png);
+        final bytes = bd?.buffer.asUint8List();
+        if (bytes != null && bytes.isNotEmpty) {
+          return bytes;
         }
-        ui.Image? raster;
-        try {
-          raster = await boundary.toImage(pixelRatio: pr);
-          final bd = await raster.toByteData(format: ui.ImageByteFormat.png);
-          final bytes = bd?.buffer.asUint8List();
-          if (bytes != null && bytes.isNotEmpty) {
-            return await _shrinkPngIfLarge(bytes);
-          }
-        } catch (e, st) {
-          debugPrint('TodayTarot capture pr=$pr attempt=$attempt: $e\n$st');
-        } finally {
-          raster?.dispose();
-        }
+      } catch (e, st) {
+        debugPrint('TodayTarot _captureGridPng: $e\n$st');
+      } finally {
+        raster?.dispose();
       }
     }
     return null;
@@ -463,53 +405,67 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
       return;
     }
     setState(() => _postingInFlight = true);
-    Uint8List? png;
+
+    final baseContent = '키워드 「$_keyword」 · 합계 $_totalScore점';
+    List<int>? pngBytes;
     try {
-      png = await _captureGridPng();
-    } catch (_) {}
-    if (png == null || png.isEmpty) {
-      if (mounted) {
-        setState(() => _postingInFlight = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('카드 5x2 캡처에 실패했어요. 잠시 후 다시 게시해 주세요.'),
-          ),
-        );
+      final png = await _captureGridPng();
+      if (png != null && png.isNotEmpty) {
+        pngBytes = png.toList();
       }
-      return;
-    }
-    final lines = <String>[
-      '키워드 「$_keyword」 · 합계 $_totalScore점',
-    ];
-    try {
-      await feed.addPost(
+    } catch (_) {}
+
+    Future<void> publish({required List<int>? image, required String content}) {
+      return feed.addPost(
         userId: widget.userId,
         username: widget.displayName,
         avatar: widget.avatarEmojiOrUrl,
-        content: lines.join('\n'),
+        content: content,
         tags: const [kFeedTagTodayTarotMatchKey],
-        imagePngBytes: png.toList(),
+        imagePngBytes: image,
       );
-      if (!mounted) {
+    }
+
+    var usedImageFallback = false;
+    try {
+      await publish(image: pngBytes, content: baseContent);
+    } catch (e, st) {
+      debugPrint('TodayTarot publish with image: $e\n$st');
+      try {
+        await publish(
+          image: null,
+          content: '$baseContent\n(이미지는 저장 용량 등으로 생략됐어요.)',
+        );
+        usedImageFallback = true;
+      } catch (e2, st2) {
+        debugPrint('TodayTarot publish text-only: $e2\n$st2');
+        if (mounted) {
+          setState(() => _postingInFlight = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('게시에 실패했어요. 잠시 후 다시 시도해 주세요.'),
+            ),
+          );
+        }
         return;
       }
-      setState(() {
-        _posted = true;
-        _postingInFlight = false;
-      });
-      widget.onPosted?.call();
-    } catch (e, st) {
-      debugPrint('TodayTarot _postToFeed: $e\n$st');
-      if (mounted) {
-        setState(() => _postingInFlight = false);
-        final brief = e is StateError
-            ? e.message
-            : '게시에 실패했어요. 잠시 후 다시 시도해 주세요.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(brief)),
-        );
-      }
     }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _posted = true;
+      _postingInFlight = false;
+    });
+    if (usedImageFallback) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('글은 올렸어요. 이미지는 저장 한도로 빠졌어요.'),
+        ),
+      );
+    }
+    widget.onPosted?.call();
   }
 
   void _onTapPoolCard(int visibleSlotIndex) {
