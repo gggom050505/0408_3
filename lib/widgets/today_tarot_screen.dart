@@ -368,21 +368,53 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
   }
 
   Future<Uint8List?> _captureGridPng() async {
-    for (var attempt = 0; attempt < 3; attempt++) {
-      WidgetsBinding.instance.scheduleFrame();
-      await WidgetsBinding.instance.endOfFrame;
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-
-      final renderObject = _gridExportKey.currentContext?.findRenderObject();
-      final boundary = renderObject as RenderRepaintBoundary?;
-      if (boundary == null || !boundary.hasSize) {
-        continue;
+    void scrollGridIntoView() {
+      final ctx = _gridExportKey.currentContext;
+      if (ctx == null) {
+        return;
       }
-      final image = await boundary.toImage(pixelRatio: 2.5);
-      final bd = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = bd?.buffer.asUint8List();
-      if (bytes != null && bytes.isNotEmpty) {
-        return bytes;
+      try {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: Duration.zero,
+          alignment: 0.05,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        );
+      } catch (_) {}
+    }
+
+    // 웹·모바일에서 큰 해상도 캡처가 실패하거나 저장 한도를 넘기기 쉬워 비율을 낮게 시도합니다.
+    final pixelRatios = kIsWeb
+        ? <double>[1.25, 1.0, 1.5, 2.0]
+        : <double>[2.5, 2.0, 1.5, 1.0];
+
+    for (final pr in pixelRatios) {
+      for (var attempt = 0; attempt < 2; attempt++) {
+        scrollGridIntoView();
+        WidgetsBinding.instance.scheduleFrame();
+        await WidgetsBinding.instance.endOfFrame;
+        await Future<void>.delayed(
+          Duration(milliseconds: kIsWeb ? 140 : 80),
+        );
+
+        final renderObject = _gridExportKey.currentContext?.findRenderObject();
+        final boundary = renderObject as RenderRepaintBoundary?;
+        if (boundary == null || !boundary.hasSize) {
+          continue;
+        }
+        ui.Image? raster;
+        try {
+          raster = await boundary.toImage(pixelRatio: pr);
+          final bd = await raster.toByteData(format: ui.ImageByteFormat.png);
+          final bytes = bd?.buffer.asUint8List();
+          if (bytes != null && bytes.isNotEmpty) {
+            return bytes;
+          }
+        } catch (e, st) {
+          debugPrint('TodayTarot capture pr=$pr attempt=$attempt: $e\n$st');
+        } finally {
+          raster?.dispose();
+        }
       }
     }
     return null;
@@ -432,9 +464,15 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
         _postingInFlight = false;
       });
       widget.onPosted?.call();
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('TodayTarot _postToFeed: $e\n$st');
       if (mounted) {
         setState(() => _postingInFlight = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('게시에 실패했어요. 잠시 후 다시 시도해 주세요.'),
+          ),
+        );
       }
     }
   }
