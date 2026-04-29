@@ -367,34 +367,68 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     return visible;
   }
 
-  Future<Uint8List?> _captureGridPng() async {
-    void scrollGridIntoView() {
-      final ctx = _gridExportKey.currentContext;
-      if (ctx == null) {
-        return;
-      }
-      try {
-        Scrollable.ensureVisible(
-          ctx,
-          duration: Duration.zero,
-          alignment: 0.05,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-        );
-      } catch (_) {}
+  /// 피드 JSON·웹 SharedPreferences 한도를 넘기지 않도록 긴 변 기준 축소.
+  Future<Uint8List> _shrinkPngIfLarge(
+    Uint8List png, {
+    double maxLongSide = 920,
+  }) async {
+    // 작은 파일은 디코드 생략.
+    if (png.length < 280000) {
+      return png;
     }
+    ui.Codec? codec;
+    ui.Image? src;
+    ui.Image? scaled;
+    ui.Picture? picture;
+    try {
+      codec = await ui.instantiateImageCodec(png);
+      final frame = await codec.getNextFrame();
+      src = frame.image;
+      final w = src.width.toDouble();
+      final h = src.height.toDouble();
+      final scale = math.min(1.0, maxLongSide / math.max(w, h));
+      if (scale >= 0.999) {
+        return png;
+      }
+      final nw = math.max(1, (w * scale).round());
+      final nh = math.max(1, (h * scale).round());
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      canvas.drawImageRect(
+        src,
+        ui.Rect.fromLTWH(0, 0, w, h),
+        ui.Rect.fromLTWH(0, 0, nw.toDouble(), nh.toDouble()),
+        ui.Paint(),
+      );
+      picture = recorder.endRecording();
+      scaled = await picture.toImage(nw, nh);
+      final bd = await scaled.toByteData(format: ui.ImageByteFormat.png);
+      final out = bd?.buffer.asUint8List();
+      if (out != null && out.isNotEmpty) {
+        return out;
+      }
+    } catch (e, st) {
+      debugPrint('TodayTarot _shrinkPngIfLarge: $e\n$st');
+    } finally {
+      scaled?.dispose();
+      src?.dispose();
+      picture?.dispose();
+    }
+    return png;
+  }
 
-    // 웹·모바일에서 큰 해상도 캡처가 실패하거나 저장 한도를 넘기기 쉬워 비율을 낮게 시도합니다.
+  /// 캡처는 [ListView] 밖 [Offstage] 그리드([_gridExportKey])만 사용 — 스크롤 위치와 무관.
+  Future<Uint8List?> _captureGridPng() async {
     final pixelRatios = kIsWeb
-        ? <double>[1.25, 1.0, 1.5, 2.0]
+        ? <double>[1.25, 1.0, 1.75]
         : <double>[2.5, 2.0, 1.5, 1.0];
 
     for (final pr in pixelRatios) {
       for (var attempt = 0; attempt < 2; attempt++) {
-        scrollGridIntoView();
         WidgetsBinding.instance.scheduleFrame();
         await WidgetsBinding.instance.endOfFrame;
         await Future<void>.delayed(
-          Duration(milliseconds: kIsWeb ? 140 : 80),
+          Duration(milliseconds: kIsWeb ? 160 : 80),
         );
 
         final renderObject = _gridExportKey.currentContext?.findRenderObject();
@@ -408,7 +442,7 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
           final bd = await raster.toByteData(format: ui.ImageByteFormat.png);
           final bytes = bd?.buffer.asUint8List();
           if (bytes != null && bytes.isNotEmpty) {
-            return bytes;
+            return await _shrinkPngIfLarge(bytes);
           }
         } catch (e, st) {
           debugPrint('TodayTarot capture pr=$pr attempt=$attempt: $e\n$st');
@@ -468,10 +502,11 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
       debugPrint('TodayTarot _postToFeed: $e\n$st');
       if (mounted) {
         setState(() => _postingInFlight = false);
+        final brief = e is StateError
+            ? e.message
+            : '게시에 실패했어요. 잠시 후 다시 시도해 주세요.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('게시에 실패했어요. 잠시 후 다시 시도해 주세요.'),
-          ),
+          SnackBar(content: Text(brief)),
         );
       }
     }
@@ -768,11 +803,45 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
         ],
       ),
       body: SafeArea(
-        child: switch (_phase) {
-          _TodayPhase.intro => _buildIntro(theme),
-          _TodayPhase.picking => _buildPicking(theme),
-          _TodayPhase.results => _buildResults(theme),
-        },
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              clipBehavior: Clip.none,
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(
+                  child: switch (_phase) {
+                    _TodayPhase.intro => _buildIntro(theme),
+                    _TodayPhase.picking => _buildPicking(theme),
+                    _TodayPhase.results => _buildResults(theme),
+                  },
+                ),
+                // 스크롤과 분리된 5×2 — «게시하기» 캡처 전용(화면에 안 보임).
+                if (_phase == _TodayPhase.results)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: Offstage(
+                      offstage: true,
+                      child: SizedBox(
+                        width: math.min(
+                          constraints.maxWidth,
+                          _kTodayTarotMaxContentWidth,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: RepaintBoundary(
+                            key: _gridExportKey,
+                            child: _buildResultsGridReadOnly(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1324,10 +1393,8 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                RepaintBoundary(
-                  key: _gridExportKey,
-                  child: _buildResultsGridReadOnly(),
-                ),
+                // 캡처용 키는 [Scaffold] [Stack]의 [Offstage] 전용 — 스크롤해도 캡처 일정.
+                _buildResultsGridReadOnly(),
                 const SizedBox(height: 16),
                 ...sorted.map(
                   (e) => Padding(
