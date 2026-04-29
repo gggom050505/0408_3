@@ -363,7 +363,6 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
 
   String _themeIdForCardFront(TarotCard card) {
     if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
-      // 카드 번호 매칭: 한국전통 보유 메이저 우선, 미보유 번호는 기본 메이저(클레이)로 보완.
       return resolveFrontThemeForKoreaTraditionalDeckCard(card);
     }
     if (widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId) {
@@ -669,7 +668,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   Widget _slotTileInGrid(
     int slot,
     MatThemeData mat,
-    String cardTheme,
+    String? cardFrontImageSrc,
     String? cardBackImageSrc,
     BoxConstraints bounds,
   ) {
@@ -687,7 +686,7 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
         deckIndex: _placed[slot],
         card: _placed[slot] != null ? _deck22[_placed[slot]!] : null,
         flipped: _flipped.contains(slot),
-        themeId: cardTheme,
+        cardFrontImageSrc: cardFrontImageSrc,
         cardBackImageSrc: cardBackImageSrc,
         whitePlaceholder: true,
         emptySlotDecorationSrc: widget.emptySlotDecorationSrc,
@@ -702,7 +701,6 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     required double boardW,
     required double boardH,
     required MatThemeData mat,
-    required String cardTheme,
     required String? cardBackImageSrc,
   }) {
     Widget rowSlots(int row) {
@@ -713,8 +711,19 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
               child: LayoutBuilder(
-                builder: (ctx, bc) =>
-                    _slotTileInGrid(slot, mat, cardTheme, cardBackImageSrc, bc),
+                builder: (ctx, bc) {
+                  final card =
+                      _placed[slot] != null ? _deck22[_placed[slot]!] : null;
+                  final frontSrc =
+                      card != null ? _cardFrontImageSrc(card) : null;
+                  return _slotTileInGrid(
+                    slot,
+                    mat,
+                    frontSrc,
+                    cardBackImageSrc,
+                    bc,
+                  );
+                },
               ),
             ),
           );
@@ -788,7 +797,6 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final mat = matById(widget.equippedMatId);
     final filled = _placed.whereType<int>().length;
-    final cardTheme = widget.equippedCardThemeId;
 
     return Column(
       children: [
@@ -823,7 +831,6 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
                           boardW: bw,
                           boardH: bh,
                           mat: mat,
-                          cardTheme: cardTheme,
                           cardBackImageSrc: widget.equippedCardBackImageSrc,
                         ),
                       );
@@ -1108,7 +1115,7 @@ class _SlotCell extends StatelessWidget {
     required this.deckIndex,
     required this.card,
     required this.flipped,
-    required this.themeId,
+    required this.cardFrontImageSrc,
     required this.cardBackImageSrc,
     this.whitePlaceholder = false,
     this.emptySlotDecorationSrc,
@@ -1122,7 +1129,8 @@ class _SlotCell extends StatelessWidget {
   final int? deckIndex;
   final TarotCard? card;
   final bool flipped;
-  final String themeId;
+  /// [_TarotTabState._cardFrontImageSrc]와 동일 규칙(장착 덱·카드별 테마).
+  final String? cardFrontImageSrc;
   final String? cardBackImageSrc;
 
   /// 골드 보드 3×3: 빈 칸을 흰 카드 + 「슬롯」 문구로 표시.
@@ -1136,14 +1144,7 @@ class _SlotCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filled = deckIndex != null;
-    final img = card != null
-        ? (getCardImageUrl(
-                themeId: themeId,
-                cardId: card!.id,
-                assetOrigin: AppConfig.assetOrigin,
-              ) ??
-              getBundledSiteCardAssetPath(themeId: themeId, cardId: card!.id))
-        : null;
+    final img = cardFrontImageSrc;
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (_) => deckIndex == null,

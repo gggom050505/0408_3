@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:gggom_tarot/data/card_themes.dart';
 import 'package:gggom_tarot/data/deck_card_catalog.dart';
 import 'package:gggom_tarot/data/tarot_cards.dart';
 
@@ -54,4 +55,29 @@ void main() {
       'major-clay',
     );
   });
+
+  test(
+    '한국전통 덱: 별(17) 번들 경로는 koreacard · 장착 ID만 쓰면 마이너는 null',
+    () {
+      final star = tarotDeck.firstWhere((c) => c.id == 17 && c.arcana == 'major');
+      final aceWands = tarotDeck.firstWhere((c) => c.id == 22);
+      final tStar = resolveFrontThemeForKoreaTraditionalDeckCard(star);
+      final tMinor = resolveFrontThemeForKoreaTraditionalDeckCard(aceWands);
+      final pathStar = getBundledSiteCardAssetPath(themeId: tStar, cardId: star.id);
+      final pathMinor =
+          getBundledSiteCardAssetPath(themeId: tMinor, cardId: aceWands.id);
+      expect(pathStar, isNotNull);
+      expect(pathStar, contains('koreacard'));
+      expect(pathStar, contains('17'));
+      expect(pathMinor, isNotNull);
+      expect(pathMinor, contains('minor_number_clay'));
+      expect(
+        getBundledSiteCardAssetPath(
+          themeId: koreaTraditionalMajorThemeId,
+          cardId: aceWands.id,
+        ),
+        isNull,
+      );
+    },
+  );
 }
