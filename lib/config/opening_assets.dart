@@ -116,9 +116,13 @@ Future<List<String>> _loadOnlineOpeningImageUrls(List<String> localPaths) async 
   return resolved;
 }
 
-/// 오프닝 이미지는 온라인 URL을 우선 사용하고, 없으면 번들 `assets/opening/`를 씁니다.
+/// 오프닝 이미지는 번들 `assets/opening/`을 우선 사용합니다.
+/// (요청된 교체 이미지가 즉시 반영되도록 온라인 URL은 로컬 에셋이 비어 있을 때만 사용)
 Future<List<String>> loadOpeningImageAssetPaths() async {
   final localPaths = await _loadBundledOpeningAssetPaths();
+  if (localPaths.isNotEmpty) {
+    return localPaths;
+  }
   final online = await _loadOnlineOpeningImageUrls(localPaths);
   if (online.isNotEmpty) {
     return online;
