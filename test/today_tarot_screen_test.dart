@@ -109,7 +109,35 @@ void main() {
       expect(find.text('카드 뽑으러 가기'), findsOneWidget);
     });
 
-    testWidgets('10칸 배치 후 한 번에 뒤집기 버튼 노출', (
+    testWidgets('뽑기 화면 진입 직후 한 번에 뒤집기 버튼은 비활성 노출', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TodayTarotScreen(
+            userId: 'flip-all-disabled-user',
+            displayName: '테스터',
+            avatarEmojiOrUrl: '🔮',
+            feed: null,
+            skipDailyCompletionLock: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('카드 뽑으러 가기'));
+      await tester.pumpAndSettle();
+
+      final btnFinder = find.widgetWithText(
+        OutlinedButton,
+        '한 번에 뒤집기 (10장 배치 후 가능)',
+      );
+      expect(btnFinder, findsOneWidget);
+      final btn = tester.widget<OutlinedButton>(btnFinder);
+      expect(btn.onPressed, isNull);
+    });
+
+    testWidgets('뽑기 진행 중에도 한 번에 뒤집기 버튼은 계속 노출', (
       WidgetTester tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -139,16 +167,18 @@ void main() {
       final rootRect = tester.getRect(find.byType(TodayTarotScreen));
       final centerX = rootRect.center.dx;
       final tapY = rootRect.bottom - 72;
-      final offsets = <double>[0, -24, 24, -36, 36, -12, 12, -48, 48, 0, -18, 18];
+      final offsets = <double>[
+        0, -24, 24, -36, 36, -12, 12, -48, 48, 0, -18, 18,
+        -30, 30, -42, 42, -8, 8, -54, 54, -15, 15,
+      ];
 
       for (final dx in offsets) {
-        if (find.text('한 번에 뒤집기').evaluate().isNotEmpty) break;
         await tester.tapAt(Offset(centerX + dx, tapY));
         await tester.pump(const Duration(milliseconds: 180));
       }
       await tester.pumpAndSettle();
 
-      expect(find.text('한 번에 뒤집기'), findsOneWidget);
+      expect(find.textContaining('한 번에 뒤집기'), findsOneWidget);
     });
   });
 

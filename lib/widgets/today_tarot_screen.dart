@@ -320,21 +320,26 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
   }
 
   void _advanceToResultsAfterCompletion() {
-    if (_didAdvanceToResults || !_slotsFull || !_allFlipped) {
+    if (!_slotsFull || !_allFlipped) {
       return;
     }
-    _didAdvanceToResults = true;
-    unawaited(LocalAppPreferences.markTodayTarotCompletedToday(widget.userId));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
+    final firstEnter = !_didAdvanceToResults;
+    if (firstEnter) {
+      _didAdvanceToResults = true;
+      unawaited(LocalAppPreferences.markTodayTarotCompletedToday(widget.userId));
+    }
+    if (!mounted) {
+      return;
+    }
+    // 다음 프레임에만 넘기면 «스프레드에서 게시» 직후에도 _phase가 아직 picking일 수 있어
+    // 캡처용 레이어가 없거나 size 0이 됩니다. 동일 이벤트 루프에서 결과 단계로 올립니다.
+    if (_phase != _TodayPhase.results) {
       setState(() => _phase = _TodayPhase.results);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          unawaited(_precacheAllResultGridImages(context));
-        }
-      });
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_precacheAllResultGridImages(context));
+      }
     });
   }
 
@@ -346,6 +351,16 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
     if (feed == null) {
       return;
     }
+
+    // 스프레드 화면에서 바로 게시를 누르면 캡처용 Offstage 그리드가 아직 없을 수 있어
+    // 결과 단계를 먼저 확정한 뒤 캡처를 시작합니다.
+    _advanceToResultsAfterCompletion();
+    if (mounted) {
+      WidgetsBinding.instance.scheduleFrame();
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(Duration(milliseconds: kIsWeb ? 160 : 80));
+    }
+
     await _postToFeed();
     if (mounted && _posted) {
       _advanceToResultsAfterCompletion();
@@ -845,13 +860,13 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                     _TodayPhase.results => _buildResults(theme),
                   },
                 ),
-                // 스크롤과 분리된 5×2 — «게시하기» 캡처 전용(화면에 안 보임).
+                // 스크롤과 분리된 5×2 — «게시하기» 캡처 전용(화면 밖에 두되 레이아웃·페인트 함).
+                // [Offstage]는 자식을 Size.zero로 두어 toImage 캡처가 비거나 실패합니다.
                 if (_phase == _TodayPhase.results)
                   Positioned(
-                    left: 0,
+                    left: -12000,
                     top: 0,
-                    child: Offstage(
-                      offstage: true,
+                    child: IgnorePointer(
                       child: SizedBox(
                         width: math.min(
                           constraints.maxWidth,
@@ -1295,18 +1310,18 @@ class _TodayTarotScreenState extends State<TodayTarotScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: _buildSlotGrid(),
                 ),
-                if (_slotsFull && !_allFlipped)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-                    child: OutlinedButton.icon(
-                      onPressed: _flipAllSlots,
-                      icon: const Icon(Icons.layers_outlined, size: 20),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 4),
-                        child: Text('한 번에 뒤집기'),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+                  child: OutlinedButton.icon(
+                    onPressed: (_slotsFull && !_allFlipped) ? _flipAllSlots : null,
+                    icon: const Icon(Icons.layers_outlined, size: 20),
+                    label: Text(
+                      (_slotsFull && !_allFlipped)
+                          ? '한 번에 뒤집기'
+                          : '한 번에 뒤집기 (10장 배치 후 가능)',
                     ),
                   ),
+                ),
                 if (_allFlipped)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
