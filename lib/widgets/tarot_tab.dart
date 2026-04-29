@@ -365,6 +365,9 @@ class _TarotTabState extends State<TarotTab> with WidgetsBindingObserver {
     if (widget.equippedCardThemeId == koreaTraditionalMajorThemeId) {
       return resolveFrontThemeForKoreaTraditionalDeckCard(card);
     }
+    if (widget.equippedCardThemeId == majorClayThemeId) {
+      return resolveFrontThemeForMajorClayDeckCard(card);
+    }
     if (widget.equippedCardThemeId == mixedMinorKoreaTraditionalMajorThemeId) {
       if (card.id >= 0 && card.id <= 21 && card.arcana == 'major') {
         return koreaTraditionalMajorThemeId;

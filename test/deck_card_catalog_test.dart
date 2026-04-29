@@ -56,6 +56,20 @@ void main() {
     );
   });
 
+  test('클레이 덱 앞면: RW 메이저 0~21은 한국전통 · 82·83은 클레이', () {
+    final hierophant = tarotDeck.firstWhere((c) => c.id == 5 && c.arcana == 'major');
+    final mother =
+        tarotDeck.firstWhere((c) => c.id == 82 && c.arcana == 'special');
+    expect(
+      resolveFrontThemeForMajorClayDeckCard(hierophant),
+      koreaTraditionalMajorThemeId,
+    );
+    expect(
+      resolveFrontThemeForMajorClayDeckCard(mother),
+      majorClayThemeId,
+    );
+  });
+
   test(
     '한국전통 덱: 별(17) 번들 경로는 koreacard · 장착 ID만 쓰면 마이너는 null',
     () {

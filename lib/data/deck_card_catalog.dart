@@ -239,3 +239,15 @@ String resolveFrontThemeForKoreaTraditionalDeckCard(TarotCard card) {
   }
   return majorClayThemeId;
 }
+
+/// `major-clay`(클레이 덱) 선택 시 앞면 테마.
+///
+/// RW 메이저 **0~21**은 앱 시그니처인 한국전통 일러를 쓰고, 확장 메이저(82·83)·마이너는 클레이.
+String resolveFrontThemeForMajorClayDeckCard(TarotCard card) {
+  if (card.arcana == 'major' &&
+      card.id >= 0 &&
+      card.id <= 21) {
+    return koreaTraditionalMajorThemeId;
+  }
+  return majorClayThemeId;
+}
