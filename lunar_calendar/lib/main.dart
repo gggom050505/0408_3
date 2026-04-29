@@ -241,7 +241,8 @@ class _LunarCalendarPageState extends State<LunarCalendarPage> with WidgetsBindi
   static const List<String> _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
   static const List<String> _stemsKorean = ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'];
   static const List<String> _branchesKorean = ['자', '축', '인', '묘', '진', '사', '오', '미', '신', '유', '술', '해'];
-  static final DateTime _dayCycleBaseUtc = DateTime.utc(1984, 2, 2); // 갑자일 기준
+  // 일주(日柱): `lunar` 万年历 기준 1984-01-31 = 甲子(갑자). 1984-02-02는 丙寅(병인)이므로 쓰지 않음.
+  static final DateTime _dayCycleBaseUtc = DateTime.utc(1984, 1, 31);
   static const String _prefsYearKey = 'year';
   static const String _prefsMonthKey = 'month';
   static const String _prefsSelectedDayKey = 'selected_day';
