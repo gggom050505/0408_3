@@ -579,51 +579,65 @@ class _GanjiCalendarTabState extends State<GanjiCalendarTab> {
             ),
           ),
           children: [
-            Text(
-              kFiveElementsOneLinerKo,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            ...kFiveElementsSectionsOrdered.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${e.symbolHan}  ${e.nameKo}',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 260),
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  primary: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kFiveElementsOneLinerKo,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.45,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      e.natureKo,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 14),
+                      ...kFiveElementsSectionsOrdered.map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${e.symbolHan}  ${e.nameKo}',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                e.natureKo,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.secondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                e.traitsKo,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  height: 1.42,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      e.traitsKo,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        height: 1.42,
+                      const SizedBox(height: 4),
+                      Text(
+                        kGanjiDisclaimerShortKo,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                          height: 1.38,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              kGanjiDisclaimerShortKo,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-                height: 1.38,
               ),
             ),
           ],
